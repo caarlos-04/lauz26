@@ -4,6 +4,8 @@
 |---|---|---|
 | `events.json` | Event catalogue (dilemmas with 2 options × 3 cases) | `docs/README.md` 5.3 |
 | `facts.json` | Life facts (education, occupation, city, housing, family), milestones and initial-fact rules | `docs/README.md` 5.4 |
+| `interview.json` | The start-of-app interview (P1): 11 multiple-choice questions whose options fill `ProfileField`s. Numbers come from the dataset. **Generated** by `python tools/interview.py --build` | `docs/README.md` 5.7, `InterviewCatalog` (Kotlin) |
+| `interview-defaults.json` | Dataset medians for "I don't know" answers (income by employment, rent by city x household, cash by age) and to size the goal. **Generated** with the file above | `InterviewDefaults` (Kotlin) |
 | `assumptions.json` | *(pending)* inflation, wage growth, financing, penalties, sensitivity ranges | `docs/README.md` 5.7 |
 
 Once the KMP project exists, these files are copied into the `commonMain` resources.
@@ -57,3 +59,17 @@ Two games should be **two different lives**. That is why events are chained:
 
 Without any event Alexia loses ≈ CHF 1,000/month and pays overdraft interest (−170k after 10 years).
 **Missing**: events for turns 2-4 (first job, housing, partner, moving, investing...), otherwise the game ends with quiet turns.
+
+## The interview (`interview.json`)
+`python tools/interview.py --build` rebuilds it from the CSVs, `--check` validates it (against the Kotlin enums in `Enums.kt`,
+`facts.json` and the dataset ranges), `--demo 5` prints five random people, and `--strings DIR` writes the ES/EN Compose strings
+(`values/strings.xml`, `values-es/strings.xml`) for the UI. Texts live in `interview.json` as `{"EN","ES"}`; the UI reads them through
+`textKey` / `labelKey`.
+- **What is asked** is what the simulator reads from a person: age, city, household, employment, studies (the `EDUCATION` fact: studying is
+  independent from working), income, rent, cash, plus the goal and the preferences (`OBJECTIVE`, `MIN_CASH`). `tools/flow_model.py` found that
+  only employment, city and studying drive the flows; income and rent are the bases of the amounts.
+- **Bands** come from the data (`AGE_EDGES`... in `tools/interview.py`); each option stands for the dataset median of the people in its band.
+- **"I don't know"** (an option with empty `sets`) takes the dataset median, see `interview-defaults.json`.
+- **Goals** are the six `goal_name` values of `synthetic-goals.csv`; each carries its dataset date and priority (Emergency savings and Long-term
+  financial resilience: 2029, HIGH; the rest: 2032, MEDIUM) and a target of about 9-21 monthly incomes.
+- **Not asked**: investments and loans (no `ProfileField` for them: they start at 0) and the name. Nobody in the dataset lives abroad, so `ABROAD` is not offered.

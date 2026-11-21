@@ -1,0 +1,427 @@
+{
+  "version": 1,
+  "meta": {
+    "generator": "tools/interview.py --build",
+    "source": "LauzHack 2026 synthetic dataset (synthetic-profiles.csv, synthetic-goals.csv, synthetic-transactions)",
+    "nProfiles": 1200,
+    "note": "Medians of the dataset, used when the person answers 'I don't know' or to size the goal. n = people behind each value."
+  },
+  "limits": {
+    "age": [
+      18,
+      76
+    ],
+    "incomeChf": [
+      9,
+      12293
+    ],
+    "rentChf": [
+      682,
+      3902
+    ],
+    "cashChf": [
+      1042,
+      150000
+    ],
+    "goalTargetChf": [
+      10000,
+      240000
+    ]
+  },
+  "ageBands": [
+    {
+      "from": 18,
+      "to": 25
+    },
+    {
+      "from": 25,
+      "to": 35
+    },
+    {
+      "from": 35,
+      "to": 45
+    },
+    {
+      "from": 45,
+      "to": 55
+    },
+    {
+      "from": 55,
+      "to": 65
+    },
+    {
+      "from": 65,
+      "to": null
+    }
+  ],
+  "incomeByEmployment": {
+    "EMPLOYED": {
+      "chf": 7740,
+      "n": 682
+    },
+    "NOT_WORKING": {
+      "chf": 1200,
+      "n": 39
+    },
+    "PART_TIME": {
+      "chf": 4310,
+      "n": 120
+    },
+    "RETIRED": {
+      "chf": 3830,
+      "n": 216
+    },
+    "SELF_EMPLOYED": {
+      "chf": 7270,
+      "n": 106
+    },
+    "UNEMPLOYED": {
+      "chf": 530,
+      "n": 37
+    }
+  },
+  "incomeOverall": {
+    "chf": 5570,
+    "n": 1200
+  },
+  "rentByCityHousehold": {
+    "Basel|COUPLE": {
+      "chf": 2550,
+      "n": 29
+    },
+    "Basel|FAMILY": {
+      "chf": 2510,
+      "n": 23
+    },
+    "Basel|SHARED_HOUSING": {
+      "chf": 1200,
+      "n": 15
+    },
+    "Basel|SINGLE": {
+      "chf": 1810,
+      "n": 36
+    },
+    "Bern|COUPLE": {
+      "chf": 2530,
+      "n": 26
+    },
+    "Bern|FAMILY": {
+      "chf": 2550,
+      "n": 16
+    },
+    "Bern|SHARED_HOUSING": {
+      "chf": 1150,
+      "n": 9
+    },
+    "Bern|SINGLE": {
+      "chf": 1710,
+      "n": 30
+    },
+    "Biel|COUPLE": {
+      "chf": 2210,
+      "n": 40
+    },
+    "Biel|FAMILY": {
+      "chf": 2420,
+      "n": 15
+    },
+    "Biel|SHARED_HOUSING": {
+      "chf": 1160,
+      "n": 12
+    },
+    "Biel|SINGLE": {
+      "chf": 1670,
+      "n": 33
+    },
+    "Fribourg|COUPLE": {
+      "chf": 2180,
+      "n": 35
+    },
+    "Fribourg|FAMILY": {
+      "chf": 2160,
+      "n": 19
+    },
+    "Fribourg|SHARED_HOUSING": {
+      "chf": 1130,
+      "n": 5
+    },
+    "Fribourg|SINGLE": {
+      "chf": 1540,
+      "n": 44
+    },
+    "Geneva|COUPLE": {
+      "chf": 2760,
+      "n": 28
+    },
+    "Geneva|FAMILY": {
+      "chf": 2810,
+      "n": 22
+    },
+    "Geneva|SHARED_HOUSING": {
+      "chf": 1630,
+      "n": 10
+    },
+    "Geneva|SINGLE": {
+      "chf": 2020,
+      "n": 44
+    },
+    "Lausanne|COUPLE": {
+      "chf": 2500,
+      "n": 27
+    },
+    "Lausanne|FAMILY": {
+      "chf": 2490,
+      "n": 16
+    },
+    "Lausanne|SHARED_HOUSING": {
+      "chf": 1090,
+      "n": 12
+    },
+    "Lausanne|SINGLE": {
+      "chf": 1590,
+      "n": 41
+    },
+    "Lucerne|COUPLE": {
+      "chf": 2470,
+      "n": 25
+    },
+    "Lucerne|FAMILY": {
+      "chf": 2760,
+      "n": 16
+    },
+    "Lucerne|SHARED_HOUSING": {
+      "chf": 1200,
+      "n": 15
+    },
+    "Lucerne|SINGLE": {
+      "chf": 1900,
+      "n": 44
+    },
+    "Lugano|COUPLE": {
+      "chf": 2440,
+      "n": 32
+    },
+    "Lugano|FAMILY": {
+      "chf": 2290,
+      "n": 26
+    },
+    "Lugano|SHARED_HOUSING": {
+      "chf": 1150,
+      "n": 13
+    },
+    "Lugano|SINGLE": {
+      "chf": 1580,
+      "n": 33
+    },
+    "Neuchatel|COUPLE": {
+      "chf": 2360,
+      "n": 32
+    },
+    "Neuchatel|FAMILY": {
+      "chf": 2300,
+      "n": 24
+    },
+    "Neuchatel|SHARED_HOUSING": {
+      "chf": 1070,
+      "n": 8
+    },
+    "Neuchatel|SINGLE": {
+      "chf": 1570,
+      "n": 54
+    },
+    "St Gallen|COUPLE": {
+      "chf": 2310,
+      "n": 24
+    },
+    "St Gallen|FAMILY": {
+      "chf": 2140,
+      "n": 31
+    },
+    "St Gallen|SHARED_HOUSING": {
+      "chf": 920,
+      "n": 13
+    },
+    "St Gallen|SINGLE": {
+      "chf": 1380,
+      "n": 43
+    },
+    "Winterthur|COUPLE": {
+      "chf": 2870,
+      "n": 19
+    },
+    "Winterthur|FAMILY": {
+      "chf": 2230,
+      "n": 18
+    },
+    "Winterthur|SHARED_HOUSING": {
+      "chf": 1120,
+      "n": 12
+    },
+    "Winterthur|SINGLE": {
+      "chf": 1620,
+      "n": 30
+    },
+    "Zurich|COUPLE": {
+      "chf": 2870,
+      "n": 32
+    },
+    "Zurich|FAMILY": {
+      "chf": 3060,
+      "n": 14
+    },
+    "Zurich|SHARED_HOUSING": {
+      "chf": 1210,
+      "n": 15
+    },
+    "Zurich|SINGLE": {
+      "chf": 1930,
+      "n": 40
+    }
+  },
+  "rentByCity": {
+    "Basel": {
+      "chf": 2040,
+      "n": 103
+    },
+    "Bern": {
+      "chf": 1950,
+      "n": 81
+    },
+    "Biel": {
+      "chf": 1930,
+      "n": 100
+    },
+    "Fribourg": {
+      "chf": 1740,
+      "n": 103
+    },
+    "Geneva": {
+      "chf": 2320,
+      "n": 104
+    },
+    "Lausanne": {
+      "chf": 1960,
+      "n": 96
+    },
+    "Lucerne": {
+      "chf": 2040,
+      "n": 100
+    },
+    "Lugano": {
+      "chf": 1980,
+      "n": 104
+    },
+    "Neuchatel": {
+      "chf": 1820,
+      "n": 118
+    },
+    "St Gallen": {
+      "chf": 1660,
+      "n": 111
+    },
+    "Winterthur": {
+      "chf": 1890,
+      "n": 79
+    },
+    "Zurich": {
+      "chf": 2260,
+      "n": 101
+    }
+  },
+  "rentByHousehold": {
+    "COUPLE": {
+      "chf": 2480,
+      "n": 349
+    },
+    "FAMILY": {
+      "chf": 2370,
+      "n": 240
+    },
+    "SHARED_HOUSING": {
+      "chf": 1150,
+      "n": 139
+    },
+    "SINGLE": {
+      "chf": 1670,
+      "n": 472
+    }
+  },
+  "rentOverall": {
+    "chf": 1940,
+    "n": 1200
+  },
+  "cashByAgeBand": [
+    {
+      "chf": 28230,
+      "n": 143
+    },
+    {
+      "chf": 31290,
+      "n": 201
+    },
+    {
+      "chf": 80320,
+      "n": 207
+    },
+    {
+      "chf": 75950,
+      "n": 198
+    },
+    {
+      "chf": 87680,
+      "n": 195
+    },
+    {
+      "chf": 78580,
+      "n": 256
+    }
+  ],
+  "cashOverall": {
+    "chf": 53120,
+    "n": 1200
+  },
+  "goals": {
+    "Career transition": {
+      "incomeRatio": 10.8,
+      "targetDate": "2032-12-31",
+      "priority": "MEDIUM",
+      "n": 71
+    },
+    "Education flexibility": {
+      "incomeRatio": 10.0,
+      "targetDate": "2032-12-31",
+      "priority": "MEDIUM",
+      "n": 77
+    },
+    "Emergency savings": {
+      "incomeRatio": 8.7,
+      "targetDate": "2029-12-31",
+      "priority": "HIGH",
+      "n": 447
+    },
+    "Housing deposit": {
+      "incomeRatio": 11.1,
+      "targetDate": "2032-12-31",
+      "priority": "MEDIUM",
+      "n": 90
+    },
+    "Long-term financial resilience": {
+      "incomeRatio": 21.1,
+      "targetDate": "2029-12-31",
+      "priority": "HIGH",
+      "n": 753
+    },
+    "Retirement reserve": {
+      "incomeRatio": 10.2,
+      "targetDate": "2032-12-31",
+      "priority": "MEDIUM",
+      "n": 62
+    }
+  },
+  "monthlyOutflowChf": 3470,
+  "objectivePenaltyChfPerMonth": {
+    "GROWTH": 0.0,
+    "BALANCED": 500.0,
+    "SAFE": 3000.0
+  }
+}
