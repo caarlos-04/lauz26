@@ -210,4 +210,7 @@
     <string name="results_headline">Adónde te llevan tus decisiones</string>
     <string name="chat_cta_desc">Pregunta por los riesgos, las metas o qué habría pasado si no.</string>
     <string name="chat_future_self">Tú, dentro de 10 años</string>
+    <string name="chat_ai_badge">IA · %1$s</string>
+    <string name="chat_offline_badge">Respuestas de ejemplo</string>
+    <string name="chat_offline_note">Respuesta sin conexión: no se pudo contactar con la IA.</string>
 </resources>

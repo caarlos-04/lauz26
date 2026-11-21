@@ -12,7 +12,8 @@ First version of the UI (Dev B), running end to end against **fake data**. See `
 |---|---|
 | `model/` | Dataclasses from docs §5 (shared contract — do not change without telling the team) |
 | `engine/GameEngine.kt` | Interface the UI uses (P3–P9). Real implementation: Dev A |
-| `ai/FutureSelfChat.kt` | Chat interface (P10). Real implementation: Dev C |
+| `ai/FutureSelfChat.kt` | Chat interface (P10) |
+| `ai/AgentFutureSelfChat.kt`, `ai/BriefingMapper.kt` | Adapter to the Koog agent in the root `ai/` module (see `../ai/README.md`): maps the selected branch to a `LifeBriefing`, falls back to canned answers offline |
 | `fake/` | `FakeGameEngine`, `FakeData` (Alexia, 5 events, interview, assumptions), `FakeProfileBuilder`, `CannedFutureSelfChat` (plan B). All values synthetic/illustrative |
 | `ui/` | `App.kt` (wiring + router), `AppState.kt` (holds `GameSession`), `theme/`, `i18n/`, `components/` (incl. Canvas `FanChart`), `screens/` |
 
@@ -27,7 +28,7 @@ After the last turn, `ResultsScreen` shows an editable tree (`ui/components/Deci
 Requirement for the real engine: `nextEvent` must be deterministic (seeded with `seed + turnIndex`), otherwise paths can't be reproduced. Demo: buying the car with a loan triggers `E-car-loan` (`requiresLiability`); switching it to the travelcard in the tree replaces it with a pending `E-sabbatical`.
 
 ## Swapping in the real implementations
-Edit `createDefaultAppState()` in `ui/App.kt`: replace `FakeGameEngine`, `CannedFutureSelfChat`, `FakeData.*` and `FakeProfileBuilder::build`.
+Edit `createDefaultAppState()` in `ui/App.kt`: replace `FakeGameEngine`, `FakeData.*` and `FakeProfileBuilder::build`. The chat already uses the real agent when `OPENAI_API_KEY` (or `ANTHROPIC_API_KEY`) is set (`OPENAI_API_KEY=… ./gradlew :composeApp:run`), and `CannedFutureSelfChat` otherwise.
 
 ## Design system ("modern fintech")
 - `ui/theme/Color.kt`: navy brand + emerald accent, light/dark schemes and `TwinColors` (cases, gains/losses, chart series). Chart and case colors were checked with a palette validator (lightness band, colour-blind separation, contrast) in both themes; case colors are always paired with their name.

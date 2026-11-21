@@ -11,7 +11,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import ch.lauzhack.twin.ai.AgentFutureSelfChat
+import ch.lauzhack.twin.ai.BriefingMapper
+import ch.lauzhack.twin.ai.FutureSelfAgent
+import ch.lauzhack.twin.ai.FutureSelfChat
 import ch.lauzhack.twin.fake.CannedFutureSelfChat
+import ch.lauzhack.twin.ui.i18n.keyStringAsync
 import ch.lauzhack.twin.fake.FakeData
 import ch.lauzhack.twin.fake.FakeGameEngine
 import ch.lauzhack.twin.fake.FakeProfileBuilder
@@ -28,16 +33,32 @@ import ch.lauzhack.twin.ui.screens.ResultsScreen
 import ch.lauzhack.twin.ui.screens.WelcomeScreen
 import ch.lauzhack.twin.ui.theme.TwinTheme
 
-/** Wires the fakes. Swap FakeGameEngine / CannedFutureSelfChat here when the real ones exist. */
+/**
+ * Wires the dependencies. The chat uses the Koog agent (ai/) when OPENAI_API_KEY or ANTHROPIC_API_KEY is set,
+ * otherwise the canned answers. Swap FakeGameEngine here when the real engine exists.
+ */
 fun createDefaultAppState(): AppState = AppState(
     engine = FakeGameEngine(FakeData.events, FakeData.assumptions),
-    chat = CannedFutureSelfChat(),
+    chat = createChat(),
     assumptions = FakeData.assumptions,
     catalog = FakeData.events,
     interview = FakeData.interview,
     buildProfile = FakeProfileBuilder::build,
     demoProfile = FakeData.alexiaProfile to FakeData.alexiaState,
 )
+
+/** The LLM agent, or null when no API key is configured (then the chat uses canned answers). */
+private val futureSelfAgent: FutureSelfAgent? by lazy { FutureSelfAgent.fromEnvironment() }
+
+/** Model shown in the chat badge, or null for canned answers. */
+val aiChatModel: String? get() = futureSelfAgent?.modelId
+
+private fun createChat(): FutureSelfChat {
+    val canned = CannedFutureSelfChat()
+    val agent = futureSelfAgent ?: return canned
+    val mapper = BriefingMapper(eventById = { id -> FakeData.events.firstOrNull { it.id == id } }, text = ::keyStringAsync)
+    return AgentFutureSelfChat(agent, mapper, fallback = canned)
+}
 
 @Composable
 fun App(state: AppState = remember { createDefaultAppState() }) {
@@ -128,6 +149,6 @@ private fun Router(state: AppState, screen: Screen, actions: TopBarActions) {
                 )
             }
         }
-        Screen.CHAT -> ChatScreen(actions, panel, state.chatHistory, state.chatLoading, state.isEdited, state::ask, state::backToResults)
+        Screen.CHAT -> ChatScreen(actions, panel, state.chatHistory, state.chatLoading, state.isEdited, aiChatModel, state::ask, state::backToResults)
     }
 }

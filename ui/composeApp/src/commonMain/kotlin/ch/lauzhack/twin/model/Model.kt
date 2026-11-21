@@ -287,7 +287,11 @@ data class Assumptions(
 @Serializable enum class ChatRole { USER, FUTURE_SELF }
 
 @Serializable
-data class ChatMessage(val role: ChatRole, val text: String)
+data class ChatMessage(
+    val role: ChatRole,
+    val text: String,
+    val offline: Boolean = false,   // UI only: answer came from the canned fallback, not the LLM
+)
 
 data class ChatContext(
     val session: GameSession,
@@ -296,4 +300,5 @@ data class ChatContext(
     val simulation: SimulationResult?,
     val assumptions: Assumptions,
     val language: Lang,
+    val editedTurns: Set<Int> = emptySet(),  // UI only: turn indices changed in the what-if tree
 )

@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import ch.lauzhack.twin.model.Lang
 import ch.lauzhack.twin.resources.Res
 import ch.lauzhack.twin.resources.allStringResources
+import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 
 /** Locale tag used by Compose resources for each app language. */
@@ -17,4 +18,10 @@ val Lang.tag: String get() = name.lowercase()
 fun keyString(key: String): String {
     val res = Res.allStringResources[key] ?: return key
     return stringResource(res)
+}
+
+/** Non-composable [keyString] for code outside the UI tree (the chat briefing). Uses the app locale. */
+suspend fun keyStringAsync(key: String): String {
+    val res = Res.allStringResources[key] ?: return key
+    return getString(res)
 }

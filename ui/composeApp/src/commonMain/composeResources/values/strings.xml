@@ -210,4 +210,7 @@
     <string name="results_headline">Where your decisions lead</string>
     <string name="chat_cta_desc">Ask about risks, goals or what would have happened otherwise.</string>
     <string name="chat_future_self">You, 10 years from now</string>
+    <string name="chat_ai_badge">AI · %1$s</string>
+    <string name="chat_offline_badge">Sample answers</string>
+    <string name="chat_offline_note">Offline answer: the AI could not be reached.</string>
 </resources>

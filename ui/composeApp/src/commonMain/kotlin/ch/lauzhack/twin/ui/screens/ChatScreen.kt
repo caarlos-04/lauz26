@@ -45,7 +45,10 @@ import androidx.compose.ui.unit.dp
 import ch.lauzhack.twin.model.ChatMessage
 import ch.lauzhack.twin.model.ChatRole
 import ch.lauzhack.twin.resources.Res
+import ch.lauzhack.twin.resources.chat_ai_badge
 import ch.lauzhack.twin.resources.chat_edited_notice
+import ch.lauzhack.twin.resources.chat_offline_badge
+import ch.lauzhack.twin.resources.chat_offline_note
 import ch.lauzhack.twin.resources.chat_future_self
 import ch.lauzhack.twin.resources.chat_intro
 import ch.lauzhack.twin.resources.chat_placeholder
@@ -57,6 +60,7 @@ import ch.lauzhack.twin.resources.chat_title
 import ch.lauzhack.twin.ui.components.AppShell
 import ch.lauzhack.twin.ui.components.IconBadge
 import ch.lauzhack.twin.ui.components.PanelData
+import ch.lauzhack.twin.ui.components.Pill
 import ch.lauzhack.twin.ui.components.SurfaceCard
 import ch.lauzhack.twin.ui.components.TopBarActions
 import ch.lauzhack.twin.ui.theme.Space
@@ -72,6 +76,7 @@ fun ChatScreen(
     history: List<ChatMessage>,
     loading: Boolean,
     isEditedPath: Boolean,
+    aiModel: String?, // null = canned answers
     onAsk: suspend (String) -> Unit,
     onBack: () -> Unit,
 ) {
@@ -96,6 +101,10 @@ fun ChatScreen(
                 Text(stringResource(Res.string.chat_title), style = MaterialTheme.typography.titleLarge)
                 Text(stringResource(Res.string.chat_intro), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            Pill(
+                if (aiModel != null) stringResource(Res.string.chat_ai_badge, aiModel) else stringResource(Res.string.chat_offline_badge),
+                color = if (aiModel != null) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
         if (isEditedPath) {
             Text(stringResource(Res.string.chat_edited_notice), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary)
@@ -169,6 +178,9 @@ private fun Bubble(message: ChatMessage, futureSelfName: String) {
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (mine) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                 )
+            }
+            if (message.offline) {
+                Text(stringResource(Res.string.chat_offline_note), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

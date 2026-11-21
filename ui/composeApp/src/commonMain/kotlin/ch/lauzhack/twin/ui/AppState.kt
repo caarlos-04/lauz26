@@ -220,10 +220,20 @@ class AppState(
         chatHistory += ChatMessage(ChatRole.USER, question)
         chatLoading = true
         try {
-            val context = ChatContext(s, r.chosenStats, r.comparison, r.chosenSim, assumptions, lang)
+            val context = ChatContext(s, r.chosenStats, r.comparison, r.chosenSim, assumptions, lang, editedTurns(s))
             chatHistory += chat.ask(context, history, question)
         } finally {
             chatLoading = false
+        }
+    }
+
+    /** Turns whose event, option or luck differ from the game actually played. */
+    private fun editedTurns(s: GameSession): Set<Int> {
+        val played = playedSession?.turns ?: return emptySet()
+        return s.turns.indices.filterTo(mutableSetOf()) { i ->
+            val p = played.getOrNull(i)
+            val t = s.turns[i]
+            p == null || p.eventId != t.eventId || p.chosenOptionId != t.chosenOptionId || p.resolvedCase != t.resolvedCase
         }
     }
 
