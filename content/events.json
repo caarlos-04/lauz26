@@ -12,7 +12,7 @@
         "ES": "Terminas el grado. Puedes estudiar un máster de dos años o empezar a trabajar ya.",
         "EN": "You are finishing your bachelor's. You can study a two-year master's or start working now."
       },
-      "requires": { "employment": ["STUDENT"], "maxAge": 30, "facts": { "EDUCATION": ["BACHELOR_IN_PROGRESS"] } },
+      "requires": { "maxAge": 30, "facts": { "EDUCATION": ["BACHELOR_IN_PROGRESS"] } },
       "priority": 0,
       "earliestTurn": 0,
       "sources": [

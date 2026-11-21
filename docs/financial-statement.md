@@ -1,25 +1,26 @@
-# FinancialStatement — la foto de la persona en cada paso
+# FinancialStatement — the person's snapshot at each step
 
-> Contrato compartido (Dev A, B, C). Si cambia, se avisa con una issue con la etiqueta `contrato`.
-> Implementación de referencia: `tools/statement.py`. Generador: `tools/build_statements.py`.
+> Shared contract (Dev A, B, C). If it changes, announce it with an issue labelled `contrato`.
+> Reference implementation: `tools/statement.py`. Generator: `tools/build_statements.py`.
+> Kotlin data classes: `composeApp/src/commonMain/kotlin/com/lauzhack/twin/model/FinancialStatement.kt`.
 
-Un `FinancialStatement` es **todo lo que sabemos de una persona en un punto del tiempo**: quién es, qué hechos de vida
-tiene, cuánto dinero tiene y dónde, qué debe, qué cobra y paga cada mes, qué pasó con su caja ese mes, cómo van sus
-metas y unos indicadores de salud financiera. Es el estado del gemelo: el motor recibe un statement y devuelve otro,
-la UI pinta statements y el LLM los cuenta.
+A `FinancialStatement` is **everything we know about a person at one point in time**: who they are, which life facts
+they have, how much money they have and where, what they owe, what they earn and pay every month, what happened to
+their cash that month, how their goals are going and a few financial health indicators. It is the twin's state: the
+engine takes a statement and returns another one, the UI draws statements and the LLM tells them.
 
-## 1. Convenciones
+## 1. Conventions
 
-| Tema | Regla |
+| Topic | Rule |
 |---|---|
-| Mes | `month = 0` es el statement de apertura, a fecha `startMonth-01` (2025-01-01), sin flujo de caja. `month = t ≥ 1` es el statement **al final** del mes de calendario `startMonth + (t − 1)` e incluye el flujo de caja de ese mes |
-| Periodo | `period`: `"2025-01-01"` en la apertura; `"2025-01"`, `"2025-02"`… después. Mes 12 = diciembre 2025; mes 120 = diciembre 2034 |
-| Dinero | `Double` en CHF (todo el dataset está en CHF). Tipos de interés como fracción anual |
-| Origen | Cada statement tiene `origin`: `OBSERVED` (meses 0-24 del dataset) o `SIMULATED` (motor). Cada línea de flujo tiene el origen de **su importe**: `OBSERVED` (columna del dataset), `DERIVED` (calculado a partir del dataset), `ASSUMED` (supuesto nuestro) o `SIMULATED` (creado por un evento) |
-| Metas | `targetMonth` = statement al final del mes objetivo (31-12-2029 → mes 60) |
-| Inmutable | Cada paso produce un statement nuevo. Las partes derivadas (`balanceSheet`, `goals`, `metrics`) se recalculan en **un único sitio** (`assemble` en Python, `finalize` en Kotlin) |
+| Month | `month = 0` is the opening statement, as of `startMonth-01` (2025-01-01), with no cash flow. `month = t ≥ 1` is the statement at the **end** of calendar month `startMonth + (t − 1)` and includes that month's cash flow |
+| Period | `period`: `"2025-01-01"` for the opening; `"2025-01"`, `"2025-02"`… afterwards. Month 12 = December 2025; month 120 = December 2034 |
+| Money | `Double` in CHF (the whole dataset is in CHF). Interest rates as an annual fraction |
+| Origin | Every statement has an `origin`: `OBSERVED` (dataset months 0-24) or `SIMULATED` (engine). Every flow line carries the origin of **its amount**: `OBSERVED` (dataset column), `DERIVED` (computed from the dataset), `ASSUMED` (our assumption) or `SIMULATED` (created by an event) |
+| Goals | `targetMonth` = statement at the end of the target month (2029-12-31 → month 60) |
+| Immutable | Each step produces a new statement. The derived parts (`balanceSheet`, `goals`, `metrics`) are recomputed in **a single place** (`assemble` in Python, `finalize` in Kotlin) |
 
-## 2. Esquema
+## 2. Schema
 
 ```kotlin
 data class FinancialStatement(
@@ -112,84 +113,88 @@ data class StatementMetrics(
 )
 ```
 
-`LifeChange`, `FactKey`, `Employment`, `Household`, `AssetType`, `LiabilityType`, `ExpenseCategory`: ver `docs/README.md` (sección 5).
+`LifeChange`, `FactKey`, `Employment`, `Household`, `AssetType`, `LiabilityType`, `ExpenseCategory`: see `docs/README.md` (section 5).
 
-## 3. De dónde sale cada campo (cruce de los datasets por `profile_id`)
+## 3. Where each field comes from (datasets joined by `profile_id`)
 
-| Campo del statement | Fichero.columna | Origen | Notas |
+| Statement field | File.column | Origin | Notes |
 |---|---|---|---|
-| `profileId` | `synthetic-profiles.profile_id` | OBSERVED | Clave de todos los cruces |
-| `person.displayName` | `synthetic-profiles.display_name` | OBSERVED | Solo 30 nombres distintos |
-| `person.ageAtStart`, `age` | `synthetic-profiles.age_at_start` | OBSERVED / DERIVED | `age` crece con el mes |
-| `person.city`, `canton`, `country` | `synthetic-profiles.city/canton/country` | OBSERVED | `country` siempre CH |
-| `person.employment`, `household` | `synthetic-profiles.employment_status/household_type` | OBSERVED | Cambian por eventos |
-| `person.facts` | `content/facts.json` → `initialFromProfile` | DERIVED | Reglas a partir de empleo, hogar y ciudad |
-| `person.synthetic` | `synthetic-profiles.synthetic` | OBSERVED | Siempre `true` |
-| `currency` | `currency` de todos los ficheros | OBSERVED | Siempre CHF |
-| `accounts[]` | `synthetic-accounts.*` | OBSERVED | Una cuenta de caja por perfil |
-| `accounts[].balanceChf` (mes 0) | `synthetic-accounts.opening_balance_chf` | OBSERVED | = `profiles.opening_cash_chf` = activo `cash` |
-| `accounts[].balanceChf` (meses 1-24) | `synthetic-cash-balances.closing_cash_chf` | OBSERVED | |
-| `accounts[].status` | `synthetic-cash-balances.status` | OBSERVED | Coincide siempre con caja < 0 |
-| `investments[]` | `synthetic-assets` con `asset_type = investment_portfolio` | OBSERVED | Todos menos Alexia (1.199 perfiles) |
-| `investments[].accountId` | `synthetic-assets.account_id` | OBSERVED | Las cuentas `A-…-INV` **no existen** en `synthetic-accounts` |
-| `investments[].annualReturn` | — | ASSUMED | No hay rentabilidades en el dataset |
-| `liabilities[]` | `synthetic-liabilities.*` | OBSERVED | 283 perfiles, un préstamo personal cada uno |
-| `liabilities[].monthlyPaymentChf` | — | ASSUMED | El dataset tiene 0; suponemos anualidad a 60 meses (`paymentIsAssumed`) |
-| `incomeStreams[income/pension]` | `synthetic-profiles.reference_monthly_net_income_chf` | OBSERVED | `pension` si jubilado |
+| `profileId` | `synthetic-profiles.profile_id` | OBSERVED | Key for every join |
+| `person.displayName` | `synthetic-profiles.display_name` | OBSERVED | Only 30 distinct names |
+| `person.ageAtStart`, `age` | `synthetic-profiles.age_at_start` | OBSERVED / DERIVED | `age` grows with the month |
+| `person.city`, `canton`, `country` | `synthetic-profiles.city/canton/country` | OBSERVED | `country` is always CH |
+| `person.employment` | `synthetic-profiles.employment_status` | DERIVED | Work status only: `student` → `NOT_WORKING` (studying goes to `facts.EDUCATION`); the rest unchanged. Changed by events |
+| `person.household` | `synthetic-profiles.household_type` | OBSERVED | |
+| `person.facts` | `content/facts.json` → `initialFromProfile` | DERIVED | Rules based on the dataset's employment_status, household and city. `EDUCATION` says whether the person studies |
+| `person.synthetic` | `synthetic-profiles.synthetic` | OBSERVED | Always `true` |
+| `currency` | `currency` in every file | OBSERVED | Always CHF |
+| `accounts[]` | `synthetic-accounts.*` | OBSERVED | One cash account per profile |
+| `accounts[].balanceChf` (month 0) | `synthetic-accounts.opening_balance_chf` | OBSERVED | = `profiles.opening_cash_chf` = `cash` asset |
+| `accounts[].balanceChf` (months 1-24) | `synthetic-cash-balances.closing_cash_chf` | OBSERVED | |
+| `accounts[].status` | `synthetic-cash-balances.status` | OBSERVED | Always matches cash < 0 |
+| `investments[]` | `synthetic-assets` with `asset_type = investment_portfolio` | OBSERVED | Everyone except Alexia (1,199 profiles) |
+| `investments[].accountId` | `synthetic-assets.account_id` | OBSERVED | The `A-…-INV` accounts **do not exist** in `synthetic-accounts` |
+| `investments[].annualReturn` | — | ASSUMED | No returns in the dataset |
+| `liabilities[]` | `synthetic-liabilities.*` | OBSERVED | 283 profiles, one personal loan each |
+| `liabilities[].monthlyPaymentChf` | — | ASSUMED | The dataset has 0; we assume a 60-month annuity (`paymentIsAssumed`) |
+| `incomeStreams[income/pension]` | `synthetic-profiles.reference_monthly_net_income_chf` | OBSERVED | `pension` if retired |
 | `expenseStreams[rent]` | `synthetic-profiles.reference_monthly_rent_chf` | OBSERVED | |
-| `expenseStreams[living]` | `synthetic-cash-balances.net_transactions_chf` | DERIVED | `ingreso − alquiler − media del neto (meses sin diciembre)` |
-| `cashFlow` (meses 1-24) | `synthetic-cash-balances.opening/net/closing` | OBSERVED + DERIVED | Neto, apertura y cierre observados; desglose derivado (4.3) |
-| `goals[]` | `synthetic-goals.*` | OBSERVED | 1-2 metas por perfil; fechas 2029-12-31 o 2032-12-31 |
-| `goals[].priority` | `synthetic-goals.priority` | OBSERVED | HIGH o MEDIUM |
-| `scenarioParameters[]` | `scenario-assumptions.*` | OBSERVED (supuesto del reto) | Solo perfiles P00001-P00120: matrícula (1.200-8.000 CHF/año) y duración (2 años) del escenario S001 |
-| `balanceSheet`, `goals[].status`, `metrics` | — | DERIVED | Calculados en `assemble` / `finalize` |
+| `expenseStreams[living]` | `synthetic-cash-balances.net_transactions_chf` | DERIVED | `income − rent − mean net (non-December months)` |
+| `cashFlow` (months 1-24) | `synthetic-cash-balances.opening/net/closing` | OBSERVED + DERIVED | Net, opening and closing observed; breakdown derived (4.3) |
+| `goals[]` | `synthetic-goals.*` | OBSERVED | 1-2 goals per profile; dates 2029-12-31 or 2032-12-31 |
+| `goals[].priority` | `synthetic-goals.priority` | OBSERVED | HIGH or MEDIUM |
+| `scenarioParameters[]` | `scenario-assumptions.*` | OBSERVED (challenge assumption) | Only profiles P00001-P00120: tuition (CHF 1,200-8,000/year) and length (2 years) of scenario S001 |
+| `balanceSheet`, `goals[].status`, `metrics` | — | DERIVED | Computed in `assemble` / `finalize` |
 
-Ficheros que **no** entran en el statement: `scenario-catalog.csv` (inspiración para eventos) y la serie mensual completa
-de caja (cada statement guarda solo su mes).
+Files that do **not** go into the statement: `scenario-catalog.csv` (inspiration for events) and the full monthly cash
+series (each statement keeps only its own month).
 
-## 4. Decisiones de diseño
+## 4. Design decisions
 
-1. **La caja se cuenta una sola vez.** Aparece en tres sitios con el mismo valor (perfil, cuenta y activo `cash`).
-   En el statement vive solo en `accounts`; `investments` solo tiene inversiones.
-2. **Flujos como definiciones, no solo importes.** `incomeStreams`/`expenseStreams` llevan `fromMonth`/`untilMonth`
-   para que el statement sea suficiente para seguir simulando desde él.
-3. **Desglose de los meses observados.** El dataset solo da el neto. Se descompone en ingreso (observado) − alquiler
-   (observado) − coste de vida (derivado) + `otherChf` (derivado: ruido y paga extra). Las cuentas cuadran por construcción.
-4. **Los préstamos no se pagan en los meses observados.** El ledger del dataset no incluye su cuota. Los statements
-   observados reflejan eso (`debtService` vacío, principal constante); los simulados sí amortizan con la cuota supuesta.
-5. **Base de cada meta.** "Emergency savings" y "Housing deposit" se miden con la **caja**; el resto con el
-   **patrimonio neto**. Es un supuesto nuestro y se muestra (`progressBasis`).
-6. **Indicadores a ritmo actual.** `metrics` se calcula con los flujos activos el mes siguiente (no con lo ocurrido),
-   así existe también en la apertura. El umbral de 3 meses de colchón es una regla práctica, no un dato.
-7. **Origen visible.** Cada importe dice si es observado, derivado, supuesto o simulado: es lo que pide el reto
-   ("distinguir observaciones, supuestos y resultados calculados").
+1. **Cash is counted once.** It appears in three places with the same value (profile, account and `cash` asset).
+   In the statement it lives only in `accounts`; `investments` only holds investments.
+2. **Streams as definitions, not just amounts.** `incomeStreams`/`expenseStreams` carry `fromMonth`/`untilMonth`
+   so the statement is enough to keep simulating from it.
+3. **Breakdown of the observed months.** The dataset only gives the net. It is split into income (observed) − rent
+   (observed) − living cost (derived) + `otherChf` (derived: noise and December bonus). It adds up by construction.
+4. **Loans are not paid in the observed months.** The dataset ledger does not include their payment. The observed
+   statements reflect that (empty `debtService`, constant principal); the simulated ones do amortise with the assumed payment.
+5. **Basis of each goal.** "Emergency savings" and "Housing deposit" are measured with **cash**; the rest with
+   **net worth**. It is our assumption and it is shown (`progressBasis`).
+6. **Run-rate indicators.** `metrics` uses the streams active next month (not what happened), so it exists for the
+   opening statement too. The 3-month cushion threshold is a rule of thumb, not data.
+7. **Studying and working are independent.** `person.employment` is only about how the person earns money; whether they
+   study is `facts.EDUCATION` (a value ending in `_IN_PROGRESS`). A working student has `PART_TIME` + `MASTER_IN_PROGRESS`.
+   The dataset's single `employment_status` is split when loading (`student` → `NOT_WORKING` + `BACHELOR_IN_PROGRESS`).
+8. **Visible origin.** Every amount says whether it is observed, derived, assumed or simulated: that is what the
+   challenge asks for ("distinguish observations, assumptions and calculated outcomes").
 
-## 5. Identidades que se comprueban (`check_statement`)
+## 5. Identities that are checked (`check_statement`)
 
-- `caja + inversiones − deudas = patrimonio neto`
-- `ingresos − gastos − cuotas − financiación + otros = neto del mes`
-- `caja de apertura + neto = caja de cierre = caja del balance`
+- `cash + investments − liabilities = net worth`
+- `income − expenses − debt payments − financing + other = net for the month`
+- `opening cash + net = closing cash = balance-sheet cash`
 
-Resultado actual: **1.200 perfiles × 25 statements (apertura + 24 meses observados), 0 errores**; y los statements
-simulados por turno de `--play` también cuadran.
+Current result: **1,200 profiles × 25 statements (opening + 24 observed months), 0 errors**; the simulated statements
+per turn from `--play` add up too.
 
-## 6. Cómo generarlos
+## 6. How to generate them
 
 ```
-python tools/build_statements.py --profile P00001          # apertura + 24 meses observados -> tools/out/statements/
-python tools/build_statements.py --all --check-only        # comprobar las identidades en todos los perfiles
-python tools/calibrate.py                                   # profiles-sample.json con initialStatement de ~56 perfiles
+python tools/build_statements.py --profile P00001          # opening + 24 observed months -> tools/out/statements/
+python tools/build_statements.py --all --check-only        # check the identities for every profile
+python tools/calibrate.py                                   # profiles-sample.json with the initialStatement of ~56 profiles
 python tools/validate_events.py --play P00001 --choices A,B --dump tools/out/statements/P00001-game.json
-                                                            # un statement por turno de una partida simulada
+                                                            # one statement per turn of a simulated game
 ```
 
-## 7. Lo que el dataset no tiene (y cómo lo cubrimos)
+## 7. What the dataset lacks (and how we cover it)
 
-| Falta | Solución |
+| Missing | Solution |
 |---|---|
-| Transacciones individuales | Desglose derivado del neto (4.3) |
-| Cuotas de los préstamos | Anualidad a 60 meses (supuesto) |
-| Rentabilidad de las inversiones | `Assumptions.investmentReturnAnnual` |
-| Impuestos | No se modelan (limitación documentada) |
-| Evolución de activos y deudas en el tiempo | Solo hay foto inicial; el motor los hace evolucionar |
-| Inflación y subidas de sueldo | Datos públicos (pendiente, `content/assumptions.json`) |
+| Individual transactions | Breakdown derived from the net (4.3) |
+| Loan payments | 60-month annuity (assumption) |
+| Investment returns | `Assumptions.investmentReturnAnnual` |
+| Taxes | Not modelled (documented limitation) |
+| How assets and debts evolve over time | Only an opening snapshot; the engine makes them evolve |
+| Inflation and pay rises | Public data (pending, `content/assumptions.json`) |
