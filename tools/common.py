@@ -4,9 +4,6 @@ import os
 from collections import defaultdict
 from pathlib import Path
 
-DECEMBER = "12"
-MIN_INCOME_FOR_RATIO = 500.0  # below this a ratio over income is meaningless (students, unemployed)
-
 # repo layout: <root>/lauz26-repo/tools/common.py and <root>/ai-financial-twin-lauzhack-2026/Data
 _DEFAULT_DATA_DIR = Path(__file__).resolve().parents[2] / "ai-financial-twin-lauzhack-2026" / "Data"
 
@@ -21,28 +18,10 @@ def read_csv(path: Path) -> list[dict]:
         return list(csv.DictReader(f))
 
 
-def segment_key(employment: str, household: str) -> str:
-    """Segment id used everywhere, e.g. 'EMPLOYED|FAMILY'."""
-    return f"{employment.upper()}|{household.upper()}"
-
-
 def work_status(dataset_employment: str) -> str:
     """How the person earns money. The dataset's employment_status also encodes studying ('student');
     in the statement studying lives in facts.EDUCATION, and a student without a job is NOT_WORKING."""
     return "NOT_WORKING" if dataset_employment == "STUDENT" else dataset_employment
-
-
-def calibration_employment(employment: str, education: str | None) -> str:
-    """Dataset employment status whose calibration applies to a person in the game.
-    Studying and not working -> STUDENT; not working and not studying -> UNEMPLOYED (closest segment: assumption)."""
-    if employment == "NOT_WORKING":
-        return "STUDENT" if education and education.endswith("_IN_PROGRESS") else "UNEMPLOYED"
-    return employment
-
-
-def employment_fallback_key(employment: str) -> str:
-    """Fallback segment when the full segment has too few profiles, e.g. 'STUDENT|ANY'."""
-    return f"{employment.upper()}|ANY"
 
 
 def quantile(values: list[float], p: float) -> float:
@@ -118,6 +97,3 @@ def load_dataset(data_dir: Path) -> dict:
             "liabilities": liabilities, "goals": goals, "accounts": accounts,
             "scenario_assumptions": scenario_assumptions}
 
-
-def is_december(month: str) -> bool:
-    return month[5:7] == DECEMBER

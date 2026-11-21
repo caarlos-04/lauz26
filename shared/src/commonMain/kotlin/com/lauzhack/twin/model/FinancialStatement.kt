@@ -2,212 +2,82 @@ package com.lauzhack.twin.model
 
 import kotlinx.serialization.Serializable
 
-// Static profile. Produced by the interview (or loaded for Alexia).
+// The person at one point in time (docs/financial-statement.md). Only what the datasets have and what the simulator
+// needs to produce the next statement. Month 0 = opening; month t = end of month t, with that month's cash flow.
+// Anything else (net worth, goal progress, ratios) is computed from these fields when needed.
 @Serializable
-data class UserProfile(
-    val id: String,
+data class FinancialStatement(
+    val profileId: String,                  // profile_id, or "USER-..." for a person from the interview
+    val month: Int,                         // 0..120
+    val period: String,                     // "2025-01-01" (opening) or "2025-01" (end of that month)
+    val person: Person,
+    val cashChf: Double,                    // accounts.opening_balance_chf at month 0, then simulated
+    val investmentsChf: Double,             // assets, the investment_portfolio row (0 if none)
+    val loan: Loan?,                        // liabilities: 0 or 1 personal loan
+    val monthlyIncomeChf: Double,           // profiles.reference_monthly_net_income_chf, then trends and events
+    val monthlyRentChf: Double,             // profiles.reference_monthly_rent_chf, then trends and events
+    val eventExpensesChf: Map<ExpenseCategory, Double>,  // recurring monthly expenses added by events (e.g. TUITION)
+    val cashFlow: CashFlow?,                // what happened during this month; null at month 0
+    val goals: List<Goal>,                  // goals
+    val pendingChanges: List<PendingChange>,// decided by events, applied when their month arrives
+)
+
+@Serializable
+data class Person(
     val displayName: String,
-    val ageAtStart: Int,
-    val city: String,
-    val employment: Employment,
+    val age: Int,
+    val employment: Employment,             // work only; studying is facts[EDUCATION]
     val household: Household,
-    val startMonth: String,                 // "2025-01"
-    val goals: List<Goal>,
+    val facts: Map<FactKey, String>,        // EDUCATION, OCCUPATION, CITY, HOUSING, FAMILY: codes of content/facts.json
+    val flags: List<String>,                // milestones
+)
+
+val Person.city: String? get() = facts[FactKey.CITY]
+val Person.isStudying: Boolean get() = facts[FactKey.EDUCATION]?.endsWith("_IN_PROGRESS") == true
+
+@Serializable
+data class Loan(
+    val principalChf: Double,
+    val annualRate: Double,
+    val monthlyPaymentChf: Double,          // the dataset has 0 (never paid): we assume a 60-month annuity
+)
+
+// The month's cash flow, by category. net = sum(income) - sum(expenses) - loanPayment - financingCost;
+// cash(t) = cash(t-1) + net.
+@Serializable
+data class CashFlow(
+    val incomeChf: Map<String, Double>,     // "salary", "bonus", "loan" (a new loan paid out)
+    val expensesChf: Map<String, Double>,   // "rent", learned flows ("groceries", "travel"...), event expenses ("TUITION")
+    val loanPaymentChf: Double,
+    val financingCostChf: Double,           // interest on negative cash
+    val netChf: Double,
 )
 
 @Serializable
 data class Goal(
-    val id: String,
-    val name: String,
+    val name: String,                       // "Emergency savings", "Housing deposit"...
     val targetChf: Double,
     val targetDate: String,                 // "2029-12-31"
-    val targetMonth: Int,                   // statement month at the end of the target month (2029-12-31 -> 60)
     val priority: Priority,
 )
 
-// Everything we know about the person at one point in time (docs/financial-statement.md).
-// Month 0 = opening statement; month t = end of month t, with that month's cash flow.
+// A change decided by an event, applied at the start of its month. Exactly one group of fields is set.
 @Serializable
-data class FinancialStatement(
-    val version: Int,
-    val profileId: String,
-    val month: Int,
-    val period: String,                     // "2025-01-01" (opening) or "2025-01"
-    val origin: Origin,                     // OBSERVED (dataset months) or SIMULATED
-    val currency: String,                   // "CHF"
-    val person: PersonSnapshot,
-    val accounts: List<CashAccount>,        // cash lives only here
-    val investments: List<Investment>,
-    val liabilities: List<Liability>,
-    val incomeStreams: List<IncomeStream>,
-    val expenseStreams: List<ExpenseStream>,
-    val cashFlow: CashFlow?,                // null at month 0
-    val balanceSheet: BalanceSheet,
-    val goals: List<GoalStatus>,
-    val scenarioParameters: List<ScenarioParameter>,
-    val metrics: StatementMetrics,
-    val pendingLifeChanges: List<LifeChange>,
-)
-
-@Serializable
-data class PersonSnapshot(
-    val displayName: String,
-    val ageAtStart: Int,
-    val age: Int,
-    val city: String?,
-    val canton: String?,                    // null if the person moved city
-    val country: String,
-    val employment: Employment,
-    val household: Household,
-    val facts: Map<FactKey, String>,        // codes from content/facts.json
-    val flags: List<String>,                // milestones
-    val synthetic: Boolean,
-)
-
-@Serializable
-data class CashAccount(
-    val id: String,
-    val type: AccountType,
-    val currency: String,
-    val balanceChf: Double,
-    val status: AccountStatus,
-)
-
-@Serializable
-data class Investment(
-    val id: String,
-    val accountId: String?,
-    val type: AssetType,
-    val valueChf: Double,
-    val annualReturn: Double?,              // null in the dataset: filled from Assumptions
-    val valuationBasis: String,
-)
-
-@Serializable
-data class Liability(
-    val id: String,
-    val type: LiabilityType,
-    val principalChf: Double,
-    val annualRate: Double,
-    val monthlyPaymentChf: Double,
-    val paymentIsAssumed: Boolean,
-    val datasetMonthlyPaymentChf: Double? = null,
-    val sourceEventId: String? = null,
-)
-
-@Serializable
-data class IncomeStream(
-    val id: String,
-    val label: String,
-    val monthlyChf: Double,
-    val fromMonth: Int = 0,                 // active when fromMonth <= t
-    val untilMonth: Int? = null,            // ... and t < untilMonth (null = open-ended)
-    val indexation: Indexation,
-    val origin: Origin,
-    val sourceEventId: String? = null,
-)
-
-@Serializable
-data class ExpenseStream(
-    val id: String,
-    val category: ExpenseCategory,
-    val monthlyChf: Double,
-    val fromMonth: Int = 0,
-    val untilMonth: Int? = null,
-    val indexation: Indexation,
-    val origin: Origin,
-    val sourceEventId: String? = null,
-)
-
-@Serializable
-data class CashFlow(
-    val openingCashChf: Double,
-    val income: List<FlowLine>,
-    val expenses: List<FlowLine>,
-    val debtService: List<DebtLine>,
-    val otherChf: Double,                   // not itemised (observed months: noise, December bonus)
-    val financingCostChf: Double,           // interest on negative cash
-    val totalIncomeChf: Double,
-    val totalExpensesChf: Double,
-    val totalDebtServiceChf: Double,
-    val netCashFlowChf: Double,
-    val closingCashChf: Double,
-)
-
-@Serializable
-data class FlowLine(
-    val key: String,                        // "income:income", "expense:RENT"
-    val amountChf: Double,
-    val origin: Origin,
-    val sourceEventId: String?,
-)
-
-@Serializable
-data class DebtLine(
-    val liabilityId: String,
-    val paymentChf: Double,
-    val interestChf: Double,
-    val principalRepaidChf: Double,
-    val sourceEventId: String?,
-)
-
-@Serializable
-data class BalanceSheet(
-    val cashChf: Double,
-    val investmentsChf: Double,
-    val totalAssetsChf: Double,
-    val totalLiabilitiesChf: Double,
-    val netWorthChf: Double,
-)
-
-@Serializable
-data class GoalStatus(
-    val id: String,
-    val name: String,
-    val targetChf: Double,
-    val targetDate: String,
-    val targetMonth: Int,
-    val priority: Priority,
-    val progressBasis: ProgressBasis,
-    val currentChf: Double,
-    val progressRatio: Double,
-    val monthsLeft: Int,
-    val status: GoalState,
-)
-
-@Serializable
-data class ScenarioParameter(
-    val id: String,
-    val scenarioId: String,
-    val parameter: String,                  // "annual_tuition_chf", "study_duration_years"
-    val value: Double,
-    val unit: String,
-    val frequency: String,
-    val sourceType: String,
-    val notes: String,
-)
-
-@Serializable
-data class StatementMetrics(
-    val basis: String,                      // "RUN_RATE"
-    val monthlyIncomeChf: Double,
-    val monthlyOutflowsChf: Double,
-    val monthlyNetCashFlowChf: Double,
-    val savingsRate: Double?,
-    val debtServiceRatio: Double?,
-    val rentToIncomeRatio: Double?,
-    val emergencyFundMonths: Double?,
-    val liquidityStatus: LiquidityStatus,
-    val netWorthChf: Double,
-)
-
-// A life change decided by an event, applied when its month arrives. Exactly one of employment / fact / flag is set.
-@Serializable
-data class LifeChange(
+data class PendingChange(
     val month: Int,
     val sourceEventId: String,
     val employment: Employment? = null,
     val factKey: FactKey? = null,
     val factValue: String? = null,
     val flag: String? = null,
+    val household: Household? = null,
+    val monthlyIncomeChf: Double? = null,           // the income becomes this
+    val incomeDeltaChf: Double? = null,             // the income changes by this
+    val incomeFactor: Double? = null,               // the income is multiplied by this
+    val marketRentQuantile: Double? = null,         // the rent becomes the market rent (FlowModel.rentModel) at this quantile
+    val expenseCategory: ExpenseCategory? = null,   // eventExpensesChf[category] changes by expenseDeltaChf
+    val expenseDeltaChf: Double? = null,
+    val loan: Loan? = null,                         // a new loan, paid out to cash (merged with an existing one)
 )
+
+fun FinancialStatement.netWorthChf(): Double = cashChf + investmentsChf - (loan?.principalChf ?: 0.0)
