@@ -18,6 +18,7 @@ import sys
 from pathlib import Path
 
 from calibrate import annuity_payment
+from statement import GOAL_BASIS, assemble, check_statement
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = Path(__file__).resolve().parent / "out"
@@ -171,8 +172,40 @@ def validate(doc: dict, cat: dict) -> list[str]:
 # ================================================================ reference engine
 
 def new_twin(item: dict) -> dict:
-    """TwinState at month 0 from a profiles-sample.json item."""
-    return {"month": 0, "finance": copy.deepcopy(item["initialFinance"]), "life": copy.deepcopy(item["initialLife"])}
+    """Internal engine state at month 0 from the opening FinancialStatement of a profiles-sample.json item."""
+    st = item["initialStatement"]
+    finance = {
+        "cash": st["balanceSheet"]["cashChf"],
+        "assets": [{"id": i["id"], "type": i["type"], "valueChf": i["valueChf"], "annualReturn": i["annualReturn"]}
+                   for i in st["investments"]],
+        "liabilities": copy.deepcopy(st["liabilities"]),
+        "income": copy.deepcopy(st["incomeStreams"]),
+        "expenses": copy.deepcopy(st["expenseStreams"]),
+    }
+    life = {"employment": st["person"]["employment"], "facts": dict(st["person"]["facts"]),
+            "flags": list(st["person"]["flags"]), "pending": []}
+    return {"month": 0, "finance": finance, "life": life}
+
+
+def to_statement(eng: "Engine", item: dict, twin: dict) -> dict:
+    """FinancialStatement (same shape as tools/statement.py) of the engine state at twin['month']."""
+    st0, fin, life, t = item["initialStatement"], twin["finance"], twin["life"], twin["month"]
+    city = life["facts"].get("CITY", st0["person"]["city"])
+    person = {**st0["person"], "age": eng.age(t), "employment": life["employment"], "facts": dict(life["facts"]),
+              "flags": list(life["flags"]), "city": city,
+              "canton": st0["person"]["canton"] if city == st0["person"]["city"] else None}
+    accounts = [{**a, "balanceChf": round(fin["cash"], 2),
+                 "status": "NEGATIVE_REQUIRES_FINANCING" if fin["cash"] < 0 else "OK"} for a in st0["accounts"]]
+    inv0 = {i["id"]: i for i in st0["investments"]}
+    investments = [{**inv0.get(a["id"], {"accountId": None, "valuationBasis": "simulated"}), "id": a["id"],
+                    "type": a["type"], "valueChf": round(a["valueChf"], 2), "annualReturn": a.get("annualReturn")}
+                   for a in fin["assets"]]
+    return assemble(profile_id=st0["profileId"], month=t, start_month=eng.profile["startMonth"],
+                    origin="OBSERVED" if t == 0 else "SIMULATED", person=person, accounts=accounts,
+                    investments=investments, liabilities=copy.deepcopy(fin["liabilities"]),
+                    income=copy.deepcopy(fin["income"]), expenses=copy.deepcopy(fin["expenses"]),
+                    cash_flow=copy.deepcopy(eng.last_cash_flow) if t > 0 else None, goals=eng.profile["goals"],
+                    scenario_parameters=st0["scenarioParameters"], pending=copy.deepcopy(life["pending"]))
 
 
 def _active(stream: dict, t: int) -> bool:
@@ -192,7 +225,8 @@ def apply_effects(twin: dict, effects: list[dict], event_id: str) -> dict:
         start = s + eff.get("startOffsetMonths", 0)
         end = start + eff["months"] if eff.get("months") is not None else None
         kind = eff["type"]
-        stream = {"fromMonth": start, "untilMonth": end, "sourceEventId": event_id}
+        stream = {"fromMonth": start, "untilMonth": end, "sourceEventId": event_id, "origin": "SIMULATED",
+                  "indexation": "WAGES" if kind in ("set_income", "income_delta") else "CPI"}
         if kind == "set_income":
             for inc in fin["income"]:
                 if inc["id"] == eff["streamId"] and _active(inc, start):
@@ -206,13 +240,13 @@ def apply_effects(twin: dict, effects: list[dict], event_id: str) -> dict:
                                     "monthlyChf": eff["deltaChf"]})
         elif kind == "one_off":
             fin["expenses"].append({**stream, "id": f"{event_id}-{n}", "category": "OTHER",
-                                    "monthlyChf": eff["chf"], "untilMonth": start + 1})
+                                    "monthlyChf": eff["chf"], "untilMonth": start + 1, "indexation": "NONE"})
         elif kind == "add_liability":
             fin["liabilities"].append({"id": f"{event_id}-{n}", "type": eff["liabilityType"],
                                        "principalChf": eff["principalChf"], "annualRate": eff["annualRate"],
                                        "monthlyPaymentChf": annuity_payment(eff["principalChf"], eff["annualRate"],
                                                                             eff["termMonths"]),
-                                       "sourceEventId": event_id})
+                                       "paymentIsAssumed": False, "sourceEventId": event_id})
             if eff.get("disburseToCash", True):
                 fin["cash"] += eff["principalChf"]
         elif kind == "asset_return_delta":
@@ -239,6 +273,7 @@ class Engine:
         self.bonus_ratio = bonus_ratio          # employment -> December bonus ratio
         self.financing_rate = financing_rate
         self.start_cal_month = int(profile["startMonth"][5:7])   # 1..12
+        self.last_cash_flow = None                                # cash flow of the last simulated month
 
     def age(self, month: int) -> int:
         return self.profile["ageAtStart"] + month // 12
@@ -276,21 +311,27 @@ class Engine:
             k = (key, src)
             attribution[k] = attribution.get(k, 0.0) + chf
 
-        income = 0.0
+        def line(key, amount, src, origin):
+            return {"key": key, "amountChf": round(amount, 2), "origin": origin, "sourceEventId": src}
+
+        income, inc_lines = 0.0, []
         for i in fin["income"]:
             if _active(i, t):
                 income += i["monthlyChf"]
                 add(f"income:{i['id']}", i["monthlyChf"], i.get("sourceEventId"))
+                inc_lines.append(line(f"income:{i['id']}", i["monthlyChf"], i.get("sourceEventId"), i.get("origin", "SIMULATED")))
         if self.is_december(t) and life["employment"] in BONUS_EMPLOYMENT:
             bonus = self.bonus_ratio.get(life["employment"], 0.0) * income
             income += bonus
             add("income:december_bonus", bonus)
-        expense = 0.0
+            inc_lines.append(line("income:december_bonus", bonus, None, "DERIVED"))
+        expense, exp_lines = 0.0, []
         for e in fin["expenses"]:
             if _active(e, t):
                 expense += e["monthlyChf"]
                 add(f"expense:{e['category']}", -e["monthlyChf"], e.get("sourceEventId"))
-        paid = 0.0
+                exp_lines.append(line(f"expense:{e['category']}", e["monthlyChf"], e.get("sourceEventId"), e.get("origin", "SIMULATED")))
+        paid, debt_lines = 0.0, []
         for l in fin["liabilities"]:
             if l["principalChf"] <= 0:
                 continue
@@ -299,6 +340,8 @@ class Engine:
             l["principalChf"] = l["principalChf"] + interest - pay
             paid += pay
             add("debt_interest", -interest, l.get("sourceEventId"))
+            debt_lines.append({"liabilityId": l["id"], "paymentChf": round(pay, 2), "interestChf": round(interest, 2),
+                               "principalRepaidChf": round(pay - interest, 2), "sourceEventId": l.get("sourceEventId")})
         financing = -fin["cash"] * self.financing_rate / 12 if fin["cash"] < 0 else 0.0
         if financing:
             add("financing_cost", -financing)
@@ -311,6 +354,12 @@ class Engine:
         before = fin["cash"]
         fin["cash"] += income - expense - paid - financing
         tw["month"] = t + 1
+        self.last_cash_flow = {
+            "openingCashChf": round(before, 2), "income": inc_lines, "expenses": exp_lines,
+            "debtService": debt_lines, "otherChf": 0.0, "financingCostChf": round(financing, 2),
+            "totalIncomeChf": round(income, 2), "totalExpensesChf": round(expense, 2),
+            "totalDebtServiceChf": round(paid, 2),
+            "netCashFlowChf": round(fin["cash"] - before, 2), "closingCashChf": round(fin["cash"], 2)}
         if before >= 0 > fin["cash"]:
             beats.append(self.beat(t + 1, "CASH_NEGATIVE", cash=round(fin["cash"])))
         elif before < 0 <= fin["cash"]:
@@ -335,11 +384,12 @@ class Engine:
         return twin, {"minCash": min_cash, "monthOfMinCash": min_month, "monthsNegative": neg}
 
     def check_goals(self, twin: dict, goals_state: dict, beats: list) -> None:
-        nw, m = net_worth(twin), twin["month"]
+        nw, cash, m = net_worth(twin), twin["finance"]["cash"], twin["month"]
         for g in self.profile["goals"]:
             if goals_state.get(g["id"]):
                 continue
-            if nw >= g["targetChf"] and m <= g["targetMonth"]:
+            value = cash if GOAL_BASIS.get(g["name"], "NET_WORTH") == "CASH" else nw
+            if value >= g["targetChf"] and m <= g["targetMonth"]:
                 goals_state[g["id"]] = "REACHED"
                 beats.append(self.beat(m, "GOAL_REACHED", goal=g["name"], target=round(g["targetChf"])))
             elif m == g["targetMonth"]:
@@ -425,6 +475,7 @@ def play(events: list[dict], item: dict, bonus: dict, cat: dict, choices: list[s
     eng, rng = Engine(item["profile"], bonus), random.Random(seed)
     twin, used, attribution, beats, goals = new_twin(item), set(), {}, [], {}
     start_nw = net_worth(twin)
+    statements = [to_statement(eng, item, twin)]
     beats.append(eng.beat(0, "START", cash=round(twin["finance"]["cash"])))
     for turn in range(MAX_TURNS):
         twin = copy.deepcopy(twin)
@@ -443,10 +494,13 @@ def play(events: list[dict], item: dict, bonus: dict, cat: dict, choices: list[s
                                   narrative=opt["cases"][case]["narrative"][lang]))
             twin = apply_effects(twin, opt["cases"][case]["effects"], ev["id"])
         twin, _ = eng.run(twin, MONTHS_PER_TURN, attribution, beats, goals)
+        statements.append(to_statement(eng, item, twin))
     beats.append(eng.beat(twin["month"], "END", netWorth=round(net_worth(twin)), cash=round(twin["finance"]["cash"])))
     total = sum(attribution.values())
     return {"twin": twin, "beats": beats, "attribution": attribution, "startNetWorth": start_nw,
-            "endNetWorth": net_worth(twin), "attributionGap": start_nw + total - net_worth(twin)}
+            "endNetWorth": net_worth(twin), "attributionGap": start_nw + total - net_worth(twin),
+            "statements": statements,
+            "statementErrors": [f"month {s['month']}: {e}" for s in statements for e in check_statement(s)]}
 
 
 def print_play(result: dict, cat: dict, lang: str = "EN") -> None:
@@ -481,6 +535,7 @@ def main() -> None:
     ap.add_argument("--luck", default="", help="comma-separated luck values 0..1 per turn (default from --seed)")
     ap.add_argument("--seed", type=int, default=2026)
     ap.add_argument("--lang", default="EN", choices=sorted(LANGS))
+    ap.add_argument("--dump", type=Path, help="with --play: write the FinancialStatement of every turn to this JSON file")
     args = ap.parse_args()
 
     doc = json.loads(args.events.read_text(encoding="utf-8"))
@@ -500,7 +555,15 @@ def main() -> None:
         item, bonus = load_context(args.play)
         choices = [c.strip() for c in args.choices.split(",") if c.strip()]
         lucks = [float(x) for x in args.luck.split(",") if x.strip()]
-        print_play(play(doc["events"], item, bonus, cat, choices, lucks, args.seed, args.lang), cat, args.lang)
+        result = play(doc["events"], item, bonus, cat, choices, lucks, args.seed, args.lang)
+        print_play(result, cat, args.lang)
+        print(f"\nStatements: {len(result['statements'])} (one per turn), identity errors: {len(result['statementErrors'])}")
+        for e in result["statementErrors"]:
+            print(f"  - {e}")
+        if args.dump:
+            args.dump.write_text(json.dumps({"profileId": args.play, "statements": result["statements"]},
+                                            indent=2, ensure_ascii=False), encoding="utf-8")
+            print(f"  -> {args.dump}")
 
 
 if __name__ == "__main__":

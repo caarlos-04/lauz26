@@ -48,7 +48,7 @@ Integra dos retos a la vez:
 | Idiomas | ES / EN |
 | Tiempo | Menos de 24 h → MVP muy recortado |
 | Perfil | El usuario introduce el suyo mediante entrevista de opción múltiple. **Alexia** (20 años, estudiante, Lausanne, CHF 8.000) queda precargada como perfil de demo por si falla |
-| Gemelo digital | **Estado financiero** (lo calcula el motor) + **estado de vida**: hechos (estudios, ocupación, ciudad, vivienda, familia) e hitos (`flags`). Solo los cambian los eventos, de forma explícita |
+| Gemelo digital | Un **`FinancialStatement`** por paso con toda la información de la persona (ver `docs/financial-statement.md`): dinero (lo calcula el motor) + vida: hechos (estudios, ocupación, ciudad, vivienda, familia) e hitos (`flags`), que solo cambian los eventos, de forma explícita |
 | Dimensiones no financieras medidas | **No** (nada de bienestar, estrés, etc.: no hay datos) |
 | Partida | ~5 turnos de 24 meses (10 años, 120 meses) |
 | Casos | Cada decisión tiene 3 casos: pesimista / neutro / optimista, sorteados con la **suerte** de la partida |
@@ -140,16 +140,24 @@ Convenciones:
 | `FactKey` | `EDUCATION, OCCUPATION, CITY, HOUSING, FAMILY` | propio; valores en `content/facts.json` |
 | `Objective` | `GROWTH, BALANCED, SAFE` | prioridad del usuario (entrevista) |
 | `BeatKind` | `START, DECISION, CASE_RESOLVED, LIFE_CHANGE, QUIET_PERIOD, CASH_NEGATIVE, CASH_RECOVERED, LOW_POINT, GOAL_REACHED, GOAL_MISSED, END` | momentos de la historia |
+| `Priority` | `HIGH, MEDIUM` | `priority` de `synthetic-goals.csv` |
+| `Origin` | `OBSERVED, DERIVED, ASSUMED, SIMULATED` | de dónde sale cada importe |
+| `Indexation` | `WAGES, CPI, NONE` | qué índice actualiza un flujo cuando se modele la inflación |
 | `Lang` | `ES, EN` | i18n |
 
-### 5.2 Perfil y estado del gemelo
+### 5.2 Perfil y estado del gemelo: `FinancialStatement`
+
+El estado del gemelo en cada paso es un **`FinancialStatement`**: toda la información de la persona en un punto del
+tiempo (quién es, hechos de vida, caja, inversiones, deudas, flujos, qué pasó con su caja ese mes, metas e indicadores),
+construido cruzando todos los datasets por `profile_id`.
+**Esquema completo, origen de cada campo y decisiones: [`docs/financial-statement.md`](financial-statement.md).**
 
 ```kotlin
 // Static profile. Produced by the interview (or loaded for Alexia). Subset of synthetic-profiles.csv.
 data class UserProfile(
     val id: String,                 // "P00001" or "USER-<uuid>"
     val displayName: String,
-    val ageAtStart: Int,            // years
+    val ageAtStart: Int,
     val city: String,
     val employment: Employment,     // at start
     val household: Household,       // at start
@@ -157,28 +165,24 @@ data class UserProfile(
     val goals: List<Goal>
 )
 
-// The digital twin at one month: money (computed by the engine) + life (changed only by events).
-data class TwinState(
-    val month: Int,                 // 0..120
-    val finance: FinancialState,
-    val life: LifeState
-)
-
-data class FinancialState(
-    val cash: Double,               // CHF, may go negative (=> financed at Assumptions.financingRateAnnual)
-    val assets: List<Asset>,
+// The digital twin at one point in time. Month 0 = opening; month t = end of month t (with that month's cash flow).
+// The engine takes a statement and returns a new one; derived parts are recomputed in finalize().
+data class FinancialStatement(
+    val version: Int, val profileId: String, val month: Int, val period: String,
+    val origin: Origin,                         // OBSERVED (dataset months) | SIMULATED
+    val currency: String,                       // "CHF"
+    val person: PersonSnapshot,                 // age, city, employment, household, facts, flags
+    val accounts: List<CashAccount>,            // cash (counted once)
+    val investments: List<Investment>,
     val liabilities: List<Liability>,
-    val income: List<IncomeStream>,
-    val expenses: List<ExpenseStream>
-) {
-    val netWorth: Double            // cash + sum(assets.valueChf) - sum(liabilities.principalChf)
-}
-
-data class LifeState(
-    val employment: Employment,     // drives calibration segment and event requirements
-    val facts: Map<FactKey, String>,        // e.g. EDUCATION -> "MASTER", CITY -> "Lausanne" (codes from content/facts.json)
-    val flags: Set<String>,                 // milestones, e.g. "did_master", "took_loan"
-    val pending: List<LifeChange> = emptyList()   // changes scheduled by events with an offset
+    val incomeStreams: List<IncomeStream>,      // with fromMonth / untilMonth / indexation / origin / sourceEventId
+    val expenseStreams: List<ExpenseStream>,
+    val cashFlow: CashFlow?,                    // null at month 0
+    val balanceSheet: BalanceSheet,             // derived
+    val goals: List<GoalStatus>,                // derived
+    val scenarioParameters: List<ScenarioParameter>,   // scenario-assumptions.csv for this profile
+    val metrics: StatementMetrics,              // derived: savings rate, debt service ratio, emergency months...
+    val pendingLifeChanges: List<LifeChange>    // decided by events, not applied yet
 )
 
 // A scheduled life change. Exactly one of employment / fact / flag is set.
@@ -191,45 +195,13 @@ data class LifeChange(
     val flag: String? = null
 )
 
-data class Asset(
-    val id: String,
-    val type: AssetType,
-    val valueChf: Double,
-    val annualReturn: Double        // fraction/year; null in profiles-sample.json -> filled from Assumptions
-)
-
-data class Liability(
-    val id: String,
-    val type: LiabilityType,
-    val principalChf: Double,
-    val annualRate: Double,         // fraction/year
-    val monthlyPaymentChf: Double,  // paid from cash each month
-    val sourceEventId: String? = null       // null = initial debt
-)
-
-data class IncomeStream(
-    val id: String,                 // "income", "pension", "scholarship"
-    val label: String,
-    val monthlyChf: Double,         // may be negative (an income cut created by an event)
-    val fromMonth: Int = 0,         // active when fromMonth <= t
-    val untilMonth: Int? = null,    // ... and t < untilMonth (null = open-ended)
-    val sourceEventId: String? = null       // for the attribution waterfall
-)
-
-data class ExpenseStream(
-    val id: String,                 // "rent", "living", "<eventId>-<n>"
-    val category: ExpenseCategory,
-    val monthlyChf: Double,
-    val fromMonth: Int = 0,
-    val untilMonth: Int? = null,
-    val sourceEventId: String? = null
-)
-
 data class Goal(
     val id: String,                 // "G-P00001-01"
     val name: String,
     val targetChf: Double,
-    val targetMonth: Int            // month index when it should be reached
+    val targetDate: String,         // "2029-12-31"
+    val targetMonth: Int,           // statement month at the end of the target month (2029-12-31 -> 60)
+    val priority: Priority          // HIGH | MEDIUM
 )
 ```
 
@@ -323,7 +295,7 @@ Catálogo de hechos e hitos con sus textos, y cómo se deducen los hechos inicia
     "OCCUPATION": { ... }, "CITY": { ... }, "HOUSING": { ... }, "FAMILY": { ... }
   },
   "flags": { "did_master": {"ES": "...", "EN": "..."}, ... },
-  "initialFromProfile": {          // how P2 builds the initial LifeState (same rules in tools/calibrate.py)
+  "initialFromProfile": {          // how P2 builds the initial person.facts (same rules in tools/calibrate.py)
     "EDUCATION":  { "from": "employment", "map": { "STUDENT": "BACHELOR_IN_PROGRESS" }, "default": "UNKNOWN" },
     "OCCUPATION": { "from": "employment", "map": { ... } },
     "HOUSING":    { "from": "household",  "map": { ... }, "default": "RENTED_FLAT" },
@@ -338,7 +310,7 @@ Catálogo de hechos e hitos con sus textos, y cómo se deducen los hechos inicia
 ```kotlin
 data class GameSession(
     val profile: UserProfile,
-    val initial: TwinState,
+    val initial: FinancialStatement,     // month 0
     val seed: Long,                 // same seed + same decisions => same game
     val preferences: Preferences,
     val turns: List<Turn>,          // history, in order
@@ -364,8 +336,8 @@ data class Turn(
     val chosenOptionId: String?,    // "A" | "B"
     val luck: Double,               // 0..1, derived from seed + index
     val resolvedCase: CaseType?,
-    val stateAfter: TwinState,      // state before = previous turn's stateAfter (or initial)
-    val counterfactual: Map<CaseType, TwinState>,   // the NOT chosen option, per case, at the end of this turn
+    val stateAfter: FinancialStatement,  // end of the turn; state before = previous turn's stateAfter (or initial)
+    val counterfactual: Map<CaseType, FinancialStatement>,   // the NOT chosen option, per case, at the end of this turn
     val beats: List<StoryBeat>      // story moments produced during this turn
 )
 
@@ -377,7 +349,7 @@ data class OptionPreview(
 )
 data class CasePreview(
     val prob: Double,
-    val stateAfter: TwinState,      // end of the turn
+    val stateAfter: FinancialStatement,  // end of the turn
     val deltaNetWorth: Double,
     val minCash: Double,
     val lifeChanges: List<LifeChange>,
@@ -423,7 +395,7 @@ data class Stats(
 data class ParallelLife(
     val kind: ParallelKind,         // OTHER_FIRST_CHOICE, OPTIMAL_STRATEGY
     val turns: List<Turn>,          // same luck as the real game
-    val final: TwinState,
+    val final: FinancialStatement,
     val stats: Stats,
     val attribution: Attribution
 )
@@ -529,7 +501,7 @@ data class ChatContext(
 
 | Dev | Clases |
 |---|---|
-| **A – Motor** | `TwinState`, `FinancialState`, `LifeState`, `LifeChange`, `Asset`, `Liability`, flujos, `Turn`, `OptionPreview`, `CasePreview`, `StoryBeat`, `Attribution`, `Stats`, `ParallelLife`, `Outlook`, `SensitivityItem`, `Band`, `GameResult` |
+| **A – Motor** | `FinancialStatement` y sus partes (`finalize()`), `LifeChange`, flujos, `Turn`, `OptionPreview`, `CasePreview`, `StoryBeat`, `Attribution`, `Stats`, `ParallelLife`, `Outlook`, `SensitivityItem`, `Band`, `GameResult` |
 | **B – UI** | `InterviewQuestion`, `InterviewOption`, `InterviewAnswer` |
 | **C – Datos + contenido + IA** | `Event`, `Requirements`, `EventOption`, `CaseOutcome`, `Effect`, catálogo de hechos (`facts.json`), `SegmentCalibration`, `Assumptions`, `SensitivityParam`, `ChatMessage`, `ChatContext`, `FutureSelfChat` |
 | **Compartidos (acordar al inicio)** | `UserProfile`, `Goal`, `GameSession`, `GameConfig`, `Preferences`, todos los enums |
@@ -561,12 +533,12 @@ RUNTIME (en la app)
 | **P0 Calibración** (offline) | C | `Data/*.csv`, `content/facts.json` | Calibra por segmento (coste de vida, ruido, paga extra). Backtest 80/20 de la banda analítica. Muestra ~50 perfiles con su gemelo inicial | `calibration.json`, `profiles-sample.json`, `backtest-report.json` |
 | **P0b Validación** (offline) | C | `content/events.json`, `content/facts.json`, `profiles-sample.json` | Valida contrato, hechos e hitos; simula cada opción × caso en un perfil | errores o OK; tabla de referencia |
 | **P1 Entrevista** | B | `List<InterviewQuestion>` | Preguntas de opción múltiple (incluye prioridad y colchón mínimo) | `List<InterviewAnswer>` |
-| **P2 Gemelo inicial** | A (+C) | respuestas, `profiles-sample.json`, `calibration.json`, `facts.json` | Rellena el perfil; lo que falte (gasto, activos, deudas) sale del perfil sintético más parecido; los hechos iniciales salen de `initialFromProfile` | `UserProfile`, `TwinState` (month 0), `Preferences`, `GameSession` vacía con semilla. Alexia se carga directamente |
-| **P3 Elegir evento** | A (lógica) / C (contenido) | `TwinState` actual, turnos hechos, catálogo | Filtra por `requires`, `earliestTurn` y `repeatable`; elige la mayor `priority`; desempate con la semilla. Si no hay ninguno → turno tranquilo | `Event?` |
-| **P4 Preview** | A | `TwinState`, `Event`, `Assumptions`, `Preferences` | Para cada opción × caso aplica `apply` y avanza 24 meses. Opcional: `Outlook` con el árbol | `List<OptionPreview>` |
+| **P2 Gemelo inicial** | A (+C) | respuestas, `profiles-sample.json`, `calibration.json`, `facts.json` | Rellena el perfil; lo que falte (gasto, activos, deudas) sale del perfil sintético más parecido; los hechos iniciales salen de `initialFromProfile` | `UserProfile`, `FinancialStatement` de apertura (mes 0), `Preferences`, `GameSession` vacía con semilla. Alexia se carga directamente |
+| **P3 Elegir evento** | A (lógica) / C (contenido) | `FinancialStatement` actual, turnos hechos, catálogo | Filtra por `requires`, `earliestTurn` y `repeatable`; elige la mayor `priority`; desempate con la semilla. Si no hay ninguno → turno tranquilo | `Event?` |
+| **P4 Preview** | A | `FinancialStatement`, `Event`, `Assumptions`, `Preferences` | Para cada opción × caso aplica `apply` y avanza 24 meses. Opcional: `Outlook` con el árbol | `List<OptionPreview>` |
 | **P5 Decisión** | B | previews en pantalla | El usuario elige A o B | `chosenOptionId` |
 | **P6 Resolver** | A | opción, `seed`, índice del turno | `luck = rng(seed, index)`; caso = primer caso cuya probabilidad acumulada (orden P, N, O) supera `luck` | `resolvedCase`, `luck` |
-| **P7 Avanzar** | A | `TwinState`, `CaseOutcome`, `Assumptions` | Aplica efectos, simula 24 meses (sección 7), aplica cambios de vida, detecta momentos; calcula el contrafactual | `Turn` (con `beats`) |
+| **P7 Avanzar** | A | `FinancialStatement`, `CaseOutcome`, `Assumptions` | Aplica efectos, simula 24 meses (sección 7), aplica cambios de vida, detecta momentos; calcula el contrafactual | `Turn` (con `beats`) |
 | **P8 Atribución y stats** | A | `GameSession` | Suma cada flujo por origen; `Stats` | `Attribution`, `Stats` |
 | **P9 Vidas paralelas** | A | `GameSession`, catálogo | Reproduce la partida con la misma suerte: (1) primera decisión cambiada y después estrategia óptima; (2) estrategia óptima desde el inicio (expectimax) | `List<ParallelLife>` |
 | **P10 Sensibilidad** | A (+C rangos) | sesión, `Assumptions.sensitivity` | Para la primera decisión, varía cada parámetro a low/high y busca el punto de equilibrio | `List<SensitivityItem>` |

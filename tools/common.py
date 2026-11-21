@@ -56,8 +56,9 @@ def month_index(start_month: str, date_str: str) -> int:
 
 def load_dataset(data_dir: Path) -> dict:
     """Load the CSVs and index them by profile_id with numeric fields converted."""
-    profiles = {}
+    profiles, raw_profiles = {}, {}
     for r in read_csv(data_dir / "synthetic-profiles.csv"):
+        raw_profiles[r["profile_id"]] = r          # every column, e.g. canton, country, synthetic
         profiles[r["profile_id"]] = {
             "id": r["profile_id"],
             "displayName": r["display_name"],
@@ -92,9 +93,16 @@ def load_dataset(data_dir: Path) -> dict:
     goals = defaultdict(list)
     for r in read_csv(data_dir / "synthetic-goals.csv"):
         goals[r["profile_id"]].append(r)
+    accounts = defaultdict(list)
+    for r in read_csv(data_dir / "synthetic-accounts.csv"):
+        accounts[r["profile_id"]].append(r)
+    scenario_assumptions = defaultdict(list)
+    for r in read_csv(data_dir / "scenario-assumptions.csv"):
+        scenario_assumptions[r["profile_id"]].append(r)
 
-    return {"profiles": profiles, "series": series, "assets": assets,
-            "liabilities": liabilities, "goals": goals}
+    return {"profiles": profiles, "raw_profiles": raw_profiles, "series": series, "assets": assets,
+            "liabilities": liabilities, "goals": goals, "accounts": accounts,
+            "scenario_assumptions": scenario_assumptions}
 
 
 def is_december(month: str) -> bool:

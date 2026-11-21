@@ -9,6 +9,7 @@ python tools/backtest.py                           # -> tools/out/backtest-repor
 python tools/validate_events.py                    # validate content/events.json + content/facts.json
 python tools/validate_events.py --preview P00001   # each option x case on Alexia (10 years)
 python tools/validate_events.py --play P00001 --choices A,B --luck 0.5,0.5   # whole game: life line + attribution
+python tools/build_statements.py --profile P00001  # FinancialStatements from the dataset (opening + 24 months)
 cd tools && python -m unittest -v
 ```
 
@@ -48,16 +49,22 @@ net = income - rent - livingCost + noise
   } ] }
 ```
 
-## profiles-sample.json
+## profiles-sample.json and FinancialStatements
 
 ~56 profiles (stratified: at least one per segment, always includes Alexia `P00001`). Each item:
-`{ profile, initialFinance, initialLife, segment }`, shaped like the Kotlin `UserProfile`, `FinancialState`, `LifeState`.
+`{ profile, initialStatement, segment }`: the static `UserProfile` and the opening **FinancialStatement** (month 0).
+Schema, field-by-field mapping to the CSVs and design decisions: `docs/financial-statement.md`.
 
-- `initialFinance.expenses` has `rent` (from the profile) and `living` (implied from that profile's ledger).
-- `initialLife.facts` follows the `initialFromProfile` rules of `content/facts.json` (same rules the app uses in P2).
-- `assets[].annualReturn` is `null`: fill it from `Assumptions`. Cash is `initialFinance.cash` (not in `assets`).
-- `liabilities[].monthlyPaymentChf` is an **assumption** (60-month annuity); the dataset has 0.
-- `goals[].targetMonth` is months since `startMonth` (2025-01 = 0).
+`build_statements.py` builds the statements straight from the dataset (opening + the 24 observed months) and checks
+the accounting identities; `validate_events.py --play ... --dump FILE` writes one simulated statement per turn.
+
+Things the loader must know:
+- Cash lives only in `accounts` (the dataset repeats it as a `cash` asset; we do not double count it).
+- `expenseStreams` has `rent` (observed) and `living` (derived from that profile's ledger).
+- `person.facts` follows the `initialFromProfile` rules of `content/facts.json` (same rules the app uses in P2).
+- `investments[].annualReturn` is `null`: fill it from `Assumptions`.
+- `liabilities[].monthlyPaymentChf` is an **assumption** (60-month annuity, `paymentIsAssumed: true`); the dataset has 0.
+- `goals[].targetMonth` is the statement month at the end of the target month (2029-12-31 -> 60).
 
 ## backtest-report.json — analytic band, no Monte Carlo
 

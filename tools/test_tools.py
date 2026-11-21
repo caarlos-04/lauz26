@@ -4,7 +4,9 @@ import unittest
 
 from backtest import analytic_band
 from calibrate import DEFAULT_FACTS, annuity_payment, build_calibration, build_profile, initial_life, sample_profiles
+from build_statements import statements_for
 from common import deciles, default_data_dir, load_dataset, month_index, quantile, segment_key
+from statement import check_statement, goal_target_month, period_of
 
 DATA_DIR = default_data_dir()
 FACTS = json.loads(DEFAULT_FACTS.read_text(encoding="utf-8"))
@@ -30,6 +32,13 @@ class HelperTests(unittest.TestCase):
         for _ in range(60):
             balance = balance * (1 + 0.06 / 12) - pay
         self.assertAlmostEqual(balance, 0.0, places=4)
+
+    def test_statement_months_and_periods(self):
+        self.assertEqual(period_of("2025-01", 0), "2025-01-01")
+        self.assertEqual(period_of("2025-01", 1), "2025-01")
+        self.assertEqual(period_of("2025-01", 12), "2025-12")
+        self.assertEqual(period_of("2025-01", 13), "2026-01")
+        self.assertEqual(goal_target_month("2025-01", "2029-12-31"), 60)   # end of Dec 2029
 
     def test_segment_key(self):
         self.assertEqual(segment_key("student", "single"), "STUDENT|SINGLE")
@@ -80,11 +89,29 @@ class DatasetTests(unittest.TestCase):
         for pid in self.ds["profiles"]:
             build_profile(self.ds, pid, FACTS)   # raises if a fact is not in the catalog
 
-    def test_alexia_initial_twin(self):
-        built = build_profile(self.ds, "P00001", FACTS)
-        self.assertEqual(built["initialFinance"]["cash"], 8000.0)
-        self.assertEqual({e["id"] for e in built["initialFinance"]["expenses"]}, {"rent", "living"})
-        self.assertEqual(built["initialLife"]["facts"]["CITY"], "Lausanne")
+    def test_alexia_opening_statement(self):
+        st = build_profile(self.ds, "P00001", FACTS)["initialStatement"]
+        self.assertEqual(st["month"], 0)
+        self.assertIsNone(st["cashFlow"])
+        self.assertEqual(st["balanceSheet"]["cashChf"], 8000.0)
+        self.assertEqual(st["investments"], [])                       # Alexia is the only one without investments
+        self.assertEqual({e["id"] for e in st["expenseStreams"]}, {"rent", "living"})
+        self.assertEqual(st["person"]["facts"]["CITY"], "Lausanne")
+        self.assertEqual(st["person"]["canton"], "VD")
+        self.assertEqual({p["parameter"] for p in st["scenarioParameters"]}, {"annual_tuition_chf", "study_duration_years"})
+
+    def test_cash_is_not_double_counted(self):
+        st = build_profile(self.ds, "P00002", FACTS)["initialStatement"]
+        self.assertTrue(all(i["type"] != "CASH" for i in st["investments"]))
+        self.assertAlmostEqual(st["balanceSheet"]["cashChf"], float(self.ds["raw_profiles"]["P00002"]["opening_cash_chf"]))
+
+    def test_every_statement_of_every_profile_is_consistent(self):
+        for pid in self.ds["profiles"]:
+            sts = statements_for(self.ds, pid, FACTS)
+            self.assertEqual(len(sts), 25)
+            self.assertEqual(sts[-1]["balanceSheet"]["cashChf"], self.ds["series"][pid][-1]["closing"])
+            for s in sts:
+                self.assertEqual(check_statement(s), [], f"{pid} month {s['month']}")
 
 
 if __name__ == "__main__":
