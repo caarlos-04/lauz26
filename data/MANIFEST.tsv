@@ -1,0 +1,14 @@
+file	provider	dataset	retrieved	url	status
+swiss/wb_che_cpi_inflation.zip	World Bank	CHE FP.CPI.TOTL.ZG inflation	2026-11-21	https://api.worldbank.org/v2/country/CHE/indicator/FP.CPI.TOTL.ZG?downloadformat=csv	HTTP 200
+swiss/wb_che_gdp_growth.zip	World Bank	CHE NY.GDP.MKTP.KD.ZG GDP growth	2026-11-21	https://api.worldbank.org/v2/country/CHE/indicator/NY.GDP.MKTP.KD.ZG?downloadformat=csv	HTTP 200
+swiss/wb_che_unemployment.zip	World Bank	CHE SL.UEM.TOTL.ZS unemployment	2026-11-21	https://api.worldbank.org/v2/country/CHE/indicator/SL.UEM.TOTL.ZS?downloadformat=csv	HTTP 200
+swiss/wb_che_population.zip	World Bank	CHE SP.POP.TOTL population	2026-11-21	https://api.worldbank.org/v2/country/CHE/indicator/SP.POP.TOTL?downloadformat=csv	HTTP 200
+household/wb_che_gdp_per_capita.zip	World Bank	CHE NY.GDP.PCAP.CD GDP per capita	2026-11-21	https://api.worldbank.org/v2/country/CHE/indicator/NY.GDP.PCAP.CD?downloadformat=csv	HTTP 200
+macro/eurostat_nama_10_gdp.tsv.gz	Eurostat	nama_10_gdp (GDP and main components)	2026-11-21	https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/nama_10_gdp?format=TSV&compressed=true	HTTP 200
+macro/eurostat_une_rt_m.tsv.gz	Eurostat	une_rt_m (monthly unemployment)	2026-11-21	https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/une_rt_m?format=TSV&compressed=true	HTTP 200
+markets/bis_residential_property_prices.zip	BIS	WS_SPP residential property prices	2026-11-21	https://data.bis.org/static/bulk/WS_SPP_csv_flat.zip	HTTP 200
+markets/bis_central_bank_policy_rates.zip	BIS	WS_CBPOL central bank policy rates	2026-11-21	https://data.bis.org/static/bulk/WS_CBPOL_csv_flat.zip	HTTP 200
+markets/bis_credit_nonfinancial_sector.zip	BIS	WS_TC credit to non-financial sector	2026-11-21	https://data.bis.org/static/bulk/WS_TC_csv_flat.zip	HTTP 200
+swiss/snb_exchange_rates_monthly.csv	SNB	devkum: exchange rates (monthly)	2026-11-21	https://data.snb.ch/api/cube/devkum/data/csv/en	HTTP 200
+swiss/snb_confederation_bond_yields.csv	SNB	rendoblid: Confederation bond yields	2026-11-21	https://data.snb.ch/api/cube/rendoblid/data/csv/en	HTTP 200
+household/fed_scf_2022_summary_extract.zip	US Federal Reserve	SCF 2022 summary extract (Excel/CSV)	2026-11-21	https://www.federalreserve.gov/econres/files/scfp2022excel.zip	HTTP 200

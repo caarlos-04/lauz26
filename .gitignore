@@ -9,3 +9,6 @@ captures
 .externalNativeBuild
 .cxx
 node_modules/
+
+# Third-party public datasets (redistribution terms not checked); regenerate with data/download.sh
+data/raw/
