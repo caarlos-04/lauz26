@@ -54,3 +54,18 @@ get swiss snb_exchange_rates_monthly.csv "SNB" "devkum: exchange rates (monthly)
 get swiss snb_confederation_bond_yields.csv "SNB" "rendoblid: Confederation bond yields" "$SNB/rendoblid/data/csv/en"
 
 get household fed_scf_2022_summary_extract.zip "US Federal Reserve" "SCF 2022 summary extract (Excel/CSV)" "https://www.federalreserve.gov/econres/files/scfp2022excel.zip"
+
+# Swiss Federal Statistical Office (BFS). Each table has a stable reference code; its page links to the current
+# file (the numeric asset id changes with every release), so we resolve the id first.
+get_bfs() { # dir file provider dataset ref
+  local dir=$1 file=$2 prov=$3 name=$4 ref=$5 page id
+  if [ -s "$dir/$file" ]; then echo "skip   $dir/$file"; return; fi
+  page="https://statistik.admin.ch/en/asset/$ref"
+  id=$(curl -sSL --http1.1 -A "$UA" --max-time 60 "$page" | grep -o 'assets/[0-9]*/master' | head -1 | grep -o '[0-9]*')
+  if [ -z "$id" ]; then echo "FAIL   $dir/$file (could not resolve $ref)"; return; fi
+  get "$dir" "$file" "$prov" "$name [$ref, asset $id]" "https://dam-api.bfs.admin.ch/hub/api/dam/assets/$id/master"
+}
+
+get_bfs swiss bfs_rent_price_index.xlsx          "BFS" "Rent price index (LIK Wohnungsmiete, monthly/annual, multi-base)" cc-d-05.06.01.17
+get_bfs swiss bfs_wage_index_quarterly.csv       "BFS" "Swiss wage index: quarterly estimate of nominal wage change (annual %)" ts-x-03.04.03.01.01
+get_bfs swiss bfs_wage_by_age_lse.xlsx           "BFS" "Earnings structure survey T9_b: gross monthly wage by age, position, gender" je-e-03.04.01.01.09

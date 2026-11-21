@@ -12,3 +12,6 @@ markets/bis_credit_nonfinancial_sector.zip	BIS	WS_TC credit to non-financial sec
 swiss/snb_exchange_rates_monthly.csv	SNB	devkum: exchange rates (monthly)	2026-11-21	https://data.snb.ch/api/cube/devkum/data/csv/en	HTTP 200
 swiss/snb_confederation_bond_yields.csv	SNB	rendoblid: Confederation bond yields	2026-11-21	https://data.snb.ch/api/cube/rendoblid/data/csv/en	HTTP 200
 household/fed_scf_2022_summary_extract.zip	US Federal Reserve	SCF 2022 summary extract (Excel/CSV)	2026-11-21	https://www.federalreserve.gov/econres/files/scfp2022excel.zip	HTTP 200
+swiss/bfs_rent_price_index.xlsx	BFS	Rent price index (LIK Wohnungsmiete, monthly/annual, multi-base) [cc-d-05.06.01.17, asset 36970608]	2026-11-21	https://dam-api.bfs.admin.ch/hub/api/dam/assets/36970608/master	HTTP 200
+swiss/bfs_wage_index_quarterly.csv	BFS	Swiss wage index: quarterly estimate of nominal wage change (annual %) [ts-x-03.04.03.01.01, asset 36791145]	2026-11-21	https://dam-api.bfs.admin.ch/hub/api/dam/assets/36791145/master	HTTP 200
+swiss/bfs_wage_by_age_lse.xlsx	BFS	Earnings structure survey T9_b: gross monthly wage by age, position, gender [je-e-03.04.01.01.09, asset 36196146]	2026-11-21	https://dam-api.bfs.admin.ch/hub/api/dam/assets/36196146/master	HTTP 200
