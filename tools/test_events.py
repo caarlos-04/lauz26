@@ -13,7 +13,7 @@ PROFILE = {"id": "T", "ageAtStart": 20, "startMonth": "2025-01", "goals": [
      "priority": "HIGH"}]}
 
 
-def twin(cash=1000.0, employment="STUDENT"):
+def twin(cash=1000.0, employment="NOT_WORKING"):
     return {"month": 0,
             "finance": {"cash": cash, "assets": [], "liabilities": [],
                         "income": [{"id": "income", "label": "income", "monthlyChf": 1000.0, "fromMonth": 0,
@@ -106,7 +106,7 @@ class EngineRuleTests(unittest.TestCase):
                                     {"type": "set_fact", "key": "EDUCATION", "value": "MASTER", "startOffsetMonths": 3},
                                     {"type": "add_flag", "flag": "did_master", "startOffsetMonths": 3}], "E")
         early, _ = run(tw, 3)
-        self.assertEqual(early["life"]["employment"], "STUDENT")
+        self.assertEqual(early["life"]["employment"], "NOT_WORKING")
         later, _ = run(tw, 4)
         self.assertEqual(later["life"]["employment"], "EMPLOYED")
         self.assertEqual(later["life"]["facts"]["EDUCATION"], "MASTER")
@@ -119,6 +119,21 @@ class EngineRuleTests(unittest.TestCase):
         attribution, start = {}, net_worth(tw)
         end, _ = run(tw, 24, Engine(PROFILE, {}), attribution)
         self.assertAlmostEqual(start + sum(attribution.values()), net_worth(end), places=6)
+
+    def test_working_student_is_still_a_student(self):
+        """Part-time master's: studies AND works. EDUCATION stays 'in progress'; only the work status changes."""
+        tw = apply_effects(twin(), [
+            {"type": "set_fact", "key": "EDUCATION", "value": "MASTER_IN_PROGRESS"},
+            {"type": "set_employment", "employment": "PART_TIME"},
+            {"type": "income_delta", "streamId": "salary", "deltaChf": 2400, "months": 24},
+            {"type": "expense_delta", "category": "TUITION", "deltaChf": 667, "months": 24}], "E")
+        tw, _ = run(tw, 12)
+        self.assertEqual(tw["life"]["employment"], "PART_TIME")
+        self.assertEqual(tw["life"]["facts"]["EDUCATION"], "MASTER_IN_PROGRESS")
+        self.assertAlmostEqual(tw["finance"]["cash"], 1000 + 12 * (1000 + 2400 - 400 - 667))
+        eng = Engine(PROFILE, {})
+        ev = {"id": "E", "requires": {"facts": {"EDUCATION": ["MASTER_IN_PROGRESS"]}, "employment": ["PART_TIME"]}}
+        self.assertTrue(eng.eligible(ev, tw, 0, set()))
 
     def test_luck_resolves_cases_in_order(self):
         opt = {"cases": {"PESSIMISTIC": {"prob": 0.2}, "NEUTRAL": {"prob": 0.6}, "OPTIMISTIC": {"prob": 0.2}}}
@@ -141,8 +156,8 @@ def alexia_like_item():
     statement = assemble(
         profile_id="T", month=0, start_month="2025-01", origin="OBSERVED",
         person={"displayName": "T", "ageAtStart": 20, "age": 20, "city": "Lausanne", "canton": "VD", "country": "CH",
-                "employment": "STUDENT", "household": "SINGLE", "synthetic": True,
-                "facts": {"EDUCATION": "BACHELOR_IN_PROGRESS", "OCCUPATION": "STUDENT", "CITY": "Lausanne"}, "flags": []},
+                "employment": "NOT_WORKING", "household": "SINGLE", "synthetic": True,
+                "facts": {"EDUCATION": "BACHELOR_IN_PROGRESS", "OCCUPATION": "NONE", "CITY": "Lausanne"}, "flags": []},
         accounts=[{"id": "A-T-CASH", "type": "CASH", "currency": "CHF", "balanceChf": 8000.0, "status": "OK"}],
         investments=[], liabilities=[],
         income=[{**stream, "id": "income", "label": "income", "monthlyChf": 1200.0, "indexation": "WAGES"}],

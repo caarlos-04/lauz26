@@ -17,7 +17,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from common import (MIN_INCOME_FOR_RATIO, deciles, default_data_dir, employment_fallback_key,
-                    is_december, load_dataset, quantile, segment_key)
+                    is_december, load_dataset, quantile, segment_key, work_status)
 from statement import dataset_parts, opening_statement
 
 MIN_SEGMENT_SIZE = 20          # below this the segment is flagged lowConfidence
@@ -86,7 +86,7 @@ def annuity_payment(principal: float, annual_rate: float, months: int) -> float:
 
 def initial_life(profile: dict, facts_catalog: dict) -> dict:
     """Initial LifeState using the 'initialFromProfile' rules of content/facts.json."""
-    source = {"employment": profile["employment"], "household": profile["household"], "city": profile["city"]}
+    source = {"datasetEmployment": profile["employment"], "household": profile["household"], "city": profile["city"]}
     facts = {}
     for key, rule in facts_catalog["initialFromProfile"].items():
         raw = source[rule["from"]]
@@ -94,7 +94,7 @@ def initial_life(profile: dict, facts_catalog: dict) -> dict:
         if value not in facts_catalog["facts"][key]:
             raise ValueError(f"fact {key}={value!r} (from {raw!r}) is not in the facts catalog")
         facts[key] = value
-    return {"employment": profile["employment"], "facts": facts, "flags": [], "pending": []}
+    return {"employment": work_status(profile["employment"]), "facts": facts, "flags": [], "pending": []}
 
 
 def build_profile(ds: dict, pid: str, facts_catalog: dict) -> dict:

@@ -54,7 +54,7 @@ data class PersonSnapshot(
     val displayName: String,
     val ageAtStart: Int,
     val age: Int,
-    val city: String,
+    val city: String?,
     val canton: String?,                    // null if the person moved city
     val country: String,
     val employment: Employment,

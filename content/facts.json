@@ -9,14 +9,10 @@
       "MASTER": { "ES": "Máster", "EN": "Master's degree" }
     },
     "OCCUPATION": {
-      "STUDENT": { "ES": "Estudiante", "EN": "Student" },
+      "NONE": { "ES": "Sin actividad laboral", "EN": "No work activity" },
       "JUNIOR": { "ES": "Primer empleo", "EN": "First job" },
       "PROFESSIONAL": { "ES": "Profesional", "EN": "Professional" },
-      "SENIOR": { "ES": "Puesto sénior", "EN": "Senior role" },
-      "PART_TIME": { "ES": "Trabajo a tiempo parcial", "EN": "Part-time job" },
-      "SELF_EMPLOYED": { "ES": "Autónomo/a", "EN": "Self-employed" },
-      "UNEMPLOYED": { "ES": "Buscando trabajo", "EN": "Looking for work" },
-      "RETIRED": { "ES": "Jubilado/a", "EN": "Retired" }
+      "SENIOR": { "ES": "Puesto sénior", "EN": "Senior role" }
     },
     "CITY": {
       "Lausanne": { "ES": "Lausana", "EN": "Lausanne" },
@@ -52,13 +48,11 @@
     "family_help": { "ES": "Recibió ayuda de la familia", "EN": "Got help from family" }
   },
   "initialFromProfile": {
-    "EDUCATION": { "from": "employment", "map": { "STUDENT": "BACHELOR_IN_PROGRESS" }, "default": "UNKNOWN" },
+    "EDUCATION": { "from": "datasetEmployment", "map": { "STUDENT": "BACHELOR_IN_PROGRESS" }, "default": "UNKNOWN" },
     "OCCUPATION": {
-      "from": "employment",
-      "map": {
-        "STUDENT": "STUDENT", "EMPLOYED": "PROFESSIONAL", "PART_TIME": "PART_TIME",
-        "SELF_EMPLOYED": "SELF_EMPLOYED", "UNEMPLOYED": "UNEMPLOYED", "RETIRED": "RETIRED"
-      }
+      "from": "datasetEmployment",
+      "map": { "EMPLOYED": "PROFESSIONAL", "PART_TIME": "PROFESSIONAL", "SELF_EMPLOYED": "PROFESSIONAL" },
+      "default": "NONE"
     },
     "HOUSING": { "from": "household", "map": { "SHARED_HOUSING": "SHARED_FLAT" }, "default": "RENTED_FLAT" },
     "FAMILY": {

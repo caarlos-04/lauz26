@@ -5,7 +5,8 @@ import unittest
 from backtest import analytic_band
 from calibrate import DEFAULT_FACTS, annuity_payment, build_calibration, build_profile, initial_life, sample_profiles
 from build_statements import statements_for
-from common import deciles, default_data_dir, load_dataset, month_index, quantile, segment_key
+from common import (calibration_employment, deciles, default_data_dir, load_dataset, month_index, quantile,
+                    segment_key, work_status)
 from statement import check_statement, goal_target_month, period_of
 
 DATA_DIR = default_data_dir()
@@ -40,12 +41,26 @@ class HelperTests(unittest.TestCase):
         self.assertEqual(period_of("2025-01", 13), "2026-01")
         self.assertEqual(goal_target_month("2025-01", "2029-12-31"), 60)   # end of Dec 2029
 
+    def test_studying_and_working_are_independent(self):
+        self.assertEqual(work_status("STUDENT"), "NOT_WORKING")
+        self.assertEqual(work_status("PART_TIME"), "PART_TIME")
+        employed = initial_life({"employment": "EMPLOYED", "household": "SINGLE", "city": "Bern"}, FACTS)
+        self.assertEqual(employed["facts"]["EDUCATION"], "UNKNOWN")
+        self.assertEqual(employed["facts"]["OCCUPATION"], "PROFESSIONAL")
+
+    def test_calibration_employment(self):
+        self.assertEqual(calibration_employment("NOT_WORKING", "BACHELOR_IN_PROGRESS"), "STUDENT")
+        self.assertEqual(calibration_employment("PART_TIME", "MASTER_IN_PROGRESS"), "PART_TIME")   # works -> its own segment
+        self.assertEqual(calibration_employment("NOT_WORKING", "MASTER"), "UNEMPLOYED")           # assumption
+        self.assertEqual(calibration_employment("RETIRED", "UNKNOWN"), "RETIRED")
+
     def test_segment_key(self):
         self.assertEqual(segment_key("student", "single"), "STUDENT|SINGLE")
 
     def test_initial_life_from_profile_rules(self):
         life = initial_life({"employment": "STUDENT", "household": "SHARED_HOUSING", "city": "Lausanne"}, FACTS)
-        self.assertEqual(life["facts"], {"EDUCATION": "BACHELOR_IN_PROGRESS", "OCCUPATION": "STUDENT",
+        self.assertEqual(life["employment"], "NOT_WORKING")      # a student without a job; studying is in EDUCATION
+        self.assertEqual(life["facts"], {"EDUCATION": "BACHELOR_IN_PROGRESS", "OCCUPATION": "NONE",
                                          "HOUSING": "SHARED_FLAT", "FAMILY": "SINGLE", "CITY": "Lausanne"})
         self.assertEqual(life["flags"], [])
 
@@ -97,6 +112,8 @@ class DatasetTests(unittest.TestCase):
         self.assertEqual(st["investments"], [])                       # Alexia is the only one without investments
         self.assertEqual({e["id"] for e in st["expenseStreams"]}, {"rent", "living"})
         self.assertEqual(st["person"]["facts"]["CITY"], "Lausanne")
+        self.assertEqual(st["person"]["employment"], "NOT_WORKING")
+        self.assertEqual(st["person"]["facts"]["EDUCATION"], "BACHELOR_IN_PROGRESS")
         self.assertEqual(st["person"]["canton"], "VD")
         self.assertEqual({p["parameter"] for p in st["scenarioParameters"]}, {"annual_tuition_chf", "study_duration_years"})
 

@@ -62,6 +62,8 @@ Things the loader must know:
 - Cash lives only in `accounts` (the dataset repeats it as a `cash` asset; we do not double count it).
 - `expenseStreams` has `rent` (observed) and `living` (derived from that profile's ledger).
 - `person.facts` follows the `initialFromProfile` rules of `content/facts.json` (same rules the app uses in P2).
+- `person.employment` is the **work** status: the dataset's `student` becomes `NOT_WORKING` with `EDUCATION: BACHELOR_IN_PROGRESS`
+  (studying and working are independent; see `docs/README.md` 5.2). `segment` and the calibration still use the dataset's status.
 - `investments[].annualReturn` is `null`: fill it from `Assumptions`.
 - `liabilities[].monthlyPaymentChf` is an **assumption** (60-month annuity, `paymentIsAssumed: true`); the dataset has 0.
 - `goals[].targetMonth` is the statement month at the end of the target month (2029-12-31 -> 60).
