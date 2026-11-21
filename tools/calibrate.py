@@ -2,7 +2,7 @@
 
 Outputs (in --out-dir, default tools/out):
   calibration.json     SegmentCalibration list (see tools/README.md for the schema)
-  profiles-sample.json ~50 profiles with their initial twin (finance + life); always includes Alexia, P00001
+  profiles-sample.json ~50 profiles with their opening FinancialStatement; always includes Alexia, P00001
 
 Model found in the data (see README): for a profile and a non-December month
     net = income - rent - livingCost + noise
@@ -17,7 +17,8 @@ from collections import defaultdict
 from pathlib import Path
 
 from common import (MIN_INCOME_FOR_RATIO, deciles, default_data_dir, employment_fallback_key,
-                    is_december, load_dataset, month_index, quantile, segment_key)
+                    is_december, load_dataset, quantile, segment_key)
+from statement import dataset_parts, opening_statement
 
 MIN_SEGMENT_SIZE = 20          # below this the segment is flagged lowConfidence
 ASSUMED_LOAN_TERM_MONTHS = 60  # dataset has monthly_payment = 0 for every loan; we assume an annuity
@@ -83,37 +84,6 @@ def annuity_payment(principal: float, annual_rate: float, months: int) -> float:
     return principal * r / (1 - (1 + r) ** -months)
 
 
-def initial_finance(ds: dict, pid: str) -> dict:
-    """Initial FinancialState built from the dataset, shaped like the Kotlin dataclass."""
-    pr = ds["profiles"][pid]
-    s = profile_stats(pr, ds["series"][pid])
-    income_id = "pension" if pr["employment"] == "RETIRED" else "income"
-    return {
-        "cash": pr["openingCash"],
-        # annualReturn is null: the dataset has no returns; the loader fills it from Assumptions.
-        "assets": [{"id": a["asset_id"], "type": a["asset_type"].upper(),
-                    "valueChf": float(a["value_chf"]), "annualReturn": None}
-                   for a in ds["assets"][pid] if a["asset_type"] != "cash"],
-        "liabilities": [{"id": l["liability_id"], "type": l["liability_type"].upper(),
-                         "principalChf": float(l["opening_principal_chf"]),
-                         "annualRate": float(l["annual_interest_rate"]),
-                         # ASSUMPTION: dataset payment is 0 (not amortized); we assume a 60-month annuity
-                         "monthlyPaymentChf": round(annuity_payment(
-                             float(l["opening_principal_chf"]), float(l["annual_interest_rate"]),
-                             ASSUMED_LOAN_TERM_MONTHS), 2),
-                         "sourceEventId": None}
-                        for l in ds["liabilities"][pid]],
-        "income": [{"id": income_id, "label": income_id, "monthlyChf": pr["income"],
-                    "fromMonth": 0, "untilMonth": None, "sourceEventId": None}],
-        "expenses": [
-            {"id": "rent", "category": "RENT", "monthlyChf": pr["rent"],
-             "fromMonth": 0, "untilMonth": None, "sourceEventId": None},
-            {"id": "living", "category": "LIVING", "monthlyChf": round(s["living"], 2),
-             "fromMonth": 0, "untilMonth": None, "sourceEventId": None},
-        ],
-    }
-
-
 def initial_life(profile: dict, facts_catalog: dict) -> dict:
     """Initial LifeState using the 'initialFromProfile' rules of content/facts.json."""
     source = {"employment": profile["employment"], "household": profile["household"], "city": profile["city"]}
@@ -128,19 +98,18 @@ def initial_life(profile: dict, facts_catalog: dict) -> dict:
 
 
 def build_profile(ds: dict, pid: str, facts_catalog: dict) -> dict:
+    """profiles-sample.json item: static UserProfile + opening FinancialStatement (month 0)."""
     pr = ds["profiles"][pid]
+    living = profile_stats(pr, ds["series"][pid])["living"]
+    parts = dataset_parts(ds, pid, initial_life(pr, facts_catalog), living, annuity_payment)
     return {
         "profile": {
             "id": pid, "displayName": pr["displayName"], "ageAtStart": pr["ageAtStart"],
             "city": pr["city"], "employment": pr["employment"], "household": pr["household"],
-            "startMonth": pr["startMonth"],
-            "goals": [{"id": g["goal_id"], "name": g["goal_name"], "targetChf": float(g["target_amount_chf"]),
-                       "targetMonth": month_index(pr["startMonth"], g["target_date"])}
-                      for g in ds["goals"][pid]],
+            "startMonth": pr["startMonth"], "goals": parts["goals"],
         },
-        "initialFinance": initial_finance(ds, pid),
-        "initialLife": initial_life(pr, facts_catalog),
-        "segment": segment_key(pr["employment"], pr["household"]),
+        "initialStatement": opening_statement(ds, pid, parts),
+        "segment": parts["segment"],
     }
 
 

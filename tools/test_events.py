@@ -3,11 +3,14 @@ import copy
 import json
 import unittest
 
+from statement import assemble, check_statement
 from validate_events import (DEFAULT_EVENTS, DEFAULT_FACTS, Engine, apply_effects, case_from_luck, net_worth,
                              play, validate)
 
 CAT = json.loads(DEFAULT_FACTS.read_text(encoding="utf-8"))
-PROFILE = {"id": "T", "ageAtStart": 20, "startMonth": "2025-01", "goals": []}
+PROFILE = {"id": "T", "ageAtStart": 20, "startMonth": "2025-01", "goals": [
+    {"id": "G1", "name": "Emergency savings", "targetChf": 20000.0, "targetDate": "2029-12-31", "targetMonth": 60,
+     "priority": "HIGH"}]}
 
 
 def twin(cash=1000.0, employment="STUDENT"):
@@ -132,21 +135,49 @@ class EngineRuleTests(unittest.TestCase):
         self.assertFalse(eng.eligible(ev, twin(cash=-100), 0, {"E"}))     # not repeatable
 
 
+def alexia_like_item():
+    """profiles-sample.json-like item with an opening FinancialStatement."""
+    stream = {"fromMonth": 0, "untilMonth": None, "sourceEventId": None, "origin": "OBSERVED"}
+    statement = assemble(
+        profile_id="T", month=0, start_month="2025-01", origin="OBSERVED",
+        person={"displayName": "T", "ageAtStart": 20, "age": 20, "city": "Lausanne", "canton": "VD", "country": "CH",
+                "employment": "STUDENT", "household": "SINGLE", "synthetic": True,
+                "facts": {"EDUCATION": "BACHELOR_IN_PROGRESS", "OCCUPATION": "STUDENT", "CITY": "Lausanne"}, "flags": []},
+        accounts=[{"id": "A-T-CASH", "type": "CASH", "currency": "CHF", "balanceChf": 8000.0, "status": "OK"}],
+        investments=[], liabilities=[],
+        income=[{**stream, "id": "income", "label": "income", "monthlyChf": 1200.0, "indexation": "WAGES"}],
+        expenses=[{**stream, "id": "rent", "category": "RENT", "monthlyChf": 900.0, "indexation": "CPI"},
+                  {**stream, "id": "living", "category": "LIVING", "monthlyChf": 1300.0, "indexation": "CPI"}],
+        cash_flow=None, goals=PROFILE["goals"], scenario_parameters=[], pending=[])
+    return {"profile": {**PROFILE, "displayName": "T"}, "initialStatement": statement}
+
+
 class StoryTests(unittest.TestCase):
-    def test_master_then_financing_chain_for_alexia_like_profile(self):
+    def setUp(self):
         events = json.loads(DEFAULT_EVENTS.read_text(encoding="utf-8"))["events"]
-        item = {"profile": {**PROFILE, "displayName": "T"},
-                "initialFinance": twin(cash=8000)["finance"] | {"expenses": [
-                    {"id": "rent", "category": "RENT", "monthlyChf": 900.0, "fromMonth": 0, "untilMonth": None,
-                     "sourceEventId": None},
-                    {"id": "living", "category": "LIVING", "monthlyChf": 1300.0, "fromMonth": 0, "untilMonth": None,
-                     "sourceEventId": None}]},
-                "initialLife": twin()["life"]}
-        res = play(events, item, {"EMPLOYED": 0.35}, CAT, ["A", "B"], [0.5, 0.5], seed=1)
-        decisions = [b["eventId"] for b in res["beats"] if b["kind"] == "DECISION"]
+        self.res = play(events, alexia_like_item(), {"EMPLOYED": 0.35}, CAT, ["A", "B"], [0.5, 0.5], seed=1)
+
+    def test_master_then_financing_chain(self):
+        decisions = [b["eventId"] for b in self.res["beats"] if b["kind"] == "DECISION"]
         self.assertEqual(decisions, ["E-master", "E-financing"])
-        self.assertIn("did_master", res["twin"]["life"]["flags"])
-        self.assertAlmostEqual(res["attributionGap"], 0.0, places=6)
+        self.assertIn("did_master", self.res["twin"]["life"]["flags"])
+        self.assertAlmostEqual(self.res["attributionGap"], 0.0, places=6)
+
+    def test_one_consistent_statement_per_turn(self):
+        sts = self.res["statements"]
+        self.assertEqual([s["month"] for s in sts], [0, 24, 48, 72, 96, 120])
+        self.assertEqual(self.res["statementErrors"], [])
+        self.assertEqual(sts[0]["origin"], "OBSERVED")
+        self.assertTrue(all(s["origin"] == "SIMULATED" for s in sts[1:]))
+        self.assertEqual(sts[2]["person"]["facts"]["EDUCATION"], "MASTER")
+        self.assertEqual(sts[-1]["balanceSheet"]["netWorthChf"], round(self.res["endNetWorth"], 2))
+        for s in sts:
+            self.assertEqual(check_statement(s), [])
+
+    def test_cash_goal_uses_cash_basis(self):
+        goal = self.res["statements"][-1]["goals"][0]
+        self.assertEqual(goal["progressBasis"], "CASH")
+        self.assertEqual(goal["status"], "REACHED")
 
 
 if __name__ == "__main__":
