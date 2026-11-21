@@ -226,20 +226,20 @@ def effect_size(rows: list, factor: dict, feature: str) -> float:
     return max((abs(f - 1) for lvl, f in factor.items() if share[lvl] >= MIN_LEVEL_SHARE), default=0.0)
 
 
-def forward_select(rows: list) -> tuple[dict, list]:
+def forward_select(rows: list, features: tuple = FEATURES) -> tuple[dict, list]:
     """Add features one by one while they are significant and relevant. Returns the fit and a selection report."""
     selected, report = [], []
     current = fit_multiplicative(rows, [])
     n = len(rows)
-    levels = {k: len({x[k] for x, _, _ in rows}) for k in FEATURES}
-    for k in FEATURES:                      # every field is reported, even when the data cannot test it
+    levels = {k: len({x[k] for x, _, _ in rows}) for k in features}
+    for k in features:                      # every field is reported, even when the data cannot test it
         if levels[k] < 2:
             report.append({"feature": k, "kept": False, "pValue": 1.0, "maxEffect": 0.0, "fStat": None,
                            "note": "a single value among the people with this flow: cannot be tested"})
     while True:
         p_used = 1 + sum(levels[k] - 1 for k in selected)
         candidates = []
-        for k in FEATURES:
+        for k in features:
             if k in selected or levels[k] < 2:
                 continue
             fit = fit_multiplicative(rows, selected + [k])
@@ -262,7 +262,7 @@ def forward_select(rows: list) -> tuple[dict, list]:
         # 2 levels, rather than employment, 6) unless the richer one really fits better (the bonus needs employment:
         # part-time workers get none). Exact ties go to the earlier field in FEATURES.
         best = min(passing, key=lambda c: (bic(c["fit"]["sse"], n, p_used + levels[c["feature"]] - 1),
-                                           FEATURES.index(c["feature"])))
+                                           features.index(c["feature"])))
         report.append(_report_entry(best, kept=True))
         selected.append(best["feature"])
         current = best["fit"]
@@ -355,7 +355,22 @@ def train(ds: dict, ledger: dict, pids: list[str], people: dict, city_canton: di
                        "personLevelSd": round(person_level_sd, 4)},
             "nProfiles": len(prob_rows), "nOccurrences": len(occurrences),
         })
-    return {"flows": flows}
+    return {"flows": flows, "rentModel": train_rent(pids, feats, people)}
+
+
+def train_rent(pids: list[str], feats: dict, people: dict) -> dict:
+    """Market rent of a home for the person's situation, learned from the reference rents of the dataset (one row per
+    profile). Used when an event moves the person (new city or household): the rent becomes
+    base x factors x residual quantile (the quantile sets how lucky the person is with the new flat).
+    The rent band itself is not a candidate (it would explain the rent by the rent)."""
+    rows = [(feats[pid], people[pid][1]["rent"], 1) for pid in pids]
+    fit, report = forward_select(rows, tuple(f for f in FEATURES if f != "rentBand"))
+    fit = rereference(fit, rows)
+    resid = [y / predict_raw(fit["base"], fit["factors"], x) for x, y, _ in rows]
+    return {"base": round(fit["base"], 2), "reference": fit["reference"], "factors": rounded_factors(fit["factors"]),
+            "unknown": {k: round(v, 4) for k, v in fit["unknown"].items()}, "selection": report,
+            "residualDeciles": [round(v, 4) for v in deciles(resid)], "nProfiles": len(rows),
+            "source": "synthetic-profiles.csv reference_monthly_rent_chf (CHF per month, 2025)"}
 
 
 def expected_flows(model: dict, feats: dict, calendar_month: int, income: float, rent: float) -> list[dict]:

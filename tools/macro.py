@@ -188,9 +188,11 @@ def bfs_wage_by_age(path: Path) -> dict:
     year = max(sheets, key=lambda s: int(s) if s.isdigit() else 0)
     blocks = [("allPositions", 1, "management", 10), ("lowerManagement", 1, "lowestManagement", 10),
               ("noManagement", 1, None, None)]
-    seen, out = defaultdict(int), defaultdict(dict)
+    seen, out, total = defaultdict(int), defaultdict(dict), None
     for row in sheets[year]:
         label = row[0].strip() if row else ""
+        if label == "TOTAL" and total is None and len(row) > 1:
+            total = _number(row[1])                 # all ages, all positions
         if label not in LSE_AGE_GROUPS:
             continue
         block = seen[label]
@@ -200,7 +202,7 @@ def bfs_wage_by_age(path: Path) -> dict:
         for name, col in ((blocks[block][0], blocks[block][1]), (blocks[block][2], blocks[block][3])):
             if name and len(row) > col and _number(row[col]) is not None:
                 out[name][label] = _number(row[col])
-    return {"year": int(year), "mediansChf": dict(out)}
+    return {"year": int(year), "mediansChf": dict(out), "allAgesMedianChf": total}
 
 
 # ---------------------------------------------------------------------------------------------- helpers
@@ -309,7 +311,7 @@ def build(raw: Path) -> dict:
     series["medianWageByAge"] = {
         "unit": "CHF per month, gross, standardised to full time (40 h/week), median, all genders, by position",
         "geo": "CH", "year": lse["year"], "source": source(src, "swiss/bfs_wage_by_age_lse.xlsx"),
-        "mediansChf": lse["mediansChf"]}
+        "mediansChf": lse["mediansChf"], "allAgesMedianChf": lse["allAgesMedianChf"]}
 
     # ------------------------------------------------------------------ trends the engine applies (yearly, in January)
     cpi_s = series["cpiInflationPct"]["summary"]

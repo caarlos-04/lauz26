@@ -9,6 +9,10 @@ FACTS = json.loads((ROOT / "content" / "facts.json").read_text(encoding="utf-8")
 ALL_MONTHS = list(range(1, 13))
 FLAT = [round(0.5 + i * 0.1, 2) for i in range(11)]   # residual deciles 0.5..1.5, mean 1
 CITY_CANTON = {"Bern": "BE", "Geneva": "GE", "Lausanne": "VD"}
+# Market rent: 1,000 for a single person in Bern; Geneva x1.5; a shared flat x0.5; deciles 0.5..1.5 (median 1).
+RENT_MODEL = {"base": 1000.0, "factors": {"household": {"SINGLE": 1.0, "SHARED_HOUSING": 0.5},
+                                          "city": {"Bern": 1.0, "Geneva": 1.5}},
+              "unknown": {"household": 1.0, "city": 1.0}, "residualDeciles": FLAT}
 
 
 def flow(key, direction, basis, category, months, p_base, a_base, p_factors=None, a_factors=None, rms=1.0):
@@ -31,12 +35,13 @@ def simple_model(living: float = 0.0, bonus_ratio: float = 0.0, tuition: float =
     if tuition:
         flows.append(flow("tuition", "OUT", "CHF", "TUITION", [2, 9], 1.0, tuition,
                           p_factors={"studying": {"NO": 0.0, "YES": 1.0}}))
-    return {"cityCanton": CITY_CANTON, "flows": flows}
+    return {"cityCanton": CITY_CANTON, "flows": flows, "rentModel": RENT_MODEL}
 
 
 # A richer model: canton and studying factors, tuition in Feb/Sep, bonus in December.
 MODEL = {
     "cityCanton": CITY_CANTON,
+    "rentModel": RENT_MODEL,
     "flows": [
         flow("salary", "IN", "INCOME", None, ALL_MONTHS, 1.0, 1.0),
         flow("rent", "OUT", "RENT", "RENT", ALL_MONTHS, 1.0, 1.0),

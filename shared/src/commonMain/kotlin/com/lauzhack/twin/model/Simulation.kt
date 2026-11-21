@@ -15,6 +15,21 @@ data class FlowModel(
     val meta: FlowModelMeta,
     val cityCanton: Map<String, String>,    // "Lausanne" -> "VD"; a city not listed has canton null (e.g. abroad)
     val flows: List<FlowSpec>,
+    val rentModel: RentModel,
+)
+
+// Market rent of a home for the person's features (selected from the data: household and city), used by the
+// market_rent effect: rent = base * product of factors (unknown level -> unknown[feature]) * quantile of residualDeciles,
+// in 2025 CHF, then indexed with MacroTrends.rentGrowthSittingTenantAnnual.
+@Serializable
+data class RentModel(
+    val base: Double,
+    val reference: Map<String, String> = emptyMap(),
+    val factors: Map<String, Map<String, Double>> = emptyMap(),
+    val unknown: Map<String, Double> = emptyMap(),
+    val selection: List<FeatureSelection> = emptyList(),
+    val residualDeciles: List<Double>,
+    val nProfiles: Int,
 )
 
 @Serializable

@@ -32,6 +32,14 @@ def apply_effects(s: dict, effects: list[dict], event_id: str) -> dict:
         kind = eff["type"]
         if kind == "set_income":
             add(start, monthlyIncomeChf=eff["monthlyChf"])
+        elif kind == "income_factor":                # e.g. part time: the income is multiplied by `factor`
+            add(start, incomeFactor=eff["factor"])
+            if end is not None:
+                add(end, incomeFactor=1 / eff["factor"])
+        elif kind == "set_household":
+            add(start, household=eff["household"])
+        elif kind == "market_rent":                  # a new home: rent from the rent model at this quantile
+            add(start, marketRentQuantile=eff.get("quantile", 0.5))
         elif kind == "income_delta":
             add(start, incomeDeltaChf=eff["deltaChf"])
             if end is not None:
@@ -62,6 +70,7 @@ def eligible(ev: dict, s: dict, turn: int, used: set) -> bool:
         turn >= ev.get("earliestTurn", 0),
         ev.get("repeatable", False) or ev["id"] not in used,
         "employment" not in req or person["employment"] in req["employment"],
+        "household" not in req or person["household"] in req["household"],
         "minAge" not in req or person["age"] >= req["minAge"],
         "maxAge" not in req or person["age"] <= req["maxAge"],
         all(person["facts"].get(k) in v for k, v in (req.get("facts") or {}).items()),
@@ -105,6 +114,8 @@ def apply_due_life_changes(s: dict) -> dict:
         elif ch.get("flag"):
             if ch["flag"] not in person["flags"]:
                 person["flags"].append(ch["flag"])
+        elif ch.get("household"):
+            person["household"] = ch["household"]
         else:
             still.append(ch)
     s["pendingChanges"] = still
@@ -126,6 +137,8 @@ def beats_between(prev: dict, cur: dict) -> list[dict]:
                                 if all(ch.get(k) == v for k, v in match.items())), None)
     if p1["employment"] != p0["employment"]:
         out.append(beat(cur, "LIFE_CHANGE", src(employment=p1["employment"]), employment=p1["employment"]))
+    if p1["household"] != p0["household"]:
+        out.append(beat(cur, "LIFE_CHANGE", src(household=p1["household"]), household=p1["household"]))
     for k, v in p1["facts"].items():
         if p0["facts"].get(k) != v:
             out.append(beat(cur, "LIFE_CHANGE", src(factKey=k, factValue=v), fact=k, value=v))

@@ -178,7 +178,8 @@ data class FinancialStatement(
 ### 5.3 Events (game content, in JSON)
 
 Contract defined by Dev C. Content lives in `content/events.json`, validated with `tools/validate_events.py`
-(writing guide in `content/README.md`).
+(writing guide in `content/README.md`). Which catalogue scenarios became events, and why the rest were dropped:
+[`docs/events-mapping.md`](events-mapping.md).
 
 ```kotlin
 typealias LocalizedText = Map<Lang, String>   // {"ES": "...", "EN": "..."}
@@ -199,7 +200,8 @@ data class Event(
 // All present fields must match. Evaluated at the start of the turn.
 data class Requirements(
     val employment: List<Employment>? = null,
-    val minAge: Int? = null,        // age = ageAtStart + month / 12
+    val household: List<Household>? = null,
+    val minAge: Int? = null,        // person.age
     val maxAge: Int? = null,
     val facts: Map<FactKey, List<String>>? = null,   // fact value must be one of these
     val flagsAll: List<String>? = null,     // must have all these milestones
@@ -225,6 +227,12 @@ sealed interface Effect {
     // Money
     @SerialName("set_income")          // the income becomes monthlyChf from s+offset on. Permanent.
     data class SetIncome(val monthlyChf: Double, val startOffsetMonths: Int = 0) : Effect
+    @SerialName("income_factor")       // the income is multiplied by factor (data ratio) for `months` (null = permanent)
+    data class IncomeFactor(val factor: Double, val startOffsetMonths: Int = 0, val months: Int? = null) : Effect
+    @SerialName("set_household")       // new household; must come with the HOUSING / FAMILY facts it implies
+    data class SetHousehold(val household: Household, val startOffsetMonths: Int = 0) : Effect
+    @SerialName("market_rent")         // a new home: market rent for the city and household (rent model), at a quantile
+    data class MarketRent(val quantile: Double = 0.5, val startOffsetMonths: Int = 0) : Effect
     @SerialName("income_delta")        // the income changes by deltaChf (negative = cut) for `months` (null = permanent)
     data class IncomeDelta(val deltaChf: Double, val startOffsetMonths: Int = 0, val months: Int? = null) : Effect
     @SerialName("expense_delta")       // extra monthly expense (negative = saving) for `months` (null = permanent)
@@ -246,7 +254,10 @@ sealed interface Effect {
 
 How the engine translates them (no hidden state): every effect becomes one or more `PendingChange`s of the statement,
 applied by the simulator at the start of their month (`month = s + offset`):
-- `set_income` → `monthlyIncomeChf`; `income_delta` → `incomeDeltaChf` (and its reversal after `months`).
+- `set_income` → `monthlyIncomeChf`; `income_delta` → `incomeDeltaChf`; `income_factor` → `incomeFactor` (both undone
+  after `months`).
+- `set_household` → `household`; `market_rent` → `marketRentQuantile` (the rent is computed once the month's city and
+  household changes are applied).
 - `expense_delta` → `expenseCategory` + `expenseDeltaChf` (and its reversal); `one_off` → the same for one month.
 - `add_liability` → `loan` (paid out to cash, merged with an existing loan: the data have at most one per person).
 - `set_employment` / `set_fact` / `add_flag` → the life change; it emits a `LIFE_CHANGE` `StoryBeat`.

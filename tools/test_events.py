@@ -59,6 +59,17 @@ class ValidatorTests(unittest.TestCase):
         self.assertTrue(any("'won_lottery'" in e for e in errors))
         self.assertTrue(any("'unknown_flag'" in e for e in errors))
 
+    def test_household_change_needs_its_facts(self):
+        self.case["effects"] += [{"type": "set_household", "household": "SHARED_HOUSING"}]
+        errors = validate(self.doc, CAT)
+        self.assertTrue(any("needs set_fact HOUSING=SHARED_FLAT" in e for e in errors), errors)
+
+    def test_new_effects_are_checked(self):
+        self.case["effects"] += [{"type": "income_factor", "factor": 0}, {"type": "market_rent", "quantile": 2}]
+        errors = validate(self.doc, CAT)
+        self.assertTrue(any("factor must be > 0" in e for e in errors))
+        self.assertTrue(any("quantile must be in [0, 1]" in e for e in errors))
+
     def test_both_languages_required(self):
         self.doc["events"][0]["title"] = {"ES": "Solo español"}
         self.assertTrue(any(".title" in e for e in validate(self.doc, CAT)))
@@ -148,6 +159,32 @@ class EngineRuleTests(unittest.TestCase):
                                        "months": 12}], "E")
         self.assertAlmostEqual(after(s, 12, model)["cashChf"], 1000 + 12 * 100)                     # only the event's
 
+    def test_income_factor_is_undone_after_its_months(self):
+        s = apply_effects(student(), [{"type": "income_factor", "factor": 0.5, "months": 3}], "E")
+        sts = run(s, 6, MODEL)
+        self.assertEqual([x["monthlyIncomeChf"] for x in sts[1:]], [500.0, 500.0, 500.0, 1000.0, 1000.0, 1000.0])
+        self.assertAlmostEqual(sts[-1]["cashChf"], 1000 + 3 * 100 + 3 * 600)
+
+    def test_moving_sets_the_market_rent_of_the_new_city_and_household(self):
+        s = person(city="Bern", rent=1800.0)                       # above the market rent of Bern (1,000)
+        moved = apply_effects(s, [{"type": "set_fact", "key": "CITY", "value": "Geneva"},
+                                  {"type": "market_rent", "quantile": 0.5}], "E")
+        self.assertAlmostEqual(after(moved, 1)["monthlyRentChf"], 1500.0)          # single, Geneva
+        shared = apply_effects(s, [{"type": "set_household", "household": "SHARED_HOUSING"},
+                                   {"type": "set_fact", "key": "HOUSING", "value": "SHARED_FLAT"},
+                                   {"type": "set_fact", "key": "FAMILY", "value": "SINGLE"},
+                                   {"type": "market_rent", "quantile": 0.75}], "E")
+        m1 = after(shared, 1)
+        self.assertEqual(m1["person"]["household"], "SHARED_HOUSING")
+        self.assertAlmostEqual(m1["monthlyRentChf"], 1000 * 0.5 * 1.25)            # shared, Bern, p75 of 0.5..1.5
+
+    def test_requirements_on_household(self):
+        ev = {"id": "E", "requires": {"household": ["SHARED_HOUSING"]}}
+        self.assertFalse(eligible(ev, student(), 0, set()))
+        s = student()
+        s["person"]["household"] = "SHARED_HOUSING"
+        self.assertTrue(eligible(ev, s, 0, set()))
+
     def test_luck_resolves_cases_in_order(self):
         opt = {"cases": {"PESSIMISTIC": {"prob": 0.2}, "NEUTRAL": {"prob": 0.6}, "OPTIMISTIC": {"prob": 0.2}}}
         self.assertEqual(case_from_luck(opt, 0.1), "PESSIMISTIC")
@@ -172,7 +209,9 @@ class StoryTests(unittest.TestCase):
 
     def test_master_then_financing_chain(self):
         decisions = [b["eventId"] for b in self.res["beats"] if b["kind"] == "DECISION"]
-        self.assertEqual(decisions, ["E-master", "E-financing"])
+        self.assertEqual(decisions[:2], ["E-master", "E-financing"])
+        self.assertEqual(len(decisions), 5)                            # no quiet turn: an event for every stage
+        self.assertEqual(len(set(decisions)), 5)                       # none repeated
         self.assertIn("did_master", self.res["statements"][-1]["person"]["flags"])
         self.assertAlmostEqual(self.res["attributionGap"], 0.0, delta=0.5)
         flags = {b["data"]["flag"]: b["eventId"] for b in self.res["beats"] if "flag" in b["data"]}

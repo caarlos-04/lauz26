@@ -70,8 +70,11 @@ data class PendingChange(
     val factKey: FactKey? = null,
     val factValue: String? = null,
     val flag: String? = null,
+    val household: Household? = null,
     val monthlyIncomeChf: Double? = null,           // the income becomes this
     val incomeDeltaChf: Double? = null,             // the income changes by this
+    val incomeFactor: Double? = null,               // the income is multiplied by this
+    val marketRentQuantile: Double? = null,         // the rent becomes the market rent (FlowModel.rentModel) at this quantile
     val expenseCategory: ExpenseCategory? = null,   // eventExpensesChf[category] changes by expenseDeltaChf
     val expenseDeltaChf: Double? = null,
     val loan: Loan? = null,                         // a new loan, paid out to cash (merged with an existing one)

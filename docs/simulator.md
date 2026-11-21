@@ -118,6 +118,13 @@ person's own level differs from the prediction; month-to-month noise of few occu
 `mode = "expected"` (one state per decision); `mode = "sample"` draws occurrences and amounts and is ready for
 pessimistic/optimistic cases or bands.
 
+### Market rent (used when an event moves the person)
+
+`rentModel` in `flow-model.json`: the reference rents of the dataset, with the same selection over every field.
+The data keep **household and city** (single in Neuchâtel 1,574 CHF; shared flat ×0.68, couple or family ×1.46;
+Geneva ×1.27, Zurich ×1.25, Fribourg ×0.94). The `market_rent` effect sets the rent to this value at a quantile of
+the dataset spread (p25 ≈ 0.84, p75 ≈ 1.16), indexed with the rent trend.
+
 ### Unknown situations
 
 A level the data never saw (city `ABROAD`) uses the national average (`unknown`). The engine should mark those

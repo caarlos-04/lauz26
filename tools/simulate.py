@@ -108,10 +108,25 @@ def merge_loan(old: dict | None, new: dict) -> dict:
             "monthlyPaymentChf": round(old["monthlyPaymentChf"] + new["monthlyPaymentChf"], 2)}
 
 
-def apply_due_changes(s: dict, t: int) -> tuple[dict, float]:
-    """Apply the pending changes with month <= t. Returns the new statement and the cash paid out by new loans."""
+def residual_quantile(deciles: list[float], q: float) -> float:
+    """Value at quantile q (0..1) of a distribution given by its 11 deciles (linear in between)."""
+    u = min(max(q, 0.0), 1.0) * 10
+    i = min(int(u), 9)
+    return deciles[i] + (deciles[i + 1] - deciles[i]) * (u - i)
+
+
+def market_rent(model: dict, s: dict, quantile: float) -> float:
+    """Rent of a new home for the person's city and household (rent model of flow-model.json), in 2025 CHF."""
+    rm = model["rentModel"]
+    return predict_raw(rm["base"], rm["factors"], features_of(s, model), rm.get("unknown")) * \
+        residual_quantile(rm["residualDeciles"], quantile)
+
+
+def apply_due_changes(s: dict, t: int) -> tuple[dict, float, float | None]:
+    """Apply the pending changes with month <= t. Returns the new statement, the cash paid out by new loans and the
+    quantile of a requested market rent (None if no move this month)."""
     s = copy.deepcopy(s)
-    person, still, loan_cash = s["person"], [], 0.0
+    person, still, loan_cash, rent_quantile = s["person"], [], 0.0, None
     for ch in s["pendingChanges"]:
         if ch["month"] > t:
             still.append(ch)
@@ -122,6 +137,12 @@ def apply_due_changes(s: dict, t: int) -> tuple[dict, float]:
         elif ch.get("flag"):
             if ch["flag"] not in person["flags"]:
                 person["flags"].append(ch["flag"])
+        elif ch.get("household"):
+            person["household"] = ch["household"]
+        elif ch.get("incomeFactor") is not None:
+            s["monthlyIncomeChf"] = round(s["monthlyIncomeChf"] * ch["incomeFactor"], 2)
+        elif ch.get("marketRentQuantile") is not None:
+            rent_quantile = ch["marketRentQuantile"]      # computed once every change of this month is applied
         elif ch.get("monthlyIncomeChf") is not None:
             s["monthlyIncomeChf"] = ch["monthlyIncomeChf"]
         elif ch.get("incomeDeltaChf") is not None:
@@ -135,7 +156,7 @@ def apply_due_changes(s: dict, t: int) -> tuple[dict, float]:
             s["loan"] = merge_loan(s["loan"], ch["loan"])
             loan_cash += ch["loan"]["principalChf"]
     s["pendingChanges"] = still
-    return s, loan_cash
+    return s, loan_cash, rent_quantile
 
 
 def step(s: dict, model: dict, *, macro: dict | None = None, mode: str = "expected",
@@ -148,7 +169,7 @@ def step(s: dict, model: dict, *, macro: dict | None = None, mode: str = "expect
     price_index = (1 + rates["priceInflationAnnual"]) ** (t / 12)     # learned flows, in 2025 CHF, t months later
 
     # 0. changes decided by events
-    cur, loan_cash = apply_due_changes(s, t)
+    cur, loan_cash, rent_quantile = apply_due_changes(s, t)
     person = cur["person"]
 
     # 1. trends, every month from the second one, 1/12 of the yearly rate (compounded). Event expenses are not
@@ -163,6 +184,9 @@ def step(s: dict, model: dict, *, macro: dict | None = None, mode: str = "expect
             career = career_factor(career_curves(macro), person["facts"].get("OCCUPATION"), age_now - 1 / 12, age_now)
         income = round(income * monthly(rates["wageGrowthAnnual"]) * career, 2)
         rent = round(rent * monthly(rates["rentGrowthSittingTenantAnnual"]), 2)
+    if rent_quantile is not None:       # a new home: market rent for the new city / household, at today's rent level
+        rent_index = (1 + rates["rentGrowthSittingTenantAnnual"]) ** (t / 12)
+        rent = round(market_rent(model, cur, rent_quantile) * rent_index, 2)
     cur = {**cur, "monthlyIncomeChf": income, "monthlyRentChf": rent, "eventExpensesChf": event_expenses}
 
     # 2. flows of the month, from the state at its start

@@ -28,6 +28,7 @@ data class Event(
 @Serializable
 data class Requirements(
     val employment: List<Employment>? = null,
+    val household: List<Household>? = null,
     val minAge: Int? = null,
     val maxAge: Int? = null,
     val facts: Map<FactKey, List<String>>? = null,
@@ -65,6 +66,22 @@ sealed interface Effect {
         val startOffsetMonths: Int = 0,
         val months: Int? = null,
     ) : Effect
+
+    // Multiplies the income (e.g. part time 0.557, from the dataset); with `months` the factor is undone at the end.
+    @Serializable
+    @SerialName("income_factor")
+    data class IncomeFactor(val factor: Double, val startOffsetMonths: Int = 0, val months: Int? = null) : Effect
+
+    // Changes the household (rent model input). Must come with the HOUSING / FAMILY facts it implies (validator).
+    @Serializable
+    @SerialName("set_household")
+    data class SetHousehold(val household: Household, val startOffsetMonths: Int = 0) : Effect
+
+    // A new home: the rent becomes the market rent for the person's city and household (FlowModel.rentModel) at this
+    // quantile of the dataset spread (0.25 = a cheap flat, 0.75 = an expensive one). Put it after the city/household change.
+    @Serializable
+    @SerialName("market_rent")
+    data class MarketRent(val quantile: Double = 0.5, val startOffsetMonths: Int = 0) : Effect
 
     @Serializable
     @SerialName("expense_delta")

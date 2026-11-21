@@ -22,15 +22,20 @@ LANGS = {"ES", "EN"}
 CASE_ORDER = ["PESSIMISTIC", "NEUTRAL", "OPTIMISTIC"]
 EMPLOYMENT = {"NOT_WORKING", "EMPLOYED", "PART_TIME", "SELF_EMPLOYED", "UNEMPLOYED", "RETIRED"}
 EXPENSE_CATEGORIES = {"RENT", "LIVING", "TUITION", "INSURANCE", "TRAVEL", "OTHER"}
+HOUSEHOLDS = {"SINGLE", "COUPLE", "FAMILY", "SHARED_HOUSING"}
 PROB_TOLERANCE = 1e-6
 
 EVENT_FIELDS = {"id", "category", "title", "description", "requires", "priority", "repeatable",
                 "earliestTurn", "sources", "options"}
-REQUIRE_FIELDS = {"employment", "minAge", "maxAge", "facts", "flagsAll", "flagsNone", "minCashChf", "maxCashChf"}
+REQUIRE_FIELDS = {"employment", "household", "minAge", "maxAge", "facts", "flagsAll", "flagsNone", "minCashChf",
+                  "maxCashChf"}
 # type -> (required fields, optional fields)
 EFFECTS = {
     "set_income": ({"monthlyChf"}, {"startOffsetMonths"}),
     "income_delta": ({"deltaChf"}, {"startOffsetMonths", "months"}),
+    "income_factor": ({"factor"}, {"startOffsetMonths", "months"}),
+    "set_household": ({"household"}, {"startOffsetMonths"}),
+    "market_rent": (set(), {"quantile", "startOffsetMonths"}),
     "expense_delta": ({"category", "deltaChf"}, {"startOffsetMonths", "months"}),
     "one_off": ({"chf"}, {"startOffsetMonths"}),
     "add_liability": ({"principalChf", "annualRate", "termMonths"}, set()),
@@ -78,12 +83,16 @@ def _check_effect(errors: list, where: str, eff: dict, cat: dict) -> None:
         errors.append(f"{where}: startOffsetMonths must be >= 0")
     if eff.get("months") is not None and eff["months"] <= 0:
         errors.append(f"{where}: months must be > 0 or null")
-    checks = [("category", EXPENSE_CATEGORIES), ("employment", EMPLOYMENT)]
+    checks = [("category", EXPENSE_CATEGORIES), ("employment", EMPLOYMENT), ("household", HOUSEHOLDS)]
     for field, allowed in checks:
         if field in eff and eff[field] not in allowed:
             errors.append(f"{where}: unknown {field} {eff[field]!r}")
     if etype == "add_liability" and eff.get("termMonths", 1) <= 0:
         errors.append(f"{where}: termMonths must be > 0")
+    if etype == "income_factor" and not eff.get("factor", 0) > 0:
+        errors.append(f"{where}: factor must be > 0")
+    if etype == "market_rent" and not 0 <= eff.get("quantile", 0.5) <= 1:
+        errors.append(f"{where}: quantile must be in [0, 1]")
     if etype == "set_fact" and eff.get("value") not in cat["facts"].get(eff.get("key"), {}):
         errors.append(f"{where}: fact {eff.get('key')}={eff.get('value')!r} not in content/facts.json")
     if etype == "add_flag" and eff.get("flag") not in cat["flags"]:
@@ -93,9 +102,10 @@ def _check_effect(errors: list, where: str, eff: dict, cat: dict) -> None:
 def _check_requires(errors: list, where: str, req: dict, cat: dict) -> None:
     if extra := set(req) - REQUIRE_FIELDS:
         errors.append(f"{where}: unknown fields {sorted(extra)}")
-    for e in req.get("employment", []):
-        if e not in EMPLOYMENT:
-            errors.append(f"{where}: unknown employment {e!r}")
+    for field, allowed in (("employment", EMPLOYMENT), ("household", HOUSEHOLDS)):
+        for e in req.get(field, []):
+            if e not in allowed:
+                errors.append(f"{where}: unknown {field} {e!r}")
     for key, values in (req.get("facts") or {}).items():
         for v in values:
             if v not in cat["facts"].get(key, {}):
@@ -103,6 +113,24 @@ def _check_requires(errors: list, where: str, req: dict, cat: dict) -> None:
     for f in (req.get("flagsAll") or []) + (req.get("flagsNone") or []):
         if f not in cat["flags"]:
             errors.append(f"{where}: flag {f!r} not declared in content/facts.json")
+
+
+def _check_household_facts(where: str, effects: list, cat: dict) -> list[str]:
+    """set_household must come with the HOUSING / FAMILY facts that initialFromProfile derives from that household,
+    at the same offset, so that the person's facts never contradict their household."""
+    errors = []
+    for eff in effects:
+        if eff.get("type") != "set_household":
+            continue
+        for key, rule in cat["initialFromProfile"].items():
+            if rule["from"] != "household":
+                continue
+            want = rule.get("map", {}).get(eff["household"], rule.get("default"))
+            ok = any(e.get("type") == "set_fact" and e.get("key") == key and e.get("value") == want
+                     and e.get("startOffsetMonths", 0) == eff.get("startOffsetMonths", 0) for e in effects)
+            if want and not ok:
+                errors.append(f"{where}: set_household {eff['household']} needs set_fact {key}={want}")
+    return errors
 
 
 def validate(doc: dict, cat: dict) -> list[str]:
@@ -152,6 +180,7 @@ def validate(doc: dict, cat: dict) -> list[str]:
                     errors.append(f"{cw}: no effects")
                 for j, eff in enumerate(case.get("effects", [])):
                     _check_effect(errors, f"{cw}.effects[{j}]", eff, cat)
+                errors += _check_household_facts(cw, case.get("effects", []), cat)
     return errors
 
 
