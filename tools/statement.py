@@ -7,7 +7,7 @@ Every flow line carries an origin: OBSERVED (dataset value), DERIVED (computed f
 ASSUMED (our assumption) or SIMULATED (engine). The same shape is produced by the reference engine
 (validate_events.py) so the app, the LLM and the tests all read one structure.
 """
-from common import month_index, segment_key
+from common import month_index, segment_key, work_status
 
 STATEMENT_VERSION = 1
 CURRENCY = "CHF"
@@ -126,7 +126,7 @@ def dataset_parts(ds: dict, pid: str, initial_life: dict, living_chf: float, ann
     person = {
         "displayName": pr["displayName"], "ageAtStart": pr["ageAtStart"], "age": pr["ageAtStart"],
         "city": pr["city"], "canton": raw["canton"], "country": raw["country"],
-        "employment": pr["employment"], "household": pr["household"],
+        "employment": work_status(pr["employment"]), "household": pr["household"],
         "facts": initial_life["facts"], "flags": initial_life["flags"], "synthetic": raw["synthetic"] == "true",
     }
     accounts = [{"id": a["account_id"], "type": a["account_type"].upper(), "currency": a["currency"],

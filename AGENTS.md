@@ -1,82 +1,89 @@
 # AGENTS.md
 
-Instrucciones para los agentes de IA (Claude Code, etc.) que trabajan en este repositorio.
+Instructions for the AI agents (Claude Code, etc.) working in this repository.
 
-## Contexto
-Lee `docs/README.md` antes de empezar: contiene el plan, la arquitectura, el reparto de trabajo y las decisiones tomadas.
+## Context
+Read `docs/README.md` before you start: it holds the plan, the architecture, the work split and the decisions taken.
 
 ## Git
-- **No hagas commits sin preguntar** al usuario. Muestra antes qué vas a incluir.
-- **No añadas `Co-Authored-By`** ni ninguna línea de atribución a la IA en los commits o en las PRs.
-- **Nunca uses `git push --force`** ni `--force-with-lease` sin permiso explícito.
-- No hagas `push` sin preguntar.
-- No reescribas el historial (`rebase`, `commit --amend`, `reset --hard`) de commits ya publicados.
-- No trabajes directamente en `main`: usa una rama propia y pregunta antes de fusionar.
-- Haz commits pequeños y con mensajes claros.
-- No borres ramas ni archivos de otros compañeros sin preguntar.
+- **Do not commit without asking** the user. Show first what you are going to include.
+- **Do not add `Co-Authored-By`** or any AI attribution line to commits or PRs.
+- **Never use `git push --force`** or `--force-with-lease` without explicit permission.
+- Do not `push` without asking.
+- Do not rewrite history (`rebase`, `commit --amend`, `reset --hard`) of commits that are already published.
+- Do not work directly on `main`: use your own branch and ask before merging.
+- Make small commits with clear messages.
+- Do not delete branches or files of other teammates without asking.
 
-## Coordinación entre desarrolladores (GitHub issues)
+## Coordination between developers (GitHub issues)
 
-Usa `gh` para todo lo de esta sección. Repo: `caarlos-04/lauz26`.
+Use `gh` for everything in this section. Repo: `caarlos-04/lauz26`.
 
-### Quién es quién
-| Rol | Usuario de GitHub | Etiqueta | Responsabilidad (detalle en `docs/README.md`, sección 11) |
+### Who is who
+| Role | GitHub user | Label | Responsibility (details in `docs/README.md`, section 11) |
 |---|---|---|---|
-| Dev A – Motor + integración | `polma7` | `polma7` | Esqueleto KMP, `model/`, motor, árbol, atribución, tests |
-| Dev B – UI/UX (front) | `OriolVines` | `OriolVines` | Pantallas, línea de vida, gráficos, i18n, empaquetado |
-| Dev C – Datos + contenido + IA | `caarlos-04` | `caarlos-04` | Calibración, eventos, hechos, supuestos, crónica y chat |
+| Dev A – Engine + integration | `polma7` | `polma7` | KMP skeleton, `model/`, engine, decision tree, attribution, tests |
+| Dev B – UI/UX (front end) | `OriolVines` | `OriolVines` | Screens, life line, charts, i18n, packaging |
+| Dev C – Data + content + AI | `caarlos-04` | `caarlos-04` | Calibration, events, facts, assumptions, chronicle and chat |
 
-Cada persona tiene una etiqueta con su usuario de GitHub. Al empezar una sesión, averigua para quién trabajas con `gh api user --jq .login` y usa su rol y su etiqueta.
+Each person has a label named after their GitHub user. When a session starts, find out who you work for with
+`gh api user --jq .login` and use their role and label.
 
-### Cuando necesites algo de otro desarrollador: crea una issue
-Si te falta algo que es responsabilidad de otro (un cambio en `model/`, una función del motor, una pantalla, un fichero de contenido...), **no lo hagas tú en su módulo**: crea una issue y etiquétale.
-1. Busca antes si ya existe: `gh issue list --state open --search "<palabras clave>"`.
-2. Créala asignada a esa persona, con su etiqueta y mencionándola en el cuerpo:
+### When you need something from another developer: open an issue
+If you are missing something that is someone else's responsibility (a change in `model/`, an engine function, a screen,
+a content file...), **do not do it yourself in their module**: open an issue and tag them.
+1. First check whether it already exists: `gh issue list --state open --search "<keywords>"`.
+2. Create it assigned to that person, with their label, mentioning them in the body:
    ```
-   gh issue create --title "[caarlos-04 → polma7] <qué se necesita>" \
-     --assignee <usuario> --label <usuario> \
-     --body "@<usuario> <cuerpo con la plantilla de abajo>"
+   gh issue create --title "[caarlos-04 → polma7] <what is needed>" \
+     --assignee <user> --label <user> \
+     --body "@<user> <body using the template below>"
    ```
-3. Cuerpo de la issue:
-   - **Qué necesito**: una frase.
-   - **Para qué**: qué bloquea (fichero, pantalla, paso del flujo P1-P12).
-   - **Contrato**: dataclass, función o fichero JSON afectado, con enlace a la sección de `docs/README.md`.
-   - **Cuándo**: hora del cronograma en que lo necesitas, y si te bloquea ya.
-   - **Quién lo pide**: tu rol y tu rama.
-4. Si es un **cambio de contrato** (`model/`, formatos JSON), añade la etiqueta `contrato` y menciona a todos los afectados.
-5. Dile al usuario qué issue has creado (número y enlace).
+3. Issue body:
+   - **What I need**: one sentence.
+   - **What for**: what it blocks (file, screen, flow step P1-P12).
+   - **Contract**: affected data class, function or JSON file, with a link to the section of `docs/README.md`.
+   - **When**: the schedule hour when you need it, and whether it blocks you now.
+   - **Who asks**: your role and your branch.
+4. If it is a **contract change** (`model/`, JSON formats), add the `contrato` label and mention everyone affected.
+5. Tell the user which issue you created (number and link).
 
-### Cada vez que hagas push: revisa si te han etiquetado
-Justo después de cada `git push` (y también al empezar la sesión):
-1. Busca issues abiertas que te afecten:
+### Every time you push: check whether you have been tagged
+Right after every `git push` (and also when the session starts):
+1. Look for open issues that concern you:
    ```
    gh issue list --state open --assignee @me
-   gh issue list --state open --label <tu-usuario>
-   gh search issues --repo caarlos-04/lauz26 --state open --mentions <tu-usuario>
+   gh issue list --state open --label <your-user>
+   gh search issues --repo caarlos-04/lauz26 --state open --mentions <your-user>
    ```
-2. Lee cada una con sus comentarios: `gh issue view <n> --comments`. Fíjate en los comentarios nuevos desde tu última respuesta.
-3. Para cada issue, haz una de estas dos cosas:
-   - **Si piden información o estado**: responde con un comentario (`gh issue comment <n> --body "..."`) indicando: estado (hecho / en curso / bloqueado), qué falta, rama y commit si aplica, y cuándo estará.
-   - **Si piden código**: impleméntalo en tu rama y súbelo **siguiendo las reglas de Git de arriba** (enseña al usuario qué vas a incluir y pide confirmación antes del commit y del push). Después comenta en la issue con la rama, el commit o la PR (`Closes #<n>` en la descripción de la PR).
-4. No cierres una issue de otro sin que lo confirme quien la pidió; cierra las tuyas cuando estén resueltas.
-5. Resume al usuario qué issues has encontrado y qué has respondido o subido.
+2. Read each one with its comments: `gh issue view <n> --comments`. Look for new comments since your last reply.
+3. For each issue, do one of these two things:
+   - **If they ask for information or status**: reply with a comment (`gh issue comment <n> --body "..."`) giving the
+     status (done / in progress / blocked), what is missing, branch and commit if relevant, and when it will be ready.
+   - **If they ask for code**: implement it in your branch and push it **following the Git rules above** (show the user
+     what you will include and ask for confirmation before the commit and the push). Then comment on the issue with the
+     branch, commit or PR (`Closes #<n>` in the PR description).
+4. Do not close someone else's issue without confirmation from whoever opened it; close your own when they are resolved.
+5. Summarise for the user which issues you found and what you replied or pushed.
 
-Comentarios e issues en español, cortos y concretos. No menciones a personas que no estén implicadas.
+Issues and comments in English, short and concrete. Do not mention people who are not involved.
 
-## Seguridad y datos
-- **Nunca** subas claves de API, tokens ni credenciales. Usa variables de entorno y asegúrate de que estén en `.gitignore`.
-- Usa solo datos **sintéticos**. Ningún dato personal o financiero real.
-- No incluyas contenido de terceros sin comprobar su licencia.
+## Security and data
+- **Never** commit API keys, tokens or credentials. Use environment variables and make sure they are in `.gitignore`.
+- Use **synthetic** data only. No real personal or financial data.
+- Do not include third-party content without checking its licence.
 
-## Trabajo en equipo
-- Somos 3 desarrolladores trabajando en paralelo. Toca solo tu módulo; si necesitas cambiar un contrato compartido (modelos, interfaces), avisa antes.
-- La lógica va en `commonMain` siempre que sea posible; el código específico de plataforma, solo si no hay alternativa.
-- Si algo no está claro, **pregunta antes de inventar**.
+## Teamwork
+- We are 3 developers working in parallel. Only touch your module; if you need to change a shared contract
+  (models, interfaces), say so first.
+- Logic goes in `commonMain` whenever possible; platform-specific code only if there is no alternative.
+- If something is unclear, **ask before making things up**.
 
-## Código
+## Code
 - Kotlin Multiplatform + Compose Multiplatform. Android + Desktop (JVM).
-- El motor financiero es una función pura y debe tener tests.
-- Cifras y supuestos financieros: documenta unidades (CHF) y fuente. El LLM nunca inventa números: solo explica los que calcula el motor.
-- No añadas dependencias nuevas sin comentarlo con el equipo.
-- Textos de la interfaz en ES/EN, nunca cadenas fijas en el código.
-- Comentarios, nombres de variables y todo en ingles
+- The financial engine is a pure function and must have tests.
+- Financial figures and assumptions: document units (CHF) and source. The LLM never makes up numbers: it only explains
+  the ones computed by the engine.
+- Do not add new dependencies without discussing it with the team.
+- UI texts in ES/EN, never hard-coded strings in the code.
+- Comments, variable names and everything else in English.

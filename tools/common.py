@@ -26,6 +26,20 @@ def segment_key(employment: str, household: str) -> str:
     return f"{employment.upper()}|{household.upper()}"
 
 
+def work_status(dataset_employment: str) -> str:
+    """How the person earns money. The dataset's employment_status also encodes studying ('student');
+    in the statement studying lives in facts.EDUCATION, and a student without a job is NOT_WORKING."""
+    return "NOT_WORKING" if dataset_employment == "STUDENT" else dataset_employment
+
+
+def calibration_employment(employment: str, education: str | None) -> str:
+    """Dataset employment status whose calibration applies to a person in the game.
+    Studying and not working -> STUDENT; not working and not studying -> UNEMPLOYED (closest segment: assumption)."""
+    if employment == "NOT_WORKING":
+        return "STUDENT" if education and education.endswith("_IN_PROGRESS") else "UNEMPLOYED"
+    return employment
+
+
 def employment_fallback_key(employment: str) -> str:
     """Fallback segment when the full segment has too few profiles, e.g. 'STUDENT|ANY'."""
     return f"{employment.upper()}|ANY"

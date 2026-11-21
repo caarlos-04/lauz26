@@ -2,8 +2,10 @@ package com.lauzhack.twin.model
 
 import kotlinx.serialization.Serializable
 
+// How the person earns money. Studying is independent: see FactKey.EDUCATION (a value ending in _IN_PROGRESS).
+// A student without a job is NOT_WORKING; a working student is PART_TIME (or EMPLOYED) with EDUCATION in progress.
 @Serializable
-enum class Employment { STUDENT, EMPLOYED, PART_TIME, SELF_EMPLOYED, RETIRED, UNEMPLOYED }
+enum class Employment { NOT_WORKING, EMPLOYED, PART_TIME, SELF_EMPLOYED, UNEMPLOYED, RETIRED }
 
 @Serializable
 enum class Household { SINGLE, COUPLE, FAMILY, SHARED_HOUSING }
