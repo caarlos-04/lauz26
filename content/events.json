@@ -1,0 +1,231 @@
+{
+  "version": 2,
+  "events": [
+    {
+      "id": "E-master",
+      "category": "Education & skills",
+      "title": {
+        "ES": "¿Máster o trabajo?",
+        "EN": "Master's degree or a job?"
+      },
+      "description": {
+        "ES": "Terminas el grado. Puedes estudiar un máster de dos años o empezar a trabajar ya.",
+        "EN": "You are finishing your bachelor's. You can study a two-year master's or start working now."
+      },
+      "requires": { "employment": ["STUDENT"], "maxAge": 30, "facts": { "EDUCATION": ["BACHELOR_IN_PROGRESS"] } },
+      "priority": 0,
+      "earliestTurn": 0,
+      "sources": [
+        "Tuition 8,000 CHF/year for 2 years: scenario-assumptions.csv (AS-P00001-01/02), illustrative, not verified.",
+        "Salaries: synthetic-profiles.csv, employed net income p10 ≈ 4,560 and median ≈ 7,740 CHF/month; junior salaries set below the median (assumption).",
+        "Job-search delays and the scholarship in the optimistic case are assumptions.",
+        "Current income, rent and living cost: Alexia's profile and her 24-month ledger."
+      ],
+      "options": [
+        {
+          "id": "A",
+          "label": { "ES": "Hacer el máster", "EN": "Do the master's" },
+          "cases": {
+            "PESSIMISTIC": {
+              "prob": 0.25,
+              "effects": [
+                { "type": "expense_delta", "category": "TUITION", "deltaChf": 733, "months": 24 },
+                { "type": "set_fact", "key": "EDUCATION", "value": "MASTER_IN_PROGRESS" },
+                { "type": "set_fact", "key": "EDUCATION", "value": "MASTER", "startOffsetMonths": 24 },
+                { "type": "add_flag", "flag": "did_master", "startOffsetMonths": 24 },
+                { "type": "set_income", "streamId": "income", "monthlyChf": 5000, "startOffsetMonths": 30 },
+                { "type": "set_employment", "employment": "EMPLOYED", "startOffsetMonths": 30 },
+                { "type": "set_fact", "key": "OCCUPATION", "value": "JUNIOR", "startOffsetMonths": 30 }
+              ],
+              "narrative": {
+                "ES": "La matrícula sube un 10 % y, al terminar, tardas seis meses en encontrar trabajo. Empiezas con 5.000 CHF al mes.",
+                "EN": "Tuition goes up 10% and, after graduating, it takes you six months to find a job. You start at CHF 5,000 a month."
+              }
+            },
+            "NEUTRAL": {
+              "prob": 0.5,
+              "effects": [
+                { "type": "expense_delta", "category": "TUITION", "deltaChf": 667, "months": 24 },
+                { "type": "set_fact", "key": "EDUCATION", "value": "MASTER_IN_PROGRESS" },
+                { "type": "set_fact", "key": "EDUCATION", "value": "MASTER", "startOffsetMonths": 24 },
+                { "type": "add_flag", "flag": "did_master", "startOffsetMonths": 24 },
+                { "type": "set_income", "streamId": "income", "monthlyChf": 6000, "startOffsetMonths": 26 },
+                { "type": "set_employment", "employment": "EMPLOYED", "startOffsetMonths": 26 },
+                { "type": "set_fact", "key": "OCCUPATION", "value": "JUNIOR", "startOffsetMonths": 26 }
+              ],
+              "narrative": {
+                "ES": "Pagas 8.000 CHF al año de matrícula. Dos meses después de graduarte empiezas a trabajar con 6.000 CHF al mes.",
+                "EN": "You pay CHF 8,000 a year in tuition. Two months after graduating you start working at CHF 6,000 a month."
+              }
+            },
+            "OPTIMISTIC": {
+              "prob": 0.25,
+              "effects": [
+                { "type": "expense_delta", "category": "TUITION", "deltaChf": 333, "months": 24 },
+                { "type": "set_fact", "key": "EDUCATION", "value": "MASTER_IN_PROGRESS" },
+                { "type": "set_fact", "key": "EDUCATION", "value": "MASTER", "startOffsetMonths": 24 },
+                { "type": "add_flag", "flag": "did_master", "startOffsetMonths": 24 },
+                { "type": "set_income", "streamId": "income", "monthlyChf": 7000, "startOffsetMonths": 24 },
+                { "type": "set_employment", "employment": "EMPLOYED", "startOffsetMonths": 24 },
+                { "type": "set_fact", "key": "OCCUPATION", "value": "JUNIOR", "startOffsetMonths": 24 }
+              ],
+              "narrative": {
+                "ES": "Consigues una beca que cubre la mitad de la matrícula y una oferta antes de graduarte: 7.000 CHF al mes.",
+                "EN": "You win a scholarship covering half the tuition and get an offer before graduating: CHF 7,000 a month."
+              }
+            }
+          }
+        },
+        {
+          "id": "B",
+          "label": { "ES": "Empezar a trabajar", "EN": "Start working" },
+          "cases": {
+            "PESSIMISTIC": {
+              "prob": 0.2,
+              "effects": [
+                { "type": "set_fact", "key": "EDUCATION", "value": "BACHELOR" },
+                { "type": "add_flag", "flag": "started_working_early" },
+                { "type": "set_income", "streamId": "income", "monthlyChf": 4200, "startOffsetMonths": 4 },
+                { "type": "set_employment", "employment": "EMPLOYED", "startOffsetMonths": 4 },
+                { "type": "set_fact", "key": "OCCUPATION", "value": "JUNIOR", "startOffsetMonths": 4 }
+              ],
+              "narrative": {
+                "ES": "Tardas cuatro meses en encontrar trabajo y empiezas con 4.200 CHF al mes.",
+                "EN": "It takes you four months to find a job and you start at CHF 4,200 a month."
+              }
+            },
+            "NEUTRAL": {
+              "prob": 0.6,
+              "effects": [
+                { "type": "set_fact", "key": "EDUCATION", "value": "BACHELOR" },
+                { "type": "add_flag", "flag": "started_working_early" },
+                { "type": "set_income", "streamId": "income", "monthlyChf": 4800, "startOffsetMonths": 2 },
+                { "type": "set_employment", "employment": "EMPLOYED", "startOffsetMonths": 2 },
+                { "type": "set_fact", "key": "OCCUPATION", "value": "JUNIOR", "startOffsetMonths": 2 }
+              ],
+              "narrative": {
+                "ES": "En dos meses encuentras trabajo con 4.800 CHF al mes.",
+                "EN": "Within two months you find a job paying CHF 4,800 a month."
+              }
+            },
+            "OPTIMISTIC": {
+              "prob": 0.2,
+              "effects": [
+                { "type": "set_fact", "key": "EDUCATION", "value": "BACHELOR" },
+                { "type": "add_flag", "flag": "started_working_early" },
+                { "type": "set_income", "streamId": "income", "monthlyChf": 5400, "startOffsetMonths": 1 },
+                { "type": "set_employment", "employment": "EMPLOYED", "startOffsetMonths": 1 },
+                { "type": "set_fact", "key": "OCCUPATION", "value": "JUNIOR", "startOffsetMonths": 1 }
+              ],
+              "narrative": {
+                "ES": "Te contratan en tus prácticas al mes siguiente, con 5.400 CHF al mes.",
+                "EN": "Your internship hires you the following month at CHF 5,400 a month."
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "E-financing",
+      "category": "Debt & credit",
+      "title": {
+        "ES": "Tu cuenta está en negativo",
+        "EN": "Your account is overdrawn"
+      },
+      "description": {
+        "ES": "Estás pagando intereses por el descubierto. Puedes pedir un préstamo personal o pedir ayuda a tu familia.",
+        "EN": "You are paying interest on the overdraft. You can take out a personal loan or ask your family for help."
+      },
+      "requires": { "maxCashChf": 0 },
+      "priority": 10,
+      "repeatable": false,
+      "earliestTurn": 1,
+      "sources": [
+        "Loan rates: synthetic-liabilities.csv, personal loans from 2.53% (min) to 8.48% (max), median 5.82%.",
+        "Overdraft interest: 8.5%/year, the maximum loan rate in the dataset (assumption, see Assumptions.financingRateAnnual).",
+        "Loan amount (30,000 CHF over 60 months) and family help amounts are assumptions."
+      ],
+      "options": [
+        {
+          "id": "A",
+          "label": { "ES": "Pedir un préstamo personal", "EN": "Take out a personal loan" },
+          "cases": {
+            "PESSIMISTIC": {
+              "prob": 0.2,
+              "effects": [
+                { "type": "add_liability", "liabilityType": "PERSONAL_LOAN", "principalChf": 30000, "annualRate": 0.0848, "termMonths": 60 },
+                { "type": "add_flag", "flag": "took_loan" }
+              ],
+              "narrative": {
+                "ES": "El banco te presta 30.000 CHF, pero al 8,5 %: la cuota es alta durante cinco años.",
+                "EN": "The bank lends you CHF 30,000, but at 8.5%: a high monthly payment for five years."
+              }
+            },
+            "NEUTRAL": {
+              "prob": 0.6,
+              "effects": [
+                { "type": "add_liability", "liabilityType": "PERSONAL_LOAN", "principalChf": 30000, "annualRate": 0.0582, "termMonths": 60 },
+                { "type": "add_flag", "flag": "took_loan" }
+              ],
+              "narrative": {
+                "ES": "Consigues un préstamo de 30.000 CHF al 5,8 % a cinco años.",
+                "EN": "You get a CHF 30,000 loan at 5.8% over five years."
+              }
+            },
+            "OPTIMISTIC": {
+              "prob": 0.2,
+              "effects": [
+                { "type": "add_liability", "liabilityType": "PERSONAL_LOAN", "principalChf": 30000, "annualRate": 0.0253, "termMonths": 60 },
+                { "type": "add_flag", "flag": "took_loan" }
+              ],
+              "narrative": {
+                "ES": "Tu nuevo contrato convence al banco: 30.000 CHF al 2,5 % a cinco años.",
+                "EN": "Your new contract convinces the bank: CHF 30,000 at 2.5% over five years."
+              }
+            }
+          }
+        },
+        {
+          "id": "B",
+          "label": { "ES": "Pedir ayuda a la familia", "EN": "Ask your family for help" },
+          "cases": {
+            "PESSIMISTIC": {
+              "prob": 0.3,
+              "effects": [
+                { "type": "one_off", "chf": -5000 },
+                { "type": "add_flag", "flag": "family_help" }
+              ],
+              "narrative": {
+                "ES": "Tu familia solo puede darte 5.000 CHF. El resto sigue en descubierto, con intereses.",
+                "EN": "Your family can only give you CHF 5,000. The rest stays overdrawn, with interest."
+              }
+            },
+            "NEUTRAL": {
+              "prob": 0.5,
+              "effects": [
+                { "type": "one_off", "chf": -15000 },
+                { "type": "add_flag", "flag": "family_help" }
+              ],
+              "narrative": {
+                "ES": "Tu familia te da 15.000 CHF sin intereses.",
+                "EN": "Your family gives you CHF 15,000, interest-free."
+              }
+            },
+            "OPTIMISTIC": {
+              "prob": 0.2,
+              "effects": [
+                { "type": "one_off", "chf": -30000 },
+                { "type": "add_flag", "flag": "family_help" }
+              ],
+              "narrative": {
+                "ES": "Tu familia cubre todo el descubierto: 30.000 CHF.",
+                "EN": "Your family covers the whole overdraft: CHF 30,000."
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

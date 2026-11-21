@@ -7,27 +7,34 @@
 ## Índice
 1. [Qué construimos](#1-qué-construimos)
 2. [Decisiones tomadas](#2-decisiones-tomadas)
-3. [Bucle de juego](#3-bucle-de-juego)
+3. [Experiencia y bucle de juego](#3-experiencia-y-bucle-de-juego)
 4. [Arquitectura](#4-arquitectura)
 5. [Modelo de datos (dataclasses)](#5-modelo-de-datos-dataclasses)
 6. [Flujo de información: input y output de cada paso](#6-flujo-de-información-input-y-output-de-cada-paso)
 7. [Reglas de cálculo del motor](#7-reglas-de-cálculo-del-motor)
 8. [Datos y calibración](#8-datos-y-calibración)
-9. [Monte Carlo y estadísticas](#9-monte-carlo-y-estadísticas)
+9. [Análisis: árbol de decisiones, vidas paralelas y sensibilidad](#9-análisis-árbol-de-decisiones-vidas-paralelas-y-sensibilidad)
 10. [LLM: de dónde salen las respuestas y cómo no pagar](#10-llm-de-dónde-salen-las-respuestas-y-cómo-no-pagar)
 11. [Reparto del trabajo](#11-reparto-del-trabajo)
 12. [Cosas importantes y preguntas abiertas](#12-cosas-importantes-y-preguntas-abiertas)
+13. [Mejoras futuras (si sobra tiempo)](#13-mejoras-futuras-si-sobra-tiempo)
 
 ---
 
 ## 1. Qué construimos
 
-Un juego tipo **"diseña tu propia vida"** que ayuda al usuario a visualizar y comparar escenarios financieros.
-Integra dos retos a la vez:
+Un juego tipo **"diseña tu propia vida"** en el que el usuario ve a **su gemelo digital** vivir diez años:
+cada decisión cambia su vida y su dinero, y al final se entiende **qué cambios le llevaron hasta su estado final**.
 
+Feedback de la organización que guía el diseño:
+- **Lo importante es la historia**: el gemelo digital de la persona y la **narrativa de los cambios** que lo llevan al estado final.
+- **Monte Carlo es demasiado simple**: hay que ir más allá. Lo sustituimos por un árbol de decisiones resuelto de forma exacta, vidas paralelas y análisis de sensibilidad (sección 9).
+
+Integra dos retos a la vez:
 - **AI Financial Twin** (reto principal, autora del concepto: Stefania Stan). Principio: *"Don't predict the future. Make it explorable."*
-  Hay que mostrar: estado financiero ficticio, una intervención/decisión, comparación base vs. alternativa, supuestos transparentes,
-  limitaciones y explicación de por qué difieren los resultados.
+  La rúbrica (borrador) pesa: modelo financiero y corrección 25, escenarios y contrafactual 20, ejecución y validación 15,
+  experiencia de usuario 15, innovación 15, transparencia 10. Preguntas de los jueces: *¿qué supuestos afectan más?,
+  ¿cómo cambia el estado una decisión?, ¿cómo lo habéis validado?, ¿qué pasa si se viola una restricción?*
 - **JetBrains Kotlin Multiplatform**. La app debe correr en **al menos 2 plataformas** y se puntúa cuánta lógica
   vive en `commonMain`, además de modo oscuro/claro, localización, Compose Multiplatform, backend Kotlin y lógica de IA compartida (Koog).
   Puntos extra por *Agentic Development* con JetBrains Air (documentad qué hizo cada agente y qué corregimos).
@@ -41,36 +48,50 @@ Integra dos retos a la vez:
 | Idiomas | ES / EN |
 | Tiempo | Menos de 24 h → MVP muy recortado |
 | Perfil | El usuario introduce el suyo mediante entrevista de opción múltiple. **Alexia** (20 años, estudiante, Lausanne, CHF 8.000) queda precargada como perfil de demo por si falla |
-| Partida | ~5-6 turnos sobre un horizonte de 10 años (120 meses) |
-| Casos | Cada decisión tiene 3 casos: pesimista / neutro / optimista |
-| Incertidumbre | Los 3 casos son la capa narrativa del juego; **Monte Carlo** es la capa estadística (abanico, probabilidades) |
+| Gemelo digital | Un **`FinancialStatement`** por paso con toda la información de la persona (ver `docs/financial-statement.md`): dinero (lo calcula el motor) + vida: hechos (estudios, ocupación, ciudad, vivienda, familia) e hitos (`flags`), que solo cambian los eventos, de forma explícita |
+| Dimensiones no financieras medidas | **No** (nada de bienestar, estrés, etc.: no hay datos) |
+| Partida | ~5 turnos de 24 meses (10 años, 120 meses) |
+| Casos | Cada decisión tiene 3 casos: pesimista / neutro / optimista, sorteados con la **suerte** de la partida |
+| Historia | Relato corto en cada turno (narrativa fija del caso) + **crónica completa** generada por el LLM al final, a partir de hechos calculados |
+| Incertidumbre y análisis | **Sin Monte Carlo.** Árbol de decisiones exacto (estrategia óptima y vidas paralelas), sensibilidad y punto de equilibrio, y banda de ruido analítica |
+| Restricciones | Liquidez mínima del usuario; la caja negativa se financia con interés |
 | Dinero | `Double` en CHF (tests de coherencia con tolerancia). Sin impuestos (limitación documentada) |
-| LLM | **Sin decidir**, pero **gratis** (ver sección 10). Oculto tras la interfaz `FutureSelfChat` |
+| LLM | **Sin decidir**, pero **gratis** (sección 10). Oculto tras la interfaz `FutureSelfChat` |
 | Persistencia | Partida en memoria durante la demo (por decidir si se guarda en disco) |
 
-Terminología: usamos **caso** (pesimista/neutro/optimista), no "entorno".
+Terminología: **caso** (pesimista/neutro/optimista), **hecho** (`fact`), **hito** (`flag`), **momento** (`StoryBeat`), **vida paralela**.
 
-## 3. Bucle de juego
-
-Basado en el diagrama del equipo: entrevista → modelado del perfil → eventos (con bucle) → chat con el "yo del futuro" + estadísticas.
+## 3. Experiencia y bucle de juego
 
 ```
-Turno N (un evento de vida)
- ├─ Decisión A ──► resultado con 3 casos (pesimista / neutro / optimista)
- └─ Decisión B ──► resultado con 3 casos (pesimista / neutro / optimista)
-        │
-   el usuario elige A o B
-        │
-   se resuelve UN caso → el estado financiero se actualiza → Turno N+1
+Entrevista ─► Gemelo inicial (dinero + vida)
+                 │
+   ┌─────────────▼──────────────────────────────────────────────┐
+   │ Turno N: el motor elige un evento según la vida actual      │
+   │   ├─ Decisión A ──► 3 casos (pesimista / neutro / optimista)│
+   │   └─ Decisión B ──► 3 casos                                 │
+   │ El usuario elige → la suerte resuelve un caso → relato corto│
+   │ → pasan 24 meses → cambian dinero, hechos e hitos           │
+   └─────────────┬──────────────────────────────────────────────┘
+                 │ (5 turnos)
+                 ▼
+ Final: línea de vida · cascada "de dónde viene tu patrimonio" · vidas paralelas
+        · "tu historia cambiaría si..." · crónica · chat con tu yo del futuro
 ```
 
-- Cada evento ofrece **dos decisiones**; cada decisión produce un resultado con **tres casos**.
-- Antes de elegir se muestran los 3 casos de A y de B para comparar (preview determinista).
-- Al elegir, se **sortea un caso con probabilidades** (por defecto 20 % pesimista / 60 % neutro / 20 % optimista, ajustables por evento), con semilla para reproducibilidad.
+- **La historia depende de la vida**: los eventos se eligen según hechos, hitos y caja (`requires`). Si hiciste el máster,
+  después pueden salir eventos para quien tiene máster; si la caja está en negativo, sale el evento de financiación.
+- **Antes de elegir** se ven los 3 casos de A y de B (preview determinista).
+- **Al elegir**, la suerte de ese turno (un número de 0 a 1 derivado de la semilla) decide el caso. La misma suerte
+  se usa en las vidas paralelas: "con la misma suerte, si hubieras elegido B...".
+- **Turnos tranquilos**: si ningún evento cumple las condiciones, pasan 24 meses sin decisión (también es un momento de la historia).
+- **Al final** (todo calculado por el motor; el LLM solo lo cuenta):
+  1. **Línea de vida** con edad, hitos y momentos clave (mínimo de caja, metas alcanzadas, cambios de vida).
+  2. **Cascada** del patrimonio: de dónde sale y a dónde va cada franco, y cuánto aporta cada decisión.
+  3. **Vidas paralelas**: tu otra vida (primera decisión cambiada) y la vida con la estrategia óptima para tus prioridades.
+  4. **"Tu historia cambiaría si..."**: los supuestos que más mueven el resultado y el punto en que cambia la mejor decisión.
+  5. **Crónica** de tu vida y **chat** con tu yo del futuro (o con tu yo paralelo).
 - Opcional: modo "elige tú el caso" para exploración libre. *(Pendiente de confirmar.)*
-- Cada turno avanza el tiempo `monthsPerTurn` meses (por defecto 24; 5 turnos ≈ 10 años).
-- Al final se compara el camino elegido con el **camino alternativo** (qué habría pasado con la otra decisión).
-- Los eventos que aparecen dependen del perfil (p. ej. estudiante → máster/beca; jubilado → salud/herencia) con condiciones simples (`requires`).
 
 ## 4. Arquitectura
 
@@ -78,20 +99,22 @@ Casi todo en `commonMain`:
 
 ```
 commonMain
-├─ model/     dataclasses (sección 5)                      [contrato compartido]
-├─ engine/    apply(), avance mensual, sorteo, contrafactual, Monte Carlo, stats
-├─ events/    catálogo de eventos y selección según perfil
-├─ data/      carga de JSON (perfiles, calibración, eventos, supuestos, entrevista)
-├─ ai/        interfaz FutureSelfChat (implementación LLM intercambiable)
-└─ ui/        pantallas Compose: entrevista, dilema, resolución, resultados, chat
+├─ model/     dataclasses (sección 5)                       [contrato compartido]
+├─ engine/    apply(), avance mensual, suerte, financiación, cambios de vida,
+│             momentos (StoryBeat), atribución, árbol (expectimax), vidas paralelas, sensibilidad
+├─ events/    catálogo de eventos y selección según la vida actual
+├─ data/      carga de JSON (perfiles, calibración, eventos, hechos, supuestos, entrevista)
+├─ ai/        interfaz FutureSelfChat y crónica (implementación LLM intercambiable)
+└─ ui/        pantallas Compose: entrevista, dilema, resolución, línea de vida, resultados, chat
 androidMain / desktopMain  → solo arranque, ficheros y clave API
-tools/        scripts Python offline (calibración, backtest, conversión CSV→JSON)
+tools/        scripts Python offline (calibración, backtest, validación y preview de eventos)
+content/      contenido del juego en JSON (eventos, hechos, supuestos), escrito por Dev C
 ```
 
 Principios:
 - El motor es **función pura e inmutable**: `apply(state, option, case) → newState`. Fácil de testear y de reproducir.
-- Los eventos son **datos JSON**, no código.
-- Los CSV no se pueden leer con `java.io` en `commonMain`: un script offline los convierte a JSON y la app solo lee JSON.
+- **El dinero lo calcula el motor; la vida la cambian los eventos.** Nada se inventa por el camino.
+- Los eventos son **datos JSON**, no código. La app solo lee JSON (los CSV se procesan offline en `tools/`).
 - **Nadie cambia `model/` sin avisar a los demás**: es el contrato.
 
 ## 5. Modelo de datos (dataclasses)
@@ -99,9 +122,10 @@ Principios:
 Convenciones:
 - Todas `@Serializable` (kotlinx.serialization). Todas **inmutables** (`val`, `copy()` para cambiar).
 - Dinero: `Double` en **CHF**. Tipos de interés/rentabilidad: **fracción anual** (0.05 = 5 %).
-- Tiempo: `month` = índice entero de mes desde el inicio de la partida (**0..119**). `YearMonth` como texto `"2025-01"`.
-- Probabilidades: `0.0..1.0`. Los ids son `String` estables (se usan como claves entre ficheros).
-- Campos de texto visibles al usuario van como **clave de traducción** (`titleKey`) salvo en las narrativas del catálogo, que van en `Map<Lang, String>`.
+- Tiempo: `month` = índice de mes desde el inicio de la partida (**0..120**). `startMonth` como texto `"2025-01"`.
+- Probabilidades: `0.0..1.0`. Los ids son `String` estables.
+- Textos del **contenido** (eventos, hechos, hitos) van en línea: `LocalizedText = Map<Lang, String>`.
+  Los textos fijos de la **UI** usan claves i18n.
 
 ### 5.1 Enums
 
@@ -109,138 +133,186 @@ Convenciones:
 |---|---|---|
 | `Employment` | `STUDENT, EMPLOYED, PART_TIME, SELF_EMPLOYED, RETIRED, UNEMPLOYED` | `employment_status` del dataset |
 | `Household` | `SINGLE, COUPLE, FAMILY, SHARED_HOUSING` | `household_type` |
-| `CaseType` | `PESSIMISTIC, NEUTRAL, OPTIMISTIC` | diagrama del equipo |
-| `AssetType` | `CASH_LIKE, INVESTMENT_PORTFOLIO, PROPERTY, OTHER` | `asset_type` (confirmar valores con `synthetic-assets.csv`) |
-| `LiabilityType` | `PERSONAL_LOAN, MORTGAGE, STUDENT_LOAN, OTHER` | `liability_type` (confirmar con `synthetic-liabilities.csv`) |
+| `CaseType` | `PESSIMISTIC, NEUTRAL, OPTIMISTIC` | diagrama del equipo (este orden se usa para resolver la suerte) |
+| `AssetType` | `CASH, INVESTMENT_PORTFOLIO` | `asset_type` (solo existen estos dos). Añadir otros **solo si un evento lo necesita** |
+| `LiabilityType` | `PERSONAL_LOAN` | `liability_type` (solo existe este). Añadir otros **solo si un evento lo necesita** |
 | `ExpenseCategory` | `RENT, LIVING, TUITION, INSURANCE, TRAVEL, OTHER` | propio |
-| `Priority` | `HIGH, MEDIUM, LOW` | `priority` de `synthetic-goals.csv` |
+| `FactKey` | `EDUCATION, OCCUPATION, CITY, HOUSING, FAMILY` | propio; valores en `content/facts.json` |
+| `Objective` | `GROWTH, BALANCED, SAFE` | prioridad del usuario (entrevista) |
+| `BeatKind` | `START, DECISION, CASE_RESOLVED, LIFE_CHANGE, QUIET_PERIOD, CASH_NEGATIVE, CASH_RECOVERED, LOW_POINT, GOAL_REACHED, GOAL_MISSED, END` | momentos de la historia |
+| `Priority` | `HIGH, MEDIUM` | `priority` de `synthetic-goals.csv` |
+| `Origin` | `OBSERVED, DERIVED, ASSUMED, SIMULATED` | de dónde sale cada importe |
+| `Indexation` | `WAGES, CPI, NONE` | qué índice actualiza un flujo cuando se modele la inflación |
 | `Lang` | `ES, EN` | i18n |
 
-### 5.2 Perfil y estado
+### 5.2 Perfil y estado del gemelo: `FinancialStatement`
+
+El estado del gemelo en cada paso es un **`FinancialStatement`**: toda la información de la persona en un punto del
+tiempo (quién es, hechos de vida, caja, inversiones, deudas, flujos, qué pasó con su caja ese mes, metas e indicadores),
+construido cruzando todos los datasets por `profile_id`.
+**Esquema completo, origen de cada campo y decisiones: [`docs/financial-statement.md`](financial-statement.md).**
 
 ```kotlin
-// Static profile. Produced by the interview (or loaded for Alexia). Same fields as synthetic-profiles.csv.
+// Static profile. Produced by the interview (or loaded for Alexia). Subset of synthetic-profiles.csv.
 data class UserProfile(
     val id: String,                 // "P00001" or "USER-<uuid>"
     val displayName: String,
-    val ageAtStart: Int,            // years
+    val ageAtStart: Int,
     val city: String,
-    val canton: String,             // "VD", "GE"...
-    val employment: Employment,
-    val household: Household,
+    val employment: Employment,     // at start
+    val household: Household,       // at start
     val startMonth: String,         // "2025-01"
-    val goals: List<Goal>,
-    val isSynthetic: Boolean = true
+    val goals: List<Goal>
 )
 
-// Dynamic snapshot of the person's finances at one month. This is what the engine transforms.
-data class FinancialState(
-    val month: Int,                 // 0..119
-    val cash: Double,               // CHF, may go negative (=> flagged as needing financing)
-    val assets: List<Asset>,
+// The digital twin at one point in time. Month 0 = opening; month t = end of month t (with that month's cash flow).
+// The engine takes a statement and returns a new one; derived parts are recomputed in finalize().
+data class FinancialStatement(
+    val version: Int, val profileId: String, val month: Int, val period: String,
+    val origin: Origin,                         // OBSERVED (dataset months) | SIMULATED
+    val currency: String,                       // "CHF"
+    val person: PersonSnapshot,                 // age, city, employment, household, facts, flags
+    val accounts: List<CashAccount>,            // cash (counted once)
+    val investments: List<Investment>,
     val liabilities: List<Liability>,
-    val income: List<IncomeStream>,
-    val expenses: List<ExpenseStream>,
-    val employment: Employment      // can change through events
-) {
-    val netWorth: Double            // cash + sum(assets.valueChf) - sum(liabilities.principalChf)
-    val monthlyNet: Double          // sum(income.monthlyChf) - sum(expenses.monthlyChf) - sum(liabilities.monthlyPaymentChf)
-}
-
-data class Asset(
-    val id: String,
-    val type: AssetType,
-    val valueChf: Double,
-    val annualReturn: Double        // fraction/year, e.g. 0.04
+    val incomeStreams: List<IncomeStream>,      // with fromMonth / untilMonth / indexation / origin / sourceEventId
+    val expenseStreams: List<ExpenseStream>,
+    val cashFlow: CashFlow?,                    // null at month 0
+    val balanceSheet: BalanceSheet,             // derived
+    val goals: List<GoalStatus>,                // derived
+    val scenarioParameters: List<ScenarioParameter>,   // scenario-assumptions.csv for this profile
+    val metrics: StatementMetrics,              // derived: savings rate, debt service ratio, emergency months...
+    val pendingLifeChanges: List<LifeChange>    // decided by events, not applied yet
 )
 
-data class Liability(
-    val id: String,
-    val type: LiabilityType,
-    val principalChf: Double,
-    val annualRate: Double,         // fraction/year
-    val monthlyPaymentChf: Double   // paid from cash each month
-)
-
-data class IncomeStream(
-    val id: String,                 // "salary", "scholarship", "pension"
-    val label: String,
-    val monthlyChf: Double,
-    val untilMonth: Int? = null     // null = open-ended; stream stops at this month (exclusive)
-)
-
-data class ExpenseStream(
-    val id: String,                 // "rent", "living", "tuition"
-    val category: ExpenseCategory,
-    val monthlyChf: Double,
-    val untilMonth: Int? = null
+// A scheduled life change. Exactly one of employment / fact / flag is set.
+data class LifeChange(
+    val month: Int,
+    val sourceEventId: String,
+    val employment: Employment? = null,
+    val factKey: FactKey? = null,
+    val factValue: String? = null,
+    val flag: String? = null
 )
 
 data class Goal(
     val id: String,                 // "G-P00001-01"
     val name: String,
     val targetChf: Double,
-    val targetMonth: Int,           // month index when it should be reached
-    val priority: Priority
+    val targetDate: String,         // "2029-12-31"
+    val targetMonth: Int,           // statement month at the end of the target month (2029-12-31 -> 60)
+    val priority: Priority          // HIGH | MEDIUM
 )
 ```
 
-### 5.3 Eventos (datos del juego, en JSON)
+### 5.3 Eventos (contenido del juego, en JSON)
+
+Contrato definido por Dev C. Contenido en `content/events.json`, validado con `tools/validate_events.py`
+(guía de escritura en `content/README.md`).
 
 ```kotlin
+typealias LocalizedText = Map<Lang, String>   // {"ES": "...", "EN": "..."}
+
 data class Event(
-    val id: String,                 // "E-master"
-    val titleKey: String,           // i18n key
-    val descriptionKey: String,
-    val requires: Requirements? = null,  // null = appears for everyone
-    val earliestTurn: Int = 0,      // do not show before this turn
-    val options: List<EventOption>  // ALWAYS exactly 2
+    val id: String,                 // "E-master" (unique)
+    val category: String,           // category from scenario-catalog.csv, e.g. "Education & skills"
+    val title: LocalizedText,
+    val description: LocalizedText,
+    val requires: Requirements? = null,   // null = eligible for everyone
+    val priority: Int = 0,          // among eligible events the highest priority is picked (e.g. financing = 10)
+    val repeatable: Boolean = false,      // false = at most once per game
+    val earliestTurn: Int = 0,
+    val sources: List<String>,      // where each number comes from (shown in the UI)
+    val options: List<EventOption>  // ALWAYS exactly 2, ids "A" and "B"
 )
 
+// All present fields must match. Evaluated at the start of the turn.
 data class Requirements(
     val employment: List<Employment>? = null,
-    val household: List<Household>? = null,
-    val minAge: Int? = null,
+    val minAge: Int? = null,        // age = ageAtStart + month / 12
     val maxAge: Int? = null,
-    val minCash: Double? = null,
-    val requiresLiability: Boolean? = null
+    val facts: Map<FactKey, List<String>>? = null,   // fact value must be one of these
+    val flagsAll: List<String>? = null,     // must have all these milestones
+    val flagsNone: List<String>? = null,    // must have none of these
+    val minCashChf: Double? = null,
+    val maxCashChf: Double? = null          // e.g. 0 -> only when cash is negative
 )
 
 data class EventOption(
     val id: String,                 // "A" | "B"
-    val labelKey: String,
+    val label: LocalizedText,
     val cases: Map<CaseType, CaseOutcome>   // must contain all 3 CaseType
 )
 
 data class CaseOutcome(
     val prob: Double,               // the 3 probs of an option MUST sum to 1.0
     val effects: List<Effect>,
-    val narrative: Map<Lang, String>
+    val narrative: LocalizedText    // short story shown after the case is resolved
 )
 
+// JSON discriminator: "type" (use @SerialName). Offsets are months relative to the start of the turn (s).
 sealed interface Effect {
-    // Add/replace a monthly income stream (or change an existing one by id).
-    data class IncomeDelta(val streamId: String, val deltaChf: Double, val months: Int?) : Effect
-    // Change a monthly expense for N months (null = forever).
-    data class ExpenseDelta(val category: ExpenseCategory, val deltaChf: Double, val months: Int?) : Effect
-    // One-time cash cost (negative = one-time gain).
-    data class OneOffCost(val chf: Double) : Effect
-    // Add a new debt.
-    data class AddLiability(val liability: Liability) : Effect
-    // Change the annual return of an asset type from now on.
+    // Money
+    @SerialName("set_income")          // replace income stream from s+offset on (ends the old one). Permanent.
+    data class SetIncome(val streamId: String, val monthlyChf: Double, val startOffsetMonths: Int = 0) : Effect
+    @SerialName("income_delta")        // extra income stream (negative = cut) for `months` (null = permanent)
+    data class IncomeDelta(val streamId: String, val deltaChf: Double,
+                           val startOffsetMonths: Int = 0, val months: Int? = null) : Effect
+    @SerialName("expense_delta")       // extra expense stream (negative = saving) for `months` (null = permanent)
+    data class ExpenseDelta(val category: ExpenseCategory, val deltaChf: Double,
+                            val startOffsetMonths: Int = 0, val months: Int? = null) : Effect
+    @SerialName("one_off")             // one-time cost at s+offset (negative = one-time gain)
+    data class OneOff(val chf: Double, val startOffsetMonths: Int = 0) : Effect
+    @SerialName("add_liability")       // new debt at s; annuity payment over termMonths
+    data class AddLiability(val liabilityType: LiabilityType, val principalChf: Double, val annualRate: Double,
+                            val termMonths: Int, val disburseToCash: Boolean = true) : Effect
+    @SerialName("asset_return_delta")  // change the annual return of an asset type from s on
     data class AssetReturnDelta(val assetType: AssetType, val deltaAnnualRate: Double) : Effect
-    // Change employment status.
-    data class SetEmployment(val employment: Employment) : Effect
+    // Life
+    @SerialName("set_employment")
+    data class SetEmployment(val employment: Employment, val startOffsetMonths: Int = 0) : Effect
+    @SerialName("set_fact")            // value must exist in content/facts.json for that key
+    data class SetFact(val key: FactKey, val value: String, val startOffsetMonths: Int = 0) : Effect
+    @SerialName("add_flag")            // flag must be declared in content/facts.json
+    data class AddFlag(val flag: String, val startOffsetMonths: Int = 0) : Effect
 }
 ```
 
-### 5.4 Partida y resultados
+Cómo los traduce el motor (sin estado oculto):
+- `income_delta` / `expense_delta` → flujo con `fromMonth = s + offset`, `untilMonth = fromMonth + months`, `sourceEventId`.
+- `one_off` → gasto de un solo mes. `set_income` → pone `untilMonth = s + offset` al flujo existente y crea el nuevo.
+- `set_employment` / `set_fact` / `add_flag` → `LifeChange` en `life.pending`; se aplica cuando `t` llega a su mes y genera un `StoryBeat` `LIFE_CHANGE`.
+- `tools/validate_events.py --preview` implementa estas reglas en Python como **referencia** para los tests del motor.
+
+### 5.4 Contenido narrativo (`content/facts.json`)
+
+Catálogo de hechos e hitos con sus textos, y cómo se deducen los hechos iniciales del perfil.
+
+```jsonc
+{
+  "facts": {                       // FactKey -> allowed codes with labels
+    "EDUCATION": { "UNKNOWN": {"ES": "...", "EN": "..."}, "BACHELOR_IN_PROGRESS": {...}, "BACHELOR": {...}, "MASTER": {...} },
+    "OCCUPATION": { ... }, "CITY": { ... }, "HOUSING": { ... }, "FAMILY": { ... }
+  },
+  "flags": { "did_master": {"ES": "...", "EN": "..."}, ... },
+  "initialFromProfile": {          // how P2 builds the initial person.facts (same rules in tools/calibrate.py)
+    "EDUCATION":  { "from": "employment", "map": { "STUDENT": "BACHELOR_IN_PROGRESS" }, "default": "UNKNOWN" },
+    "OCCUPATION": { "from": "employment", "map": { ... } },
+    "HOUSING":    { "from": "household",  "map": { ... }, "default": "RENTED_FLAT" },
+    "FAMILY":     { "from": "household",  "map": { ... } },
+    "CITY":       { "from": "city" }
+  }
+}
+```
+
+### 5.5 Partida
 
 ```kotlin
 data class GameSession(
     val profile: UserProfile,
-    val initial: FinancialState,
+    val initial: FinancialStatement,     // month 0
     val seed: Long,                 // same seed + same decisions => same game
+    val preferences: Preferences,
     val turns: List<Turn>,          // history, in order
     val config: GameConfig
 )
@@ -249,51 +321,64 @@ data class GameConfig(
     val horizonMonths: Int = 120,
     val monthsPerTurn: Int = 24,
     val maxTurns: Int = 5,
-    val manualCaseMode: Boolean = false    // true = user picks the case
+    val manualCaseMode: Boolean = false
+)
+
+data class Preferences(             // from the interview; shown to the user (weights are value judgements)
+    val objective: Objective,       // GROWTH, BALANCED, SAFE
+    val minCashChf: Double,         // personal liquidity floor
+    val penaltyChfPerMonthBelowMin: Double  // GROWTH 0, BALANCED 500, SAFE 3000 (Assumptions defaults)
 )
 
 data class Turn(
-    val index: Int,                 // 0-based
-    val eventId: String,
-    val chosenOptionId: String,     // "A" | "B"
-    val resolvedCase: CaseType,     // the case that was drawn
-    val stateBefore: FinancialState,
-    val stateAfter: FinancialState,
-    val counterfactual: Map<CaseType, FinancialState>  // what the NOT chosen option would have given, per case
+    val index: Int,
+    val eventId: String?,           // null = quiet period (no eligible event)
+    val chosenOptionId: String?,    // "A" | "B"
+    val luck: Double,               // 0..1, derived from seed + index
+    val resolvedCase: CaseType?,
+    val stateAfter: FinancialStatement,  // end of the turn; state before = previous turn's stateAfter (or initial)
+    val counterfactual: Map<CaseType, FinancialStatement>,   // the NOT chosen option, per case, at the end of this turn
+    val beats: List<StoryBeat>      // story moments produced during this turn
 )
 
-// Used for the preview shown BEFORE choosing (deterministic, no random draw).
+// Preview shown BEFORE choosing (deterministic).
 data class OptionPreview(
     val optionId: String,
-    val perCase: Map<CaseType, CasePreview>
+    val perCase: Map<CaseType, CasePreview>,
+    val outlook: Outlook?           // optional look-ahead with the decision tree (section 9)
 )
 data class CasePreview(
     val prob: Double,
-    val stateAfter: FinancialState,
-    val deltaNetWorth: Double,      // vs stateBefore
-    val minCash: Double,            // lowest cash during the turn
-    val narrative: String           // already in the selected language
+    val stateAfter: FinancialStatement,  // end of the turn
+    val deltaNetWorth: Double,
+    val minCash: Double,
+    val lifeChanges: List<LifeChange>,
+    val narrative: LocalizedText
 )
 ```
 
-### 5.5 Monte Carlo y estadísticas
+### 5.6 Historia, análisis y resultados
 
 ```kotlin
-data class SimulationResult(
-    val nPaths: Int,
-    val seed: Long,
-    val horizonMonths: Int,
-    val cash: FanBand,
-    val netWorth: FanBand,
-    val probNegativeCash: Double,           // share of paths with cash < 0 at some month
-    val goalProbabilities: Map<String, Double>,   // goalId -> P(reached by targetMonth)
-    val goalMedianMonth: Map<String, Int?>        // goalId -> median month reached, null if rarely
+// A story moment. Structured data only: the UI renders it with templates and the LLM narrates it. No prose here.
+data class StoryBeat(
+    val month: Int,
+    val age: Int,
+    val kind: BeatKind,
+    val eventId: String? = null,
+    val data: Map<String, String> = emptyMap()  // e.g. "cash" -> "-39573", "fact" -> "EDUCATION", "value" -> "MASTER"
 )
 
-data class FanBand(
-    val p10: List<Double>,          // one value per month (size = horizonMonths + 1)
-    val p50: List<Double>,
-    val p90: List<Double>
+// Where the net worth comes from. Invariant: start + sum(items) == end (tested).
+data class Attribution(
+    val startNetWorth: Double,
+    val items: List<AttributionItem>,
+    val endNetWorth: Double
+)
+data class AttributionItem(
+    val key: String,                // "income:income", "expense:RENT", "debt_interest", "financing_cost", "asset_growth"
+    val chf: Double,                // signed contribution over the whole game
+    val sourceEventId: String?      // null = baseline flows; otherwise the decision that created it
 )
 
 data class Stats(
@@ -301,148 +386,199 @@ data class Stats(
     val minCash: Double,
     val monthOfMinCash: Int,
     val monthsNegativeCash: Int,
-    val goalsReached: List<String>,          // goal ids
+    val monthsBelowMinCash: Int,    // vs Preferences.minCashChf
+    val financingCostChf: Double,
+    val goalsReached: List<String>,
     val goalsMissed: List<String>
 )
 
-// Final comparison: chosen path vs alternative.
-data class PathComparison(
-    val chosen: Stats,
-    val alternative: Stats,
-    val deltaFinalNetWorth: Double,
-    val explanation: List<String>            // structured reasons, built by the engine (not by the LLM)
+data class ParallelLife(
+    val kind: ParallelKind,         // OTHER_FIRST_CHOICE, OPTIMAL_STRATEGY
+    val turns: List<Turn>,          // same luck as the real game
+    val final: FinancialStatement,
+    val stats: Stats,
+    val attribution: Attribution
+)
+enum class ParallelKind { OTHER_FIRST_CHOICE, OPTIMAL_STRATEGY }
+
+// Look-ahead for one option, assuming the rest of the game follows the optimal strategy (expectimax).
+data class Outlook(
+    val expectedFinalNetWorth: Double,
+    val worstFinalNetWorth: Double,
+    val bestFinalNetWorth: Double,
+    val probNegativeCash: Double,   // exact probability over the case tree
+    val expectedUtility: Double     // finalNetWorth - penalty * monthsBelowMinCash
+)
+
+// "Your story would change if..." (section 9).
+data class SensitivityItem(
+    val parameter: String,          // id from Assumptions.sensitivity
+    val lowValue: Double, val highValue: Double,
+    val utilityGapAtLow: Double,    // utility(A) - utility(B) for the analysed decision
+    val utilityGapAtHigh: Double,
+    val breakEven: Double?          // parameter value where the better option flips; null if it never flips in range
+)
+
+// Uncertainty from monthly noise (analytic, no sampling): p50 +- 1.2816 * sd * sqrt(months)
+data class Band(val p10: List<Double>, val p50: List<Double>, val p90: List<Double>)
+
+data class GameResult(
+    val session: GameSession,
+    val stats: Stats,
+    val attribution: Attribution,
+    val beats: List<StoryBeat>,     // whole life line
+    val parallelLives: List<ParallelLife>,
+    val sensitivity: List<SensitivityItem>,     // for the first decision
+    val cashBand: Band
 )
 ```
 
-### 5.6 Entrevista, calibración y supuestos
+### 5.7 Entrevista, calibración y supuestos
 
 ```kotlin
-data class InterviewQuestion(
-    val id: String,
-    val textKey: String,
-    val options: List<InterviewOption>
-)
+data class InterviewQuestion(val id: String, val textKey: String, val options: List<InterviewOption>)
 data class InterviewOption(
     val id: String,
     val labelKey: String,
-    val sets: Map<ProfileField, String>      // which profile fields this answer fills (numbers as strings)
+    val sets: Map<ProfileField, String>      // which fields this answer fills (numbers as strings)
 )
-enum class ProfileField { AGE, CITY, CANTON, EMPLOYMENT, HOUSEHOLD, OPENING_CASH, MONTHLY_INCOME, MONTHLY_RENT, GOAL_TYPE, RISK }
+enum class ProfileField { AGE, CITY, EMPLOYMENT, HOUSEHOLD, OPENING_CASH, MONTHLY_INCOME, MONTHLY_RENT, GOAL_TYPE,
+                          OBJECTIVE, MIN_CASH }
 data class InterviewAnswer(val questionId: String, val optionId: String)
 
-// Calibrated from the dataset by tools/ (offline). One per segment "employment|household".
+// Calibrated offline by tools/calibrate.py. One per "EMPLOYMENT|HOUSEHOLD" (24) plus "EMPLOYMENT|ANY" fallbacks (6).
+// In the data: net = income - rent - livingCost + noise (see tools/README.md).
 data class SegmentCalibration(
-    val segment: String,                     // "EMPLOYED|FAMILY"
-    val n: Int,                              // number of profiles in the segment
-    val netMonthlyMeanChf: Double,
-    val netMonthlySdChf: Double,
-    val netToIncomeP10: Double,              // distribution of (net transactions / income)
-    val netToIncomeP50: Double,
-    val netToIncomeP90: Double,
-    val decemberUplift: Double,              // extra net in December vs other months (CHF)
-    val negativeMonthRate: Double,           // fraction of months flagged negative_balance_requires_financing
-    val residuals: List<Double>              // monthly residuals for bootstrap
+    val segment: String,                     // "EMPLOYED|FAMILY" or "STUDENT|ANY"
+    val n: Int,
+    val lowConfidence: Boolean,              // n < 20 -> use the "EMPLOYMENT|ANY" fallback
+    val medianIncomeChf: Double,
+    val medianRentChf: Double,
+    val livingCostChf: LivingCost,           // monthly
+    val monthlyNoiseSdChf: Double,           // for the analytic Band
+    val decemberBonusRatio: Double,          // 13th salary as a fraction of monthly income (employed ~0.35)
+    val negativeMonthRate: Double
 )
+data class LivingCost(val mean: Double, val sd: Double, val p10: Double, val p50: Double, val p90: Double,
+                      val deciles: List<Double>)   // 11 values: min, p10..p90, max
 
+// content/assumptions.json (Dev C). Every number has a source or is labelled as an assumption.
 data class Assumptions(
     val inflationAnnual: Double,
     val salaryGrowthAnnual: Double,
-    val investmentReturn: Map<CaseType, Double>,   // annual return per case
-    val defaultCaseProbs: Map<CaseType, Double>,   // e.g. 0.2 / 0.6 / 0.2
-    val sourceNotes: List<String>                  // where each number comes from; shown in the UI
+    val investmentReturnAnnual: Double,
+    val financingRateAnnual: Double,         // interest on negative cash; default 0.085 = max rate in synthetic-liabilities.csv
+    val defaultCaseProbs: Map<CaseType, Double>,
+    val objectivePenalties: Map<Objective, Double>,   // CHF per month below minCash
+    val sensitivity: List<SensitivityParam>,
+    val sourceNotes: List<String>
+)
+data class SensitivityParam(
+    val id: String,                          // "salary_multiplier", "tuition_multiplier", "job_search_delay_months"...
+    val label: LocalizedText,
+    val base: Double, val low: Double, val high: Double
 )
 ```
 
-### 5.7 Chat
+### 5.8 Chat y crónica
 
 ```kotlin
-data class ChatMessage(val role: ChatRole, val text: String)     // USER | FUTURE_SELF
+enum class Persona { FUTURE_SELF, PARALLEL_SELF }
+data class ChatMessage(val role: ChatRole, val text: String)     // USER | TWIN
 interface FutureSelfChat {
-    suspend fun ask(context: ChatContext, history: List<ChatMessage>, question: String): ChatMessage
+    suspend fun ask(context: ChatContext, persona: Persona, history: List<ChatMessage>, question: String): ChatMessage
+    suspend fun chronicle(context: ChatContext): String     // the full life story at the end
 }
 data class ChatContext(
-    val session: GameSession,
-    val stats: Stats,
-    val comparison: PathComparison?,
-    val simulation: SimulationResult?,
+    val result: GameResult,          // everything the LLM may use; it computes nothing
+    val facts: FactCatalog,          // labels for facts and flags
     val assumptions: Assumptions,
     val language: Lang
 )
 ```
 
-### 5.8 Quién es dueño de qué
+### 5.9 Quién es dueño de qué
 
 | Dev | Clases |
 |---|---|
-| **A – Motor** | `FinancialState`, `Asset`, `Liability`, `IncomeStream`, `ExpenseStream`, `Effect`, `Turn`, `OptionPreview`, `CasePreview`, `SimulationResult`, `FanBand`, `Stats`, `PathComparison` |
+| **A – Motor** | `FinancialStatement` y sus partes (`finalize()`), `LifeChange`, flujos, `Turn`, `OptionPreview`, `CasePreview`, `StoryBeat`, `Attribution`, `Stats`, `ParallelLife`, `Outlook`, `SensitivityItem`, `Band`, `GameResult` |
 | **B – UI** | `InterviewQuestion`, `InterviewOption`, `InterviewAnswer` |
-| **C – Datos + IA** | `Event`, `Requirements`, `EventOption`, `CaseOutcome`, `SegmentCalibration`, `Assumptions`, `ChatMessage`, `ChatContext`, `FutureSelfChat` |
-| **Compartidos (acordar al inicio)** | `UserProfile`, `Goal`, `GameSession`, `GameConfig`, todos los enums |
-
-Se pueden **dejar fuera del MVP**: `Requirements.minCash/requiresLiability`, la clase `Stats` avanzada (tasa de ahorro, endeudamiento) y modelos de hogar con varias personas.
+| **C – Datos + contenido + IA** | `Event`, `Requirements`, `EventOption`, `CaseOutcome`, `Effect`, catálogo de hechos (`facts.json`), `SegmentCalibration`, `Assumptions`, `SensitivityParam`, `ChatMessage`, `ChatContext`, `FutureSelfChat` |
+| **Compartidos (acordar al inicio)** | `UserProfile`, `Goal`, `GameSession`, `GameConfig`, `Preferences`, todos los enums |
 
 ## 6. Flujo de información: input y output de cada paso
 
 ### Vista general
 
 ```
-OFFLINE (Dev C, una vez)
-  Data/*.csv ──► [P0 Calibración] ──► calibration.json, profiles-sample.json, backtest-report.json
+OFFLINE (Dev C)
+  Data/*.csv + content/facts.json ──► [P0 Calibración] ──► calibration.json, profiles-sample.json, backtest-report.json
+  content/events.json ──► [P0b Validación + preview] ──► OK / errores, números de referencia
 
 RUNTIME (en la app)
-  [P1 Entrevista] ─► [P2 Perfil] ─► ┌► [P3 Elegir evento] ─► [P4 Preview] ─► [P5 Decisión]
-                                    │                                              │
-                                    │                                       [P6 Resolver caso]
-                                    │                                              │
-                                    │                                       [P7 Avanzar tiempo]
-                                    └──────── (siguiente turno) ◄──────────────────┘
-                                                      │ (fin de partida)
-                                    [P8 Monte Carlo] ─► [P9 Estadísticas] ─► [P10 Chat]
+  [P1 Entrevista] ─► [P2 Gemelo inicial] ─► ┌► [P3 Elegir evento] ─► [P4 Preview] ─► [P5 Decisión]
+                                            │                                            │
+                                            │                                   [P6 Resolver con la suerte]
+                                            │                                            │
+                                            │                                   [P7 Avanzar 24 meses + momentos]
+                                            └────────────── (siguiente turno) ◄──────────┘
+                                                              │ (fin de partida)
+       [P8 Atribución y stats] ─► [P9 Vidas paralelas + árbol] ─► [P10 Sensibilidad] ─► [P11 Crónica] ─► [P12 Chat]
 ```
 
 ### Detalle por paso
 
 | Paso | Quién | Input | Proceso | Output |
 |---|---|---|---|---|
-| **P0 Calibración** (offline) | C | `Data/*.csv` | Agrupa por segmento (empleo × hogar), calcula media/desviación/percentiles/efecto diciembre/residuos. Backtest 80/20 con cobertura p10-p90. Muestrea ~50 perfiles | `calibration.json` (`List<SegmentCalibration>`), `profiles-sample.json` (`List<UserProfile>` + estados iniciales), `backtest-report.json` |
-| **P1 Entrevista** | B | `List<InterviewQuestion>` (JSON) | Muestra preguntas de opción múltiple una a una | `List<InterviewAnswer>` |
-| **P2 Modelado de perfil** | B + C | `List<InterviewAnswer>`, `profiles-sample.json`, `calibration.json` | Aplica los `sets` de cada respuesta → campos. Busca el perfil sintético más parecido (vecino más cercano por edad, empleo, hogar, ingreso) para inferir gasto, activos y deudas. Construye flujos de ingreso/gasto | `UserProfile` + `FinancialState` inicial (month = 0) + `GameSession` vacía (seed generada). Para Alexia se carga directamente |
-| **P3 Elegir evento** | C | `GameSession` (turnos hechos), catálogo `List<Event>` | Filtra por `requires` contra perfil/estado actual, descarta eventos ya usados, respeta `earliestTurn`, elige el siguiente (orden fijo o sorteo con la semilla) | Un `Event` |
-| **P4 Preview** | A | `FinancialState` actual, `Event`, `Assumptions` | Para cada opción × caso aplica `apply` y avanza `monthsPerTurn` meses (determinista, sin sorteo) | `List<OptionPreview>` (2 opciones × 3 casos) |
-| **P5 Decisión** | B | `List<OptionPreview>` en pantalla | El usuario toca la carta A o B (y, si `manualCaseMode`, también el caso) | `chosenOptionId` (+ `CaseType` opcional) |
-| **P6 Resolver caso** | A | `chosenOptionId`, `EventOption`, `seed`, `turn.index` | Sortea el caso con las `prob` usando RNG derivado de `seed + turn.index` | `resolvedCase: CaseType` |
-| **P7 Avanzar tiempo** | A | `stateBefore`, `CaseOutcome` elegido, `Assumptions` | Aplica los `effects` y simula mes a mes (reglas de la sección 7). Calcula también el `counterfactual` de la opción no elegida | `Turn` (se añade a `GameSession.turns`) y nuevo `FinancialState` |
-| **P8 Monte Carlo** | A | `FinancialState` final, `SegmentCalibration` del perfil, `Assumptions`, `horizonMonths`, `nPaths`, `seed` | Simula N trayectorias con bootstrap de residuos + ruido en parámetros. Se ejecuta para el camino elegido y para el alternativo | `SimulationResult` (uno por camino) |
-| **P9 Estadísticas** | A | `GameSession`, `SimulationResult` de ambos caminos | Calcula `Stats` de cada camino, diferencias y la lista de motivos (qué evento y qué caso explican la diferencia) | `Stats` (×2), `PathComparison` |
-| **P10 Chat** | C | `ChatContext`, `history`, pregunta del usuario | Construye el prompt (system + sesión serializada + cifras + supuestos) y llama al proveedor LLM | `ChatMessage` (FUTURE_SELF) |
+| **P0 Calibración** (offline) | C | `Data/*.csv`, `content/facts.json` | Calibra por segmento (coste de vida, ruido, paga extra). Backtest 80/20 de la banda analítica. Muestra ~50 perfiles con su gemelo inicial | `calibration.json`, `profiles-sample.json`, `backtest-report.json` |
+| **P0b Validación** (offline) | C | `content/events.json`, `content/facts.json`, `profiles-sample.json` | Valida contrato, hechos e hitos; simula cada opción × caso en un perfil | errores o OK; tabla de referencia |
+| **P1 Entrevista** | B | `List<InterviewQuestion>` | Preguntas de opción múltiple (incluye prioridad y colchón mínimo) | `List<InterviewAnswer>` |
+| **P2 Gemelo inicial** | A (+C) | respuestas, `profiles-sample.json`, `calibration.json`, `facts.json` | Rellena el perfil; lo que falte (gasto, activos, deudas) sale del perfil sintético más parecido; los hechos iniciales salen de `initialFromProfile` | `UserProfile`, `FinancialStatement` de apertura (mes 0), `Preferences`, `GameSession` vacía con semilla. Alexia se carga directamente |
+| **P3 Elegir evento** | A (lógica) / C (contenido) | `FinancialStatement` actual, turnos hechos, catálogo | Filtra por `requires`, `earliestTurn` y `repeatable`; elige la mayor `priority`; desempate con la semilla. Si no hay ninguno → turno tranquilo | `Event?` |
+| **P4 Preview** | A | `FinancialStatement`, `Event`, `Assumptions`, `Preferences` | Para cada opción × caso aplica `apply` y avanza 24 meses. Opcional: `Outlook` con el árbol | `List<OptionPreview>` |
+| **P5 Decisión** | B | previews en pantalla | El usuario elige A o B | `chosenOptionId` |
+| **P6 Resolver** | A | opción, `seed`, índice del turno | `luck = rng(seed, index)`; caso = primer caso cuya probabilidad acumulada (orden P, N, O) supera `luck` | `resolvedCase`, `luck` |
+| **P7 Avanzar** | A | `FinancialStatement`, `CaseOutcome`, `Assumptions` | Aplica efectos, simula 24 meses (sección 7), aplica cambios de vida, detecta momentos; calcula el contrafactual | `Turn` (con `beats`) |
+| **P8 Atribución y stats** | A | `GameSession` | Suma cada flujo por origen; `Stats` | `Attribution`, `Stats` |
+| **P9 Vidas paralelas** | A | `GameSession`, catálogo | Reproduce la partida con la misma suerte: (1) primera decisión cambiada y después estrategia óptima; (2) estrategia óptima desde el inicio (expectimax) | `List<ParallelLife>` |
+| **P10 Sensibilidad** | A (+C rangos) | sesión, `Assumptions.sensitivity` | Para la primera decisión, varía cada parámetro a low/high y busca el punto de equilibrio | `List<SensitivityItem>` |
+| **P11 Crónica** | C | `ChatContext` | El LLM cuenta la historia a partir de `beats`, `attribution` y vidas paralelas. Plan B: plantillas de texto | `String` |
+| **P12 Chat** | C | `ChatContext`, `Persona`, historial, pregunta | Prompt con todo el contexto; el LLM solo explica | `ChatMessage` |
 
 ### Reglas de flujo
-- **Una sola fuente de verdad**: el `GameSession`. La UI, las estadísticas y el LLM leen de él; nadie guarda copias del estado.
-- **El LLM nunca calcula**: solo recibe `ChatContext` y redacta. Si un número no está en el contexto, debe decir que no lo sabe.
-- **Reproducibilidad**: misma `seed` + mismas decisiones ⇒ misma partida. Toda aleatoriedad pasa por un RNG con semilla.
-- **Preview ≠ resolución**: el preview es determinista (los 3 casos); la resolución sortea uno.
-- **Los ficheros JSON los produce C** y los consumen A y B; el formato se acuerda al principio (sección 5).
+- **Una sola fuente de verdad**: `GameSession` (y `GameResult` al final). La UI y el LLM leen de ahí.
+- **El LLM nunca calcula**: recibe `ChatContext` y redacta. Si un número no está, dice que no lo sabe.
+- **Reproducibilidad**: misma semilla + mismas decisiones ⇒ misma partida. La suerte de cada turno depende solo de `seed` e índice.
+- **Preview ≠ resolución**: el preview es determinista; la resolución usa la suerte.
+- **Los JSON de contenido los produce C** y los consumen A y B; el formato es el de la sección 5.
 
 ## 7. Reglas de cálculo del motor
 
-Paso mensual (`t → t+1`), en este orden:
+**Inicio del turno (mes `s`):** primero se aplican los `LifeChange` pendientes con `month <= s` (así un hito que llega en el mes 24 ya cuenta para elegir el evento del turno 2); después se elige el evento y se aplican los `effects` del caso resuelto (sección 5.3): flujos con `fromMonth`/`untilMonth`
+y `sourceEventId`, deuda nueva y `LifeChange` programados.
 
-1. Al inicio del turno se aplican los `effects` del caso resuelto (one-off, nuevos flujos, deuda nueva, cambio de empleo).
-2. Para cada mes del turno:
-   - `income_t = Σ income.monthlyChf` de los flujos activos (`untilMonth == null || t < untilMonth`), ajustado por crecimiento salarial anual.
-   - `expense_t = Σ expense.monthlyChf` de los flujos activos, ajustado por inflación anual.
-   - `debtPayment_t = Σ liability.monthlyPaymentChf` mientras `principalChf > 0`.
-   - `cash_{t+1} = cash_t + income_t − expense_t − debtPayment_t − oneOff_t`
-   - `asset.valueChf_{t+1} = asset.valueChf_t × (1 + annualReturn/12)`
-   - `principal_{t+1} = max(0, principal_t × (1 + annualRate/12) − monthlyPayment)`
-3. Si `cash < 0`, no se detiene la simulación: se marca el mes como "requiere financiación" (igual que `status` en `synthetic-cash-balances.csv`).
+**Cada mes `t → t+1`**, en este orden:
+1. `income_t = Σ` flujos de ingreso activos (`fromMonth <= t && (untilMonth == null || t < untilMonth)`), con crecimiento salarial anual.
+   En diciembre, si `employment` es `EMPLOYED` o `SELF_EMPLOYED`, se suma `decemberBonusRatio × ingreso` (paga extra, dato calibrado).
+2. `expense_t = Σ` flujos de gasto activos, con inflación anual.
+3. Deudas: `due = principal × (1 + annualRate/12)`; `pay = min(monthlyPayment, due)`; `principal = due − pay`.
+4. **Financiación**: si `cash_t < 0`, se paga interés: `financing_t = |cash_t| × financingRateAnnual / 12`.
+5. `cash_{t+1} = cash_t + income_t − expense_t − Σ pay − financing_t`
+6. Activos: `valueChf × (1 + annualReturn/12)`.
+7. (Se hace al **principio** del mes, antes del paso 1.) Vida: se aplican los `LifeChange` con `month <= t` y se emite `LIFE_CHANGE`; así el empleo nuevo ya cuenta para la paga extra de ese mes.
+8. Momentos: `CASH_NEGATIVE` al cruzar a negativo, `CASH_RECOVERED` al volver a positivo, `GOAL_REACHED` cuando el
+   patrimonio alcanza la meta antes de su fecha, `GOAL_MISSED` si llega la fecha sin alcanzarla. `LOW_POINT` (mínimo de
+   caja) se marca al final de la partida.
+
+**Atribución:** cada mes se suma cada flujo a su `AttributionItem` (`income:<id>`, `expense:<categoría>`, `debt_interest`,
+`financing_cost`, `asset_growth`), guardando su `sourceEventId`.
 
 Invariantes que deben comprobar los tests:
-- `netWorth_{t+1} − netWorth_t = income − expense − oneOff + variación de activos − intereses de deuda` (coherencia contable, tolerancia 0.01 CHF).
-- Las probabilidades de cada opción suman 1.0.
-- Cada opción tiene exactamente los 3 casos; cada evento tiene exactamente 2 opciones.
-- `untilMonth` nunca es menor que el mes de inicio.
-- Misma semilla ⇒ mismo resultado.
+- Coherencia contable: `netWorth_{t+1} − netWorth_t = ingresos − gastos − intereses − financiación + crecimiento de activos` (tolerancia 0,01 CHF).
+- Atribución: `startNetWorth + Σ items = endNetWorth`.
+- Probabilidades de cada opción suman 1; cada evento tiene 2 opciones con los 3 casos.
+- Misma semilla ⇒ mismo resultado; las vidas paralelas usan la misma `luck` por turno.
+- Un préstamo se amortiza a 0 en su plazo.
 
 ## 8. Datos y calibración
 
@@ -450,62 +586,76 @@ Datos **sintéticos** del reto en `ai-financial-twin-lauzhack-2026/Data` (1.200 
 
 | Archivo | Contenido | Va a |
 |---|---|---|
-| `synthetic-profiles.csv` | Edad, ciudad, cantón, empleo, hogar, caja, ingreso, alquiler | `UserProfile` + flujos de ingreso y alquiler |
-| `synthetic-accounts.csv` / `synthetic-assets.csv` | Saldo de apertura, efectivo, inversiones | `cash`, `assets` |
-| `synthetic-liabilities.csv` | Deudas (solo instantánea inicial, **no amortizadas**) | `liabilities` (el motor las amortiza) |
-| `synthetic-goals.csv` | Metas con importe, fecha y prioridad | `goals` |
-| `synthetic-cash-balances.csv` | Serie mensual de caja (24 meses por perfil) | **No entra en el modelo**: sirve para calibrar y validar |
-| `scenario-catalog.csv` / `scenario-assumptions.csv` | 120 escenarios y parámetros ilustrativos | Inspiración para el catálogo de eventos y `Assumptions` |
+| `synthetic-profiles.csv` | Edad, ciudad, empleo, hogar, caja, ingreso, alquiler (se ignoran `canton`, `country`, `currency`, `synthetic`) | `UserProfile`, flujos de ingreso y alquiler, hechos iniciales |
+| `synthetic-accounts.csv` / `synthetic-assets.csv` | Efectivo e inversiones | `cash`, `assets` |
+| `synthetic-liabilities.csv` | Préstamos personales (solo instantánea, cuota 0, **no amortizados**) | `liabilities` (cuota supuesta: anualidad a 60 meses) |
+| `synthetic-goals.csv` | Metas con importe y fecha (se ignora `priority`) | `goals` |
+| `synthetic-cash-balances.csv` | Serie mensual de caja (24 meses por perfil) | **No entra en el modelo**: calibra y valida |
+| `scenario-catalog.csv` / `scenario-assumptions.csv` | 120 escenarios; matrícula y duración de estudios | Inspiración para eventos y supuestos |
 
-Hallazgos del análisis exploratorio:
-- Cada perfil tiene solo **24 meses** (2025-01 a 2026-12). Alcanza para calibrar parámetros por segmento, **no** para entrenar un modelo que prediga 10 años.
-- Ratio neto/ingreso medio: empleados ≈ 0,52; autónomos ≈ 0,45 (más volátiles); tiempo parcial ≈ 0,11; jubilados ≈ 0,04. Estudiantes y desempleados salen negativos y distorsionados (ingreso casi 0): usar CHF absolutos.
-- **Diciembre** tiene un neto medio ≈ 4.388 CHF frente a ≈ 2.700 el resto de meses (paga extra o bonus).
-- 61 perfiles (772 meses) caen en negativo (`negative_balance_requires_financing`).
-- Solo 39 estudiantes: el segmento de Alexia es pequeño.
-- El README del dataset menciona `synthetic-transactions.csv`, `life-events.csv` y `alexia-profile.json` que **no existen**.
-- Los datos son sintéticos (probablemente generados con una fórmula): calibrar reconstruye el generador, no el comportamiento real. Hay que decirlo.
+Lo que muestran los datos (detalle en `tools/README.md` y sección 13):
+- Cada mes: `neto = ingreso − alquiler − coste_vida + ruido` (R² ≈ 0,98-0,99). Coste de vida ≈ 1.540 CHF para todos.
+- Paga extra en diciembre ≈ 0,35 × ingreso en empleados y autónomos. Ruido sin memoria entre meses.
+- Solo **24 meses** por perfil: más allá todo son supuestos explícitos (`Assumptions`), marcados en la UI.
+- Estudiantes y desempleados pierden caja cada mes (ingreso < alquiler). **Alexia pierde ≈ 1.000 CHF/mes**.
+- Segmentos pequeños (39 estudiantes, 37 desempleados) → `lowConfidence`.
+- Los datos son sintéticos: calibrar reconstruye el generador, no el comportamiento real. Hay que decirlo.
+- El README del dataset menciona ficheros que **no existen** (`synthetic-transactions.csv`, `life-events.csv`, `alexia-profile.json`).
 
-Calibración (script offline en `tools/`, Dev C):
-1. Agrupar por segmento `employment|household` y calcular los campos de `SegmentCalibration`.
-2. Los 3 casos salen del propio dato: pesimista = p10, neutro = p50 (mediana), optimista = p90 del comportamiento del segmento.
-3. **Backtest**: calibrar con el 80 % de los perfiles; con el 20 % restante simular los 24 meses desde el saldo inicial y comparar con el saldo real (error medio en CHF y **cobertura**: si el abanico p10-p90 es correcto, ≈ 80 % de los saldos reales deben caer dentro).
-4. Más allá del mes 24 no hay datos: se usan **supuestos explícitos** (`Assumptions`: inflación, crecimiento salarial, rentabilidad) etiquetados como tales. La UI debe marcar el tramo "calibrado con datos" (0-24 meses) y el tramo "supuestos" (24-120).
-5. Aprendizaje automático solo para el vecino más cercano del perfil. Nada más en 24 h.
+Calibración (`tools/calibrate.py`, Dev C): coste de vida, ruido y paga extra por segmento.
+**Backtest** (`tools/backtest.py`): calibra con el 80 % de los perfiles y comprueba la banda analítica p10-p90 sobre el 20 % restante.
+Interés de financiación por defecto: 8,5 % (máximo de `synthetic-liabilities.csv`; los préstamos van de 2,5 % a 8,5 %).
 
-## 9. Monte Carlo y estadísticas
+## 9. Análisis: árbol de decisiones, vidas paralelas y sensibilidad
 
-Monte Carlo cuesta poco con un motor puro (1.000 trayectorias × 120 meses) y funciona en Android y Desktop.
+Sustituye a Monte Carlo. Todo es **exacto y reproducible**, y alimenta la historia.
 
-- **Método**: en cada mes se remuestrean los `residuals` del segmento (bootstrap, no se asume distribución normal) y en cada trayectoria se perturban ligeramente la media, la desviación y los supuestos (inflación, rentabilidad) para que el abanico no salga demasiado estrecho. Semilla fija.
-- **Salida**: `SimulationResult` con abanico p10/p50/p90 de caja y patrimonio, probabilidad de caja negativa, probabilidad de alcanzar cada meta y mes mediano.
-- **Relación con los 3 casos**: los casos son lo que el usuario **ve y elige** (con texto y efectos concretos); Monte Carlo es lo que **se muestra al final** (abanico y probabilidades). Las probabilidades de los casos pueden salir de Monte Carlo.
-- **Límite**: Monte Carlo no crea información más allá del mes 24; solo propaga las distribuciones supuestas.
+**Árbol de decisiones (expectimax).** El juego es un proceso de decisión de Markov pequeño: 5 turnos × (2 decisiones × 3 casos)
+= como mucho 6⁵ = 7.776 futuros. Se recorren todos (compartiendo los prefijos: ≈ 225.000 pasos mensuales).
+- Valor de una hoja: `utilidad = patrimonio final − penalización × meses por debajo del colchón mínimo` (`Preferences`).
+- Nodo de decisión: la opción de mayor utilidad esperada. Nodo de suerte: media ponderada por las probabilidades de los casos.
+- Da la **estrategia óptima** para las prioridades del usuario y el `Outlook` de cada opción (esperado, peor, mejor, probabilidad de negativo).
+- Las penalizaciones son juicios de valor: **se muestran al usuario**, como pide el reto.
+- Frase para los jueces: *"El juego es un MDP; en lugar de aproximarlo con Monte Carlo o con aprendizaje por refuerzo, lo resolvemos de forma exacta."*
 
-Estadísticas **MVP** (imprescindibles):
-1. Evolución de la caja con abanico.
-2. Patrimonio neto (caja + activos − deudas).
-3. Liquidez mínima y meses en negativo.
-4. Metas alcanzadas y fecha estimada.
-5. Camino elegido vs. camino alternativo.
+**Vidas paralelas.** Con la misma suerte por turno que la partida real:
+1. `OTHER_FIRST_CHOICE`: la vida en la que tomaste la otra primera decisión (y después la estrategia óptima).
+2. `OPTIMAL_STRATEGY`: la vida con la estrategia óptima desde el principio.
+Cada una tiene su línea de vida, cascada y crónica: el contrafactual se convierte en personajes comparables.
 
-Si da tiempo: tasa de ahorro, ratio de endeudamiento, fondo de emergencia (meses de gasto cubiertos), riesgo (todo pesimista), comparación con perfiles similares, puntuación final / "perfil de decisor".
+**Sensibilidad y punto de equilibrio** ("tu historia cambiaría si..."). Para la primera decisión, cada parámetro de
+`Assumptions.sensitivity` se lleva a su valor bajo y alto (multiplicadores de sueldo, matrícula, coste de vida; meses de
+retraso en encontrar trabajo; inflación; interés). Se calcula la diferencia de utilidad entre A y B y, por bisección,
+el valor en que la mejor opción cambia. Ejemplo: *"El máster deja de compensar si tu sueldo después baja de 5.600 CHF"*.
+Responde a la primera pregunta de los jueces.
+
+**Banda de ruido analítica.** El ruido mensual no tiene memoria (autocorrelación −0,07), así que la incertidumbre de la
+caja a `k` meses es `± 1,2816 × σ × √k` (p10-p90), con `σ = monthlyNoiseSdChf`. Sin muestreo.
+
+**Restricciones.** Colchón mínimo del usuario (`minCashChf`) y caja negativa financiada con interés. El evento de
+financiación (prioridad alta, `maxCashChf: 0`) convierte la violación de la restricción en una decisión de la historia.
+
+**Estadísticas del final (MVP):** patrimonio final, mínimo de caja y cuándo, meses en negativo y bajo el colchón,
+coste de financiación, metas alcanzadas, comparación con las vidas paralelas.
 
 ## 10. LLM: de dónde salen las respuestas y cómo no pagar
 
 ### De dónde sale el contenido
-El LLM no sabe nada del usuario. Solo sabe lo que se le pasa en cada llamada:
+El LLM no sabe nada del usuario. Solo sabe lo que se le pasa en `ChatContext`:
 
 | Parte del prompt | Contenido | Quién lo produce |
 |---|---|---|
-| System prompt | Rol de "tú dentro de 10 años", tono, reglas | Dev C (a mano) |
-| Contexto | `GameSession` serializada | El motor |
-| Cifras | `Stats`, `PathComparison`, `SimulationResult` | El motor |
+| System prompt | Rol (yo del futuro o yo paralelo), tono, reglas | Dev C (a mano) |
+| Historia | `StoryBeat` de la partida y de las vidas paralelas, hechos e hitos con sus etiquetas | El motor + `facts.json` |
+| Cifras | `Stats`, `Attribution`, `SensitivityItem` | El motor |
 | Supuestos y límites | `Assumptions.sourceNotes`, qué está calibrado y qué es supuesto | JSON |
 | Pregunta | Texto libre | El usuario |
 
-Reglas: *usa solo las cifras del contexto; si no están, di que no lo sabes; cita el turno o el dato; recuerda que es una simulación y no asesoramiento financiero.*
-Las narrativas de los eventos van **fijas en el JSON** (`CaseOutcome.narrative`); el LLM solo conversa en el chat. El chat explica resultados; **no** propone escenarios nuevos (fuera del MVP).
+Reglas: *usa solo las cifras y hechos del contexto; si no están, di que no lo sabes; cita la edad o el momento;
+recuerda que es una simulación y no asesoramiento financiero.*
+- **Durante la partida**: la narrativa de cada caso es fija (`CaseOutcome.narrative`), sin LLM.
+- **Al final**: crónica completa (`chronicle`) y chat. **Plan B**: crónica con plantillas de texto por tipo de momento.
+- El chat explica la historia y los resultados; **no** propone escenarios nuevos (fuera del MVP).
 
 ### Que no cueste dinero
 Los límites y condiciones de los servicios gratuitos cambian: **verificadlos antes de depender de ellos**.
@@ -515,47 +665,112 @@ Los límites y condiciones de los servicios gratuitos cambian: **verificadlos an
 | Ollama local (Llama, Qwen, Gemma…) | 0 € | Desktop | Necesita RAM/GPU; un modelo pequeño responde peor en español. Android puede llamarlo por la red local |
 | APIs con capa gratuita (Gemini, Groq, OpenRouter "free"…) | 0 € dentro del límite | Android y Desktop | Límite de peticiones; necesita clave y red |
 | Créditos del hackathon | 0 € | Ambos | Preguntar a la organización |
-| Respuestas de ejemplo (plan B) | 0 € | Ambos | No es conversación real |
+| Plantillas (plan B) | 0 € | Ambos | No es conversación real |
 
-Recomendación: **Ollama en desarrollo**, API gratuita en la demo si hay wifi fiable (Ollama de respaldo) y **respuestas de ejemplo siempre listas**. Todo detrás de `FutureSelfChat`.
-Ahorro: contexto pequeño (5-6 turnos), narrativas sin LLM, respuestas cortas, tope de preguntas por sesión.
-Privacidad: con Ollama los datos que el usuario escribe no salen de su máquina; con una API externa sí. Nunca meter claves en el repo ni en la app (variable de entorno).
+Recomendación: **Ollama en desarrollo**, API gratuita en la demo si hay wifi fiable (Ollama de respaldo) y **plantillas siempre listas**.
+Privacidad: con Ollama los datos que escribe el usuario no salen de su máquina. Nunca meter claves en el repo ni en la app.
 
 ## 11. Reparto del trabajo
 
-| | **Dev A – Motor** | **Dev B – UI/UX** | **Dev C – Datos + IA** |
-|---|---|---|---|
-| **Carpetas propias** | `model/` (su parte), `engine/` | `ui/`, `androidMain`, `desktopMain`, recursos i18n | `data/`, `events/`, `ai/`, `tools/` |
-| **Entregables** | `apply`, avance mensual, sorteo con semilla, contrafactual, Monte Carlo, amortización de deudas, `Stats`, tests contables | Entrevista, pantalla de dilema (2 cartas × 3 casos), animación de resolución, abanico, pantalla final, tema claro/oscuro, ES/EN | Calibración + backtest, JSON de perfiles, catálogo de eventos, vecino más cercano, `FutureSelfChat` |
-| **Primera entrega** | Motor contra mocks (h≈4) | UI completa contra datos falsos (h≈8) | JSON de eventos y parámetros (h≈6) |
+Somos 3 desarrolladores. Coordinación entre nosotros mediante issues de GitHub (ver `AGENTS.md`).
 
-**Horas 0-2, los tres juntos:** esqueleto KMP que compile y arranque en Android y Desktop; acordar y subir `model/` (sección 5) y las firmas de `apply(...)`, `simulateMonteCarlo(...)`, `FutureSelfChat`; Alexia en JSON y un evento de ejemplo como datos falsos.
+| Rol | Persona | Responsabilidad principal |
+|---|---|---|
+| **Dev A – Motor + integración** | `polma7` | Esqueleto KMP, `model/`, motor (dinero + vida), momentos, atribución, árbol, vidas paralelas, sensibilidad, tests |
+| **Dev B – UI/UX (front)** | `OriolVines` | Pantallas, línea de vida, cascada, vidas paralelas, tema, i18n, empaquetado |
+| **Dev C – Datos + contenido + IA** | `caarlos-04` | Calibración, eventos encadenados, hechos e hitos, supuestos, crónica y chat |
 
-**Dev A**: h2-5 `apply`, flujos, deudas · h5-8 sorteo y contrafactual · h8-12 Monte Carlo y `Stats` · h12+ tests y apoyo a integración.
-**Dev B**: h2-6 navegación, tema, i18n, entrevista → `UserProfile` · h6-12 dilema, resolución, gráficos · h12-18 pantalla final, pulido, empaquetado. Decidir pronto la librería de gráficos (Canvas o Koalaplot).
-**Dev C**: h2-6 CSV→JSON y calibración · h6-10 backtest y vecino más cercano · h2-12 (en paralelo) escribir eventos · h12-18 chat con la sesión como contexto y plan B.
+### Carpetas propias
 
-**Cuello de botella: el contenido.** 6-8 eventos × 2 opciones × 3 casos ≈ 40-50 entradas con efectos numéricos y texto. Cada dev escribe 2-3 eventos en el formato JSON acordado y C los revisa y calibra. Un LLM puede dar borradores que se validan a mano.
+| Dev | Carpetas |
+|---|---|
+| **A** | `model/` (propone y mantiene), `engine/`, `data/` (carga de JSON), build Gradle y configuración |
+| **B** | `ui/`, `androidMain`, `desktopMain`, recursos i18n |
+| **C** | `events/`, `ai/`, `tools/`, `content/` (se copia a los recursos de KMP) |
 
-**Puntos de integración**: h8 A+B (UI con motor real) · h12 catálogo de C y partida completa con Alexia · h16 chat · **h18 congelar funcionalidades** · h18-24 pruebas en Android y Desktop, pulido, demo.
+### Responsabilidades de Dev A – Motor + integración
+1. **Esqueleto KMP**, `model/` y mocks (Alexia y un evento). Entrega en la **hora 2**.
+2. **Motor** (sección 7): efectos, avance mensual, financiación, cambios de vida, momentos, preview, suerte, contrafactual.
+3. **Controlador de partida** (P3-P7) y **carga de JSON** en `commonMain`. Es el punto de contacto con B.
+4. **Atribución** y `Stats`.
+5. **Árbol (expectimax)**, `Outlook` y **vidas paralelas**.
+6. **Sensibilidad** y punto de equilibrio.
+7. **Tests**: invariantes de la sección 7. `tools/validate_events.py --preview` da valores de referencia.
 
-**Cronograma global (24 h)**: 0-2 contratos y esqueleto · 2-10 trabajo en paralelo · 10-16 integración del bucle completo · 16-21 chat, estadísticas, pulido · 21-24 demo, README, vídeo.
+### Responsabilidades de Dev C – Datos + contenido + IA
+1. **Calibración y backtest** (`tools/`). Hecho: coste de vida, ruido, paga extra; banda analítica.
+2. **Catálogo de hechos e hitos** (`content/facts.json`) y reglas de hechos iniciales.
+3. **Eventos encadenados** (`content/events.json`): 6-8 eventos que formen historias (requisitos por hechos, hitos y caja), incluido el de financiación.
+4. **Supuestos** (`content/assumptions.json`) con fuentes, penalizaciones por prioridad y rangos de sensibilidad.
+5. **Plantillas de momentos** (ES/EN) para la línea de vida y la crónica de plan B.
+6. **Crónica y chat** (`ai/`): prompts, contexto, proveedor gratuito, plan B, pruebas de que no inventa cifras.
 
-**Reglas**: una rama por persona (`dev-a/motor`, `dev-b/ui`, `dev-c/datos`), PRs pequeñas a `main`, merge al menos cada 3-4 horas. Quien termine antes ayuda con eventos o tests. Demo y README final: propuesta, Dev B.
+### Contrato entre A y C
+- Los formatos JSON de eventos, hechos, calibración y supuestos los **define C y los aprueba A**. Si cambian, se avisa a A y a B.
+- A entrega `model/` y mocks en la hora 2; C entrega eventos y hechos reales hacia la hora 6.
+
+### Reparto con el front (Dev B)
+Además de la UI, B es dueño de las preguntas de la entrevista y de las cadenas ES/EN, y puede ayudar con 1-2 eventos,
+el guion de demo, el README final y las notas del proceso con agentes. Vistas clave: **línea de vida**, **cascada**,
+**vidas paralelas lado a lado**, **"tu historia cambiaría si..."**. Gráficos: decidir pronto Canvas o Koalaplot.
+
+### Cronograma (24 h)
+- **h0-2, los tres juntos**: esqueleto KMP, acordar `model/`, mocks.
+- **h2-10**: en paralelo (A motor y controlador, B UI contra mocks, C eventos, hechos y supuestos).
+- **h8**: A + B conectan.
+- **h12**: catálogo integrado, **partida completa con Alexia** y línea de vida.
+- **h14**: atribución y vidas paralelas.
+- **h16**: crónica y chat.
+- **h18: congelar funcionalidades.**
+- **h18-24**: pruebas en Android y Desktop, pulido, demo.
+
+### Orden de prioridad (si falta tiempo, se corta por abajo)
+1. Bucle de juego con Alexia: eventos, casos, suerte, relato corto por turno.
+2. Línea de vida con hechos, hitos y momentos.
+3. Cascada (atribución) y estadísticas del final.
+4. Vida paralela `OTHER_FIRST_CHOICE` (no necesita el árbol: basta con la mejor opción a ciegas o la neutra).
+5. Crónica (plantillas primero, LLM después) y chat.
+6. Entrevista y perfil propio.
+7. Árbol completo (`OPTIMAL_STRATEGY`, `Outlook`) y sensibilidad.
+
+### Reglas
+Una rama por persona (`dev-a/motor`, `dev-b/ui`, `dev-c/datos`), PRs pequeñas a `main`, merge al menos cada 3-4 horas. Ver `AGENTS.md`.
 
 ## 12. Cosas importantes y preguntas abiertas
 
-- **El LLM no inventa números**: recibe los resultados del motor y solo los explica.
-- **Plan B de demo**: chat con respuestas de ejemplo por si falla la red o el modelo; Alexia precargada.
-- **Gráficos**: pocas librerías en KMP; `Canvas` o Koalaplot (decidirlo pronto).
-- **Transparencia**: mostrar supuestos, unidades y limitaciones; avisar de que no es asesoramiento financiero ni una predicción.
-- **Agentic Development**: documentar qué hizo cada agente (JetBrains Air) y qué corregimos, para los puntos extra.
-- **Licencia**: los materiales del reto son "all rights reserved" (autora: Stefania Stan). Usarlos solo para participar y citar la fuente. No copiar los datos del reto fuera del repo del equipo sin revisarlo.
-- **Pendiente de leer**: `evaluation/judge-scorecard.md` (rúbrica propuesta).
+- **La historia manda**: cada pantalla debe responder "¿qué le pasó a esta persona y por qué?".
+- **El LLM no inventa números ni hechos**: solo cuenta lo que calcula el motor.
+- **Transparencia**: supuestos, unidades, penalizaciones y limitaciones visibles; avisar de que no es asesoramiento financiero ni una predicción.
+- **Plan B de demo**: crónica con plantillas y chat con respuestas de ejemplo; Alexia precargada.
+- **Validación para los jueces**: coherencia contable, atribución que cuadra, backtest de la banda, semilla reproducible.
+- **Agentic Development**: documentar qué hizo cada agente (JetBrains Air) y qué corregimos.
+- **Licencia**: los materiales del reto son "all rights reserved" (autora: Stefania Stan). Usarlos solo para participar y citar la fuente.
 
 Preguntas abiertas:
 1. Proveedor de LLM concreto (y quién aporta la clave, si hace falta).
 2. ¿Se implementa el modo "elige tú el caso" (`manualCaseMode`)?
 3. ¿Se guarda la partida en disco o solo en memoria?
-4. Asignación de A, B y C a cada persona.
-5. Valores reales de `AssetType` y `LiabilityType` (confirmar con los CSV antes de congelar los enums).
+4. ¿`profiles-sample.json` y `calibration.json` se suben al repo (licencia del dataset) o cada uno los genera?
+
+## 13. Mejoras futuras (si sobra tiempo)
+
+Ideas evaluadas y **aplazadas**. No bloquean el MVP.
+
+### Lo que sabemos del generador de los datos sintéticos
+- Cada mes: `neto = ingreso − alquiler − coste_vida + estacionalidad(mes) + ruido` (R² ≈ 0,98-0,99).
+- Coste de vida: uno por perfil, ≈ 1.540 CHF (sd ≈ 166, rango 770-2.400), igual para todos los segmentos.
+- Estacionalidad: diciembre ≈ +1.756 CHF de media (paga extra ≈ 0,35 × ingreso, solo empleados y autónomos); **febrero y agosto ≈ −300 CHF**.
+- Ruido sin memoria (autocorrelación −0,07), con **colas gordas** (curtosis 8,5) y sesgo negativo: ±500 CHF normalmente, con golpes puntuales de −2.000 a −5.000 CHF.
+- Sin tendencia: 2026 ≈ 2025 (no hay inflación ni subidas de sueldo).
+- Ingreso: un rango por tipo de empleo. Alquiler: depende de ciudad y hogar, no del ingreso. Caja inicial: crece con la edad (correlación 0,42).
+
+**No generamos datos nuevos con él**: no aporta información nueva ni resuelve el horizonte más allá de 24 meses.
+
+### Mejoras aplazadas
+| # | Mejora | Coste | Impacto |
+|---|---|---|---|
+| 1 | **Estacionalidad mensual** (12 ajustes por segmento; diciembre entra ahí) | ~15 min | `SegmentCalibration` gana `seasonalityChf`; el motor suma el ajuste del mes |
+| 2 | **Shocks separados del ruido** (probabilidad y tamaños) | ~20 min | Útil para un evento de "gasto imprevisto" sacado de los datos |
+| 3 | **Valores por defecto para la entrevista** (alquiler por ciudad × hogar, caja por edad, ingreso por empleo) | ~15 min | Nuevo `defaults.json`; P2 los usa y el vecino más cercano pasa a opcional; B puede ofrecer "no lo sé" |
+| 4 | **Economía con memoria** (cadena de Markov expansión/normal/recesión entre turnos) | ~1 h | Los casos dejan de ser independientes entre turnos; probabilidades de transición = supuestos |
+| 5 | **Frente de Pareto** de estrategias (patrimonio esperado frente a riesgo) | ~1 h | Vista extra del árbol |
