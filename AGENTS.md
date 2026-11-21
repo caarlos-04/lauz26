@@ -79,4 +79,4 @@ Comentarios e issues en español, cortos y concretos. No menciones a personas qu
 - Cifras y supuestos financieros: documenta unidades (CHF) y fuente. El LLM nunca inventa números: solo explica los que calcula el motor.
 - No añadas dependencias nuevas sin comentarlo con el equipo.
 - Textos de la interfaz en ES/EN, nunca cadenas fijas en el código.
-- Comentarios en ingles
+- Comentarios, nombres de variables y todo en ingles
