@@ -20,11 +20,11 @@ data class Attribution(
     val endNetWorth: Double,
 )
 
+// What each decision contributes comes from the parallel lives (same luck, the other choice), not from tags.
 @Serializable
 data class AttributionItem(
-    val key: String,                        // "income:income", "expense:RENT", "debt_interest", "financing_cost"...
-    val chf: Double,
-    val sourceEventId: String?,
+    val key: String,                        // "income:salary", "expense:rent", "expense:groceries", "loan_interest",
+    val chf: Double,                        // "financing_cost", "investment_growth"
 )
 
 @Serializable
@@ -68,14 +68,6 @@ data class SensitivityItem(
     val breakEven: Double?,
 )
 
-// p10 / p50 / p90 per month.
-@Serializable
-data class Band(
-    val p10: List<Double>,
-    val p50: List<Double>,
-    val p90: List<Double>,
-)
-
 @Serializable
 data class GameResult(
     val session: GameSession,
@@ -84,5 +76,4 @@ data class GameResult(
     val beats: List<StoryBeat>,
     val parallelLives: List<ParallelLife>,
     val sensitivity: List<SensitivityItem>,
-    val cashBand: Band,
 )

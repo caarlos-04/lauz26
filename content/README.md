@@ -11,7 +11,7 @@ Event and fact texts are written in both languages (`{"ES": "...", "EN": "..."}`
 
 ## Before pushing content
 ```
-python tools/calibrate.py                                       # once: generates tools/out/
+python tools/flow_model.py && python tools/macro.py            # once: generates tools/out/ (simulator inputs)
 python tools/validate_events.py --preview P00001                # every option x case on Alexia
 python tools/validate_events.py --play P00001 --choices A,B     # full game: life line
 ```
@@ -35,7 +35,7 @@ Two games should be **two different lives**. That is why events are chained:
 6. **Offsets (`startOffsetMonths`)** relative to the start of the turn. A turn lasts 24 months.
 7. **Narrative** in the second person, one or two sentences, with the key numbers of the case. It is what the user reads during the game.
 8. New facts and milestones: **declare them first in `facts.json`** (with ES and EN) or the validator rejects them.
-9. The `streamId`s you replace must exist: `income` (or `pension` for retirees).
+9. `set_income` replaces the person's single monthly income; `add_liability` adds a personal loan (merged with an existing one).
 
 ## Effect types
 | type | What for |
@@ -45,7 +45,6 @@ Two games should be **two different lives**. That is why events are chained:
 | `expense_delta` | Extra expense or a saving, temporary or permanent (tuition, childcare) |
 | `one_off` | One-time cost or income (moving house, family help: negative = income) |
 | `add_liability` | New loan, with the payment computed from the term |
-| `asset_return_delta` | Change the return of an asset type |
 | `set_employment` | Change how the person earns money (`NOT_WORKING`, `PART_TIME`, `EMPLOYED`...). Does **not** end their studies: use `set_fact EDUCATION` for that. Affects the December bonus and which events appear |
 | `set_fact` | Change a life fact (education, occupation, city, housing, family) |
 | `add_flag` | Add a milestone to the story |

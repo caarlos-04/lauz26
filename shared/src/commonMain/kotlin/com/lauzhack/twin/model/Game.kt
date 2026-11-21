@@ -4,8 +4,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class GameSession(
-    val profile: UserProfile,
-    val initial: FinancialStatement,        // month 0
+    val initial: FinancialStatement,        // month 0 (from the interview, or a dataset profile such as Alexia)
     val seed: Long,
     val preferences: Preferences,
     val turns: List<Turn>,
@@ -53,6 +52,6 @@ data class CasePreview(
     val stateAfter: FinancialStatement,
     val deltaNetWorth: Double,
     val minCash: Double,
-    val lifeChanges: List<LifeChange>,
+    val pendingChanges: List<PendingChange>,
     val narrative: LocalizedText,
 )

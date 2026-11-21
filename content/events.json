@@ -33,7 +33,7 @@
                 { "type": "set_fact", "key": "EDUCATION", "value": "MASTER_IN_PROGRESS" },
                 { "type": "set_fact", "key": "EDUCATION", "value": "MASTER", "startOffsetMonths": 24 },
                 { "type": "add_flag", "flag": "did_master", "startOffsetMonths": 24 },
-                { "type": "set_income", "streamId": "income", "monthlyChf": 5000, "startOffsetMonths": 30 },
+                { "type": "set_income", "monthlyChf": 5000, "startOffsetMonths": 30 },
                 { "type": "set_employment", "employment": "EMPLOYED", "startOffsetMonths": 30 },
                 { "type": "set_fact", "key": "OCCUPATION", "value": "JUNIOR", "startOffsetMonths": 30 }
               ],
@@ -49,7 +49,7 @@
                 { "type": "set_fact", "key": "EDUCATION", "value": "MASTER_IN_PROGRESS" },
                 { "type": "set_fact", "key": "EDUCATION", "value": "MASTER", "startOffsetMonths": 24 },
                 { "type": "add_flag", "flag": "did_master", "startOffsetMonths": 24 },
-                { "type": "set_income", "streamId": "income", "monthlyChf": 6000, "startOffsetMonths": 26 },
+                { "type": "set_income", "monthlyChf": 6000, "startOffsetMonths": 26 },
                 { "type": "set_employment", "employment": "EMPLOYED", "startOffsetMonths": 26 },
                 { "type": "set_fact", "key": "OCCUPATION", "value": "JUNIOR", "startOffsetMonths": 26 }
               ],
@@ -65,7 +65,7 @@
                 { "type": "set_fact", "key": "EDUCATION", "value": "MASTER_IN_PROGRESS" },
                 { "type": "set_fact", "key": "EDUCATION", "value": "MASTER", "startOffsetMonths": 24 },
                 { "type": "add_flag", "flag": "did_master", "startOffsetMonths": 24 },
-                { "type": "set_income", "streamId": "income", "monthlyChf": 7000, "startOffsetMonths": 24 },
+                { "type": "set_income", "monthlyChf": 7000, "startOffsetMonths": 24 },
                 { "type": "set_employment", "employment": "EMPLOYED", "startOffsetMonths": 24 },
                 { "type": "set_fact", "key": "OCCUPATION", "value": "JUNIOR", "startOffsetMonths": 24 }
               ],
@@ -85,7 +85,7 @@
               "effects": [
                 { "type": "set_fact", "key": "EDUCATION", "value": "BACHELOR" },
                 { "type": "add_flag", "flag": "started_working_early" },
-                { "type": "set_income", "streamId": "income", "monthlyChf": 4200, "startOffsetMonths": 4 },
+                { "type": "set_income", "monthlyChf": 4200, "startOffsetMonths": 4 },
                 { "type": "set_employment", "employment": "EMPLOYED", "startOffsetMonths": 4 },
                 { "type": "set_fact", "key": "OCCUPATION", "value": "JUNIOR", "startOffsetMonths": 4 }
               ],
@@ -99,7 +99,7 @@
               "effects": [
                 { "type": "set_fact", "key": "EDUCATION", "value": "BACHELOR" },
                 { "type": "add_flag", "flag": "started_working_early" },
-                { "type": "set_income", "streamId": "income", "monthlyChf": 4800, "startOffsetMonths": 2 },
+                { "type": "set_income", "monthlyChf": 4800, "startOffsetMonths": 2 },
                 { "type": "set_employment", "employment": "EMPLOYED", "startOffsetMonths": 2 },
                 { "type": "set_fact", "key": "OCCUPATION", "value": "JUNIOR", "startOffsetMonths": 2 }
               ],
@@ -113,7 +113,7 @@
               "effects": [
                 { "type": "set_fact", "key": "EDUCATION", "value": "BACHELOR" },
                 { "type": "add_flag", "flag": "started_working_early" },
-                { "type": "set_income", "streamId": "income", "monthlyChf": 5400, "startOffsetMonths": 1 },
+                { "type": "set_income", "monthlyChf": 5400, "startOffsetMonths": 1 },
                 { "type": "set_employment", "employment": "EMPLOYED", "startOffsetMonths": 1 },
                 { "type": "set_fact", "key": "OCCUPATION", "value": "JUNIOR", "startOffsetMonths": 1 }
               ],
@@ -154,7 +154,7 @@
             "PESSIMISTIC": {
               "prob": 0.2,
               "effects": [
-                { "type": "add_liability", "liabilityType": "PERSONAL_LOAN", "principalChf": 30000, "annualRate": 0.0848, "termMonths": 60 },
+                { "type": "add_liability", "principalChf": 30000, "annualRate": 0.0848, "termMonths": 60 },
                 { "type": "add_flag", "flag": "took_loan" }
               ],
               "narrative": {
@@ -165,7 +165,7 @@
             "NEUTRAL": {
               "prob": 0.6,
               "effects": [
-                { "type": "add_liability", "liabilityType": "PERSONAL_LOAN", "principalChf": 30000, "annualRate": 0.0582, "termMonths": 60 },
+                { "type": "add_liability", "principalChf": 30000, "annualRate": 0.0582, "termMonths": 60 },
                 { "type": "add_flag", "flag": "took_loan" }
               ],
               "narrative": {
@@ -176,7 +176,7 @@
             "OPTIMISTIC": {
               "prob": 0.2,
               "effects": [
-                { "type": "add_liability", "liabilityType": "PERSONAL_LOAN", "principalChf": 30000, "annualRate": 0.0253, "termMonths": 60 },
+                { "type": "add_liability", "principalChf": 30000, "annualRate": 0.0253, "termMonths": 60 },
                 { "type": "add_flag", "flag": "took_loan" }
               ],
               "narrative": {

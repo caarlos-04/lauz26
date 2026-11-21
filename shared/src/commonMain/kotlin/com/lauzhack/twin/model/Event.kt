@@ -56,12 +56,11 @@ data class CaseOutcome(
 sealed interface Effect {
     @Serializable
     @SerialName("set_income")
-    data class SetIncome(val streamId: String, val monthlyChf: Double, val startOffsetMonths: Int = 0) : Effect
+    data class SetIncome(val monthlyChf: Double, val startOffsetMonths: Int = 0) : Effect
 
     @Serializable
     @SerialName("income_delta")
     data class IncomeDelta(
-        val streamId: String,
         val deltaChf: Double,
         val startOffsetMonths: Int = 0,
         val months: Int? = null,
@@ -81,18 +80,12 @@ sealed interface Effect {
     data class OneOff(val chf: Double, val startOffsetMonths: Int = 0) : Effect
 
     @Serializable
-    @SerialName("add_liability")
+    @SerialName("add_liability")          // a personal loan paid out to cash, repaid as an annuity over termMonths
     data class AddLiability(
-        val liabilityType: LiabilityType,
         val principalChf: Double,
         val annualRate: Double,
         val termMonths: Int,
-        val disburseToCash: Boolean = true,
     ) : Effect
-
-    @Serializable
-    @SerialName("asset_return_delta")
-    data class AssetReturnDelta(val assetType: AssetType, val deltaAnnualRate: Double) : Effect
 
     @Serializable
     @SerialName("set_employment")

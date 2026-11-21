@@ -1,93 +1,48 @@
-# tools/ — offline data pipeline and content checks (Dev C)
+# tools/ — offline data pipeline, simulator reference and content checks
 
-Python scripts, **standard library only** (Python 3.10+). They read the challenge CSVs and the game content
-and produce JSON files that the app loads. The app never reads CSV.
+Python scripts, **standard library only** (Python 3.10+). They read the challenge CSVs, the public datasets and the
+game content, and produce small JSON files that the app loads. The app never reads CSV.
+Design of the simulator: [`docs/simulator.md`](../docs/simulator.md).
 
 ```
-python tools/calibrate.py                          # -> tools/out/calibration.json + profiles-sample.json
-python tools/backtest.py                           # -> tools/out/backtest-report.json
+python tools/flow_model.py                         # -> out/flow-model.json + out/flow-backtest.json (learned monthly flows)
+python tools/macro.py                              # -> out/macro.json (Swiss trends; needs data/download.sh first)
+python tools/simulate.py --profile P00001          # opening statement -> 120 simulated months
+python tools/simulate.py --validate                # every dataset profile, 24 months, accounting identities
+python tools/simulate.py --profile P00001 --dump out/simulated-P00001.json   # for SimulationContractTest (Kotlin)
 python tools/validate_events.py                    # validate content/events.json + content/facts.json
-python tools/validate_events.py --preview P00001   # each option x case on Alexia (10 years)
+python tools/validate_events.py --preview P00001   # each option x case of the eligible events, 10 years
 python tools/validate_events.py --play P00001 --choices A,B --luck 0.5,0.5   # whole game: life line + attribution
-python tools/build_statements.py --profile P00001  # FinancialStatements from the dataset (opening + 24 months)
 cd tools && python -m unittest -v
 ```
 
 The CSVs live outside this repo. By default the scripts look in `../ai-financial-twin-lauzhack-2026/Data`
-(sibling of the repo folder); override with `--data-dir` or the `LAUZ_DATA_DIR` env var.
-Generated files go to `tools/out/` (git-ignored).
+(sibling of the repo folder); override with `--data-dir` or the `LAUZ_DATA_DIR` env var. Public datasets go to
+`data/raw/` (`bash data/download.sh`). Generated files go to `tools/out/` (git-ignored).
 
-## What the data actually look like
+## Files
 
-For every profile and every non-December month the ledger follows (R² ≈ 0.98-0.99 per employment type):
+| File | What it does |
+|---|---|
+| `common.py` | Dataset loading (by `profile_id`) and small helpers |
+| `statement.py` | The `FinancialStatement` contract: opening statement of a dataset profile (`dataset_opening`) or of a person from the interview (`new_person`), `check_statement` (identities), net worth and goal state (computed), initial facts, loan annuity |
+| `flow_model.py` | Learns the monthly flows from `synthetic-transactions.zip`: for each category, months, probability and amount, with the person features that matter (forward selection). 80/20 backtest |
+| `macro.py` | Swiss trends from public data: inflation, wage index, rent index, career curve by age, unemployment by age, property prices... with sources |
+| `simulate.py` | One monthly step `statement(t) -> statement(t+1)`: pending changes, monthly trends, learned flows, loan, accounting |
+| `game.py` | Game loop on statements: event effects, event choice by `requires`, luck -> case, life line (beats), attribution, preview |
+| `validate_events.py` | Validates the content contract (`docs/README.md` 5.3) and runs `--preview` / `--play` with `game.py` |
+| `test_*.py`, `test_support.py` | Tests; `test_support.py` holds small hand-written models so tests need neither the dataset nor `out/` |
 
-```
-net = income - rent - livingCost + noise
-```
+## Generated files
 
-- `livingCost` ≈ CHF 1,500-1,600 per month for **everyone**; household type barely changes it.
-- `noise` has sd ≈ CHF 450-620 (≈ CHF 1,600 for self-employed) and **no memory** between months (autocorrelation −0.07).
-- In December, employed and self-employed get ≈ 0.35 × monthly income extra (a 13th salary); others ≈ 0.
-- Students and unemployed have income < rent, so they burn cash every month. Alexia: ≈ −CHF 1,000/month.
-- The debt ledger has `monthly_payment = 0` for every loan (not amortized) and the dataset has no asset returns.
-- More findings (seasonality, heavy tails, rent by city) and postponed improvements: `docs/README.md` section 13.
-
-## calibration.json
-
-```jsonc
-{ "meta": { "model": "...", "caveats": ["..."] },
-  "segments": [ {                      // 24 "EMPLOYMENT|HOUSEHOLD" + 6 "EMPLOYMENT|ANY" fallbacks
-    "segment": "EMPLOYED|FAMILY",
-    "n": 141,
-    "lowConfidence": false,            // n < 20: use the "EMPLOYMENT|ANY" fallback
-    "medianIncomeChf": 7736.0,
-    "medianRentChf": 1954.0,
-    "livingCostChf": { "mean": 0, "sd": 0, "p10": 0, "p50": 0, "p90": 0, "deciles": [ /* 11 values */ ] },
-    "monthlyNoiseSdChf": 589.0,        // for the analytic band
-    "decemberBonusRatio": 0.39,        // of monthly income, median over profiles with income >= 500
-    "negativeMonthRate": 0.01          // fraction of months flagged negative_balance_requires_financing
-  } ] }
-```
-
-## profiles-sample.json and FinancialStatements
-
-~56 profiles (stratified: at least one per segment, always includes Alexia `P00001`). Each item:
-`{ profile, initialStatement, segment }`: the static `UserProfile` and the opening **FinancialStatement** (month 0).
-Schema, field-by-field mapping to the CSVs and design decisions: `docs/financial-statement.md`.
-
-`build_statements.py` builds the statements straight from the dataset (opening + the 24 observed months) and checks
-the accounting identities; `validate_events.py --play ... --dump FILE` writes one simulated statement per turn.
-
-Things the loader must know:
-- Cash lives only in `accounts` (the dataset repeats it as a `cash` asset; we do not double count it).
-- `expenseStreams` has `rent` (observed) and `living` (derived from that profile's ledger).
-- `person.facts` follows the `initialFromProfile` rules of `content/facts.json` (same rules the app uses in P2).
-- `person.employment` is the **work** status: the dataset's `student` becomes `NOT_WORKING` with `EDUCATION: BACHELOR_IN_PROGRESS`
-  (studying and working are independent; see `docs/README.md` 5.2). `segment` and the calibration still use the dataset's status.
-- `investments[].annualReturn` is `null`: fill it from `Assumptions`.
-- `liabilities[].monthlyPaymentChf` is an **assumption** (60-month annuity, `paymentIsAssumed: true`); the dataset has 0.
-- `goals[].targetMonth` is the statement month at the end of the target month (2029-12-31 -> 60).
-
-## backtest-report.json — analytic band, no Monte Carlo
-
-Calibrates on 80 % of the profiles and predicts the 24 months of the other 20 % from the opening balance,
-without looking at their ledger, with a closed-form band: `mean ± 1.2816 × sqrt(k²·sd(L)² + k·σ²)`
-(`L` = living cost, unknown for a new profile; `σ` = monthly noise). In the app the user's living cost is known,
-so only `k·σ²` applies. Current result (seed 2026): **p10-p90 coverage 82.7 %** (target 80 %),
-median absolute error ≈ CHF 1,330 on the closing balance.
-
-## validate_events.py — content checks and reference engine
-
-- **Validation**: `content/events.json` against the contract (`docs/README.md` 5.3) and `content/facts.json`
-  (every fact value and flag must exist in the catalog, texts in ES and EN, probabilities sum to 1...).
-- **`--preview PROFILE_ID`**: each option × case of the events eligible at the start, 120 months.
-- **`--play PROFILE_ID`**: a whole game (event selection by `requires`/`priority`, luck → case, life changes,
-  story beats, goals, attribution waterfall with its identity check).
-- The engine follows `docs/README.md` section 7 **without inflation, salary growth or asset returns** (pending
-  `content/assumptions.json`). It includes the December bonus and interest on negative cash (8.5 %).
-  Dev A can use its numbers as expected values; `test_events.py` has small hand-checked cases.
+| File | Content | Read by |
+|---|---|---|
+| `flow-model.json` (~48 KB) | `FlowModel` (Kotlin: `model/Simulation.kt`) | Engine |
+| `macro.json` (~12 KB) | `MacroFile` (Kotlin: `model/Simulation.kt`); trends + the public series behind them | Engine, UI (sources) |
+| `flow-backtest.json` | Out-of-sample check of the flow model | Docs, demo |
+| `simulated-P00001.json` | 120 simulated statements of Alexia | Kotlin contract test |
 
 ## Caveats (say them in the demo)
 - Synthetic data: good backtest scores mean we recovered the generator, not real-world accuracy.
-- Only 24 months are calibrated; everything after is assumption.
-- Small segments (students: 39 profiles, unemployed: 37) have low confidence.
+- The ledger covers 24 months and has no trend: growth over the 10 years comes from public Swiss data (`macro.json`).
+- Loan payments (60-month annuity) and investment returns are assumptions: the dataset has neither.
