@@ -41,19 +41,21 @@ Two games should be **two different lives**. That is why events are chained:
 | type | What for |
 |---|---|
 | `set_income` | Change an income permanently (new job) |
+| `income_factor` | Multiply the income, temporary or permanent (part time × 0.56, self-employed, promotion, pension): use a ratio from `event_data.py` |
 | `income_delta` | Extra income or a cut, temporary or permanent (scholarship, reduced hours) |
 | `expense_delta` | Extra expense or a saving, temporary or permanent (tuition, childcare) |
 | `one_off` | One-time cost or income (moving house, family help: negative = income) |
 | `add_liability` | New loan, with the payment computed from the term |
 | `set_employment` | Change how the person earns money (`NOT_WORKING`, `PART_TIME`, `EMPLOYED`...). Does **not** end their studies: use `set_fact EDUCATION` for that. Affects the December bonus and which events appear |
 | `set_fact` | Change a life fact (education, occupation, city, housing, family) |
+| `set_household` | Change the household (`SINGLE`, `SHARED_HOUSING`, `COUPLE`, `FAMILY`); add the `HOUSING` / `FAMILY` facts it implies (the validator checks it) |
+| `market_rent` | A new home: the rent becomes the market rent for the new city and household (`quantile` 0.25 cheap … 0.75 expensive). Put it after the city / household change |
 | `add_flag` | Add a milestone to the story |
 
 ## Current state
-| Event | For whom | Notes (`--preview`/`--play`, Alexia, 10 years, no inflation) |
-|---|---|---|
-| `E-master` | Bachelor's student ≤ 30 | Master's: expected net worth ≈ 336k, but 23-41 months negative. Working: ≈ 329k, never negative |
-| `E-financing` | Negative cash at the start of the turn (priority 10) | Loan (dataset rates 2.5-8.5 %) or family help (5-30k, assumption) |
+15 events, all measurable with our data: which of the 120 catalogue scenarios they cover, who gets them, what they
+change and why the other 98 were dropped: [`docs/events-mapping.md`](../docs/events-mapping.md). Every number comes
+from `tools/event_data.py` (`tools/out/event-data.json`).
 
-Without any event Alexia loses ≈ CHF 1,000/month and pays overdraft interest (−170k after 10 years).
-**Missing**: events for turns 2-4 (first job, housing, partner, moving, investing...), otherwise the game ends with quiet turns.
+Coverage (one game per dataset profile, 2,400 games): about one quiet turn out of five for people who work or study;
+retired people get fewer events (nothing measurable in the catalogue fits most of them).
