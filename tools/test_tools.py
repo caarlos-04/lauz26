@@ -1,10 +1,13 @@
 """Sanity tests for the offline tools. Run from tools/: python -m unittest -v"""
+import json
 import unittest
 
-from calibrate import annuity_payment, build_calibration, build_profile, sample_profiles
+from backtest import analytic_band
+from calibrate import DEFAULT_FACTS, annuity_payment, build_calibration, build_profile, initial_life, sample_profiles
 from common import deciles, default_data_dir, load_dataset, month_index, quantile, segment_key
 
 DATA_DIR = default_data_dir()
+FACTS = json.loads(DEFAULT_FACTS.read_text(encoding="utf-8"))
 
 
 class HelperTests(unittest.TestCase):
@@ -31,13 +34,26 @@ class HelperTests(unittest.TestCase):
     def test_segment_key(self):
         self.assertEqual(segment_key("student", "single"), "STUDENT|SINGLE")
 
+    def test_initial_life_from_profile_rules(self):
+        life = initial_life({"employment": "STUDENT", "household": "SHARED_HOUSING", "city": "Lausanne"}, FACTS)
+        self.assertEqual(life["facts"], {"EDUCATION": "BACHELOR_IN_PROGRESS", "OCCUPATION": "STUDENT",
+                                         "HOUSING": "SHARED_FLAT", "FAMILY": "SINGLE", "CITY": "Lausanne"})
+        self.assertEqual(life["flags"], [])
+
+    def test_analytic_band_widens_with_sqrt_of_months(self):
+        seg = {"livingCostChf": {"mean": 1500, "sd": 0}, "monthlyNoiseSdChf": 100, "decemberBonusRatio": 0}
+        prof = {"openingCash": 0, "income": 3000, "rent": 1000, "employment": "STUDENT"}
+        band = analytic_band(prof, ["2025-01", "2025-02", "2025-03", "2025-04"], seg)
+        self.assertAlmostEqual(band[0][1], 500)
+        self.assertAlmostEqual(band[3][2] - band[3][1], 2 * (band[0][2] - band[0][1]))  # sqrt(4) = 2
+
 
 @unittest.skipUnless((DATA_DIR / "synthetic-profiles.csv").exists(), "dataset not found (set LAUZ_DATA_DIR)")
 class DatasetTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.ds = load_dataset(DATA_DIR)
-        cls.calib = build_calibration(cls.ds, sorted(cls.ds["profiles"]), seed=1)
+        cls.calib = build_calibration(cls.ds, sorted(cls.ds["profiles"]))
 
     def test_every_profile_has_24_months(self):
         self.assertTrue(all(len(r) == 24 for r in self.ds["series"].values()))
@@ -47,12 +63,12 @@ class DatasetTests(unittest.TestCase):
         self.assertIn("STUDENT|SINGLE", keys)
         self.assertIn("STUDENT|ANY", keys)
 
-    def test_living_cost_quantiles_are_ordered(self):
+    def test_calibration_values_are_consistent(self):
         for s in self.calib:
             lc = s["livingCostChf"]
             self.assertLessEqual(lc["p10"], lc["p50"])
             self.assertLessEqual(lc["p50"], lc["p90"])
-            self.assertTrue(s["residualsChf"])
+            self.assertGreater(s["monthlyNoiseSdChf"], 0)
 
     def test_sample_contains_alexia_and_covers_all_segments(self):
         sample = sample_profiles(self.ds, 50, seed=1)
@@ -60,12 +76,15 @@ class DatasetTests(unittest.TestCase):
         segs = {segment_key(self.ds["profiles"][p]["employment"], self.ds["profiles"][p]["household"]) for p in sample}
         self.assertEqual(len(segs), 24)
 
-    def test_initial_state_is_consistent_with_profile(self):
-        built = build_profile(self.ds, "P00001")
-        st = built["initialState"]
-        self.assertEqual(st["cash"], 8000.0)
-        self.assertEqual(st["month"], 0)
-        self.assertEqual({e["id"] for e in st["expenses"]}, {"rent", "living"})
+    def test_every_profile_gets_a_valid_initial_life(self):
+        for pid in self.ds["profiles"]:
+            build_profile(self.ds, pid, FACTS)   # raises if a fact is not in the catalog
+
+    def test_alexia_initial_twin(self):
+        built = build_profile(self.ds, "P00001", FACTS)
+        self.assertEqual(built["initialFinance"]["cash"], 8000.0)
+        self.assertEqual({e["id"] for e in built["initialFinance"]["expenses"]}, {"rent", "living"})
+        self.assertEqual(built["initialLife"]["facts"]["CITY"], "Lausanne")
 
 
 if __name__ == "__main__":

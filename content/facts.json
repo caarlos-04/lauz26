@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "facts": {
+    "EDUCATION": {
+      "UNKNOWN": { "ES": "Estudios no indicados", "EN": "Education not stated" },
+      "BACHELOR_IN_PROGRESS": { "ES": "Estudiando el grado", "EN": "Studying for a bachelor's" },
+      "BACHELOR": { "ES": "Graduada/o", "EN": "Bachelor's degree" },
+      "MASTER_IN_PROGRESS": { "ES": "Estudiando un máster", "EN": "Studying for a master's" },
+      "MASTER": { "ES": "Máster", "EN": "Master's degree" }
+    },
+    "OCCUPATION": {
+      "STUDENT": { "ES": "Estudiante", "EN": "Student" },
+      "JUNIOR": { "ES": "Primer empleo", "EN": "First job" },
+      "PROFESSIONAL": { "ES": "Profesional", "EN": "Professional" },
+      "SENIOR": { "ES": "Puesto sénior", "EN": "Senior role" },
+      "PART_TIME": { "ES": "Trabajo a tiempo parcial", "EN": "Part-time job" },
+      "SELF_EMPLOYED": { "ES": "Autónomo/a", "EN": "Self-employed" },
+      "UNEMPLOYED": { "ES": "Buscando trabajo", "EN": "Looking for work" },
+      "RETIRED": { "ES": "Jubilado/a", "EN": "Retired" }
+    },
+    "CITY": {
+      "Lausanne": { "ES": "Lausana", "EN": "Lausanne" },
+      "Geneva": { "ES": "Ginebra", "EN": "Geneva" },
+      "Zurich": { "ES": "Zúrich", "EN": "Zurich" },
+      "Basel": { "ES": "Basilea", "EN": "Basel" },
+      "Bern": { "ES": "Berna", "EN": "Bern" },
+      "Lugano": { "ES": "Lugano", "EN": "Lugano" },
+      "Lucerne": { "ES": "Lucerna", "EN": "Lucerne" },
+      "Fribourg": { "ES": "Friburgo", "EN": "Fribourg" },
+      "Neuchatel": { "ES": "Neuchâtel", "EN": "Neuchâtel" },
+      "Biel": { "ES": "Biel", "EN": "Biel" },
+      "St Gallen": { "ES": "San Galo", "EN": "St Gallen" },
+      "Winterthur": { "ES": "Winterthur", "EN": "Winterthur" },
+      "ABROAD": { "ES": "En el extranjero", "EN": "Abroad" }
+    },
+    "HOUSING": {
+      "WITH_PARENTS": { "ES": "Con la familia", "EN": "Living with family" },
+      "SHARED_FLAT": { "ES": "Piso compartido", "EN": "Shared flat" },
+      "RENTED_FLAT": { "ES": "Piso de alquiler", "EN": "Rented flat" },
+      "OWNED_HOME": { "ES": "Vivienda en propiedad", "EN": "Own home" }
+    },
+    "FAMILY": {
+      "SINGLE": { "ES": "Sin pareja", "EN": "Single" },
+      "COUPLE": { "ES": "En pareja", "EN": "In a couple" },
+      "FAMILY": { "ES": "Con hijos", "EN": "With children" }
+    }
+  },
+  "flags": {
+    "did_master": { "ES": "Hizo un máster", "EN": "Did a master's" },
+    "started_working_early": { "ES": "Empezó a trabajar al acabar el grado", "EN": "Started working right after the bachelor's" },
+    "took_loan": { "ES": "Pidió un préstamo", "EN": "Took out a loan" },
+    "family_help": { "ES": "Recibió ayuda de la familia", "EN": "Got help from family" }
+  },
+  "initialFromProfile": {
+    "EDUCATION": { "from": "employment", "map": { "STUDENT": "BACHELOR_IN_PROGRESS" }, "default": "UNKNOWN" },
+    "OCCUPATION": {
+      "from": "employment",
+      "map": {
+        "STUDENT": "STUDENT", "EMPLOYED": "PROFESSIONAL", "PART_TIME": "PART_TIME",
+        "SELF_EMPLOYED": "SELF_EMPLOYED", "UNEMPLOYED": "UNEMPLOYED", "RETIRED": "RETIRED"
+      }
+    },
+    "HOUSING": { "from": "household", "map": { "SHARED_HOUSING": "SHARED_FLAT" }, "default": "RENTED_FLAT" },
+    "FAMILY": {
+      "from": "household",
+      "map": { "SINGLE": "SINGLE", "SHARED_HOUSING": "SINGLE", "COUPLE": "COUPLE", "FAMILY": "FAMILY" }
+    },
+    "CITY": { "from": "city" }
+  }
+}

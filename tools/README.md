@@ -1,11 +1,14 @@
-# tools/ — offline data pipeline (Dev C)
+# tools/ — offline data pipeline and content checks (Dev C)
 
-Python scripts, **standard library only** (Python 3.10+). They read the challenge CSVs and produce JSON
-files that the app loads. The app never reads CSV.
+Python scripts, **standard library only** (Python 3.10+). They read the challenge CSVs and the game content
+and produce JSON files that the app loads. The app never reads CSV.
 
 ```
-python tools/calibrate.py     # -> tools/out/calibration.json + tools/out/profiles-sample.json
-python tools/backtest.py      # -> tools/out/backtest-report.json
+python tools/calibrate.py                          # -> tools/out/calibration.json + profiles-sample.json
+python tools/backtest.py                           # -> tools/out/backtest-report.json
+python tools/validate_events.py                    # validate content/events.json + content/facts.json
+python tools/validate_events.py --preview P00001   # each option x case on Alexia (10 years)
+python tools/validate_events.py --play P00001 --choices A,B --luck 0.5,0.5   # whole game: life line + attribution
 cd tools && python -m unittest -v
 ```
 
@@ -22,11 +25,11 @@ net = income - rent - livingCost + noise
 ```
 
 - `livingCost` ≈ CHF 1,500-1,600 per month for **everyone**; household type barely changes it.
-- `noise` has sd ≈ CHF 450-620, but ≈ CHF 1,600 for self-employed.
+- `noise` has sd ≈ CHF 450-620 (≈ CHF 1,600 for self-employed) and **no memory** between months (autocorrelation −0.07).
 - In December, employed and self-employed get ≈ 0.35 × monthly income extra (a 13th salary); others ≈ 0.
-- Students and unemployed have income < rent, so they burn cash every month. Alexia: ≈ -CHF 1,000/month,
-  so her CHF 8,000 lasts under a year unless an event changes something.
+- Students and unemployed have income < rent, so they burn cash every month. Alexia: ≈ −CHF 1,000/month.
 - The debt ledger has `monthly_payment = 0` for every loan (not amortized) and the dataset has no asset returns.
+- More findings (seasonality, heavy tails, rent by city) and postponed improvements: `docs/README.md` section 13.
 
 ## calibration.json
 
@@ -38,39 +41,42 @@ net = income - rent - livingCost + noise
     "lowConfidence": false,            // n < 20: use the "EMPLOYMENT|ANY" fallback
     "medianIncomeChf": 7736.0,
     "medianRentChf": 1954.0,
-    "livingCostChf": { "mean": 0, "p10": 0, "p50": 0, "p90": 0, "deciles": [ /* 11 values */ ] },
-    "monthlyNoiseSdChf": 589.0,
-    "decemberUpliftChf": 2653.0,
+    "livingCostChf": { "mean": 0, "sd": 0, "p10": 0, "p50": 0, "p90": 0, "deciles": [ /* 11 values */ ] },
+    "monthlyNoiseSdChf": 589.0,        // for the analytic band
     "decemberBonusRatio": 0.39,        // of monthly income, median over profiles with income >= 500
-    "negativeMonthRate": 0.01,         // fraction of months flagged negative_balance_requires_financing
-    "residualsChf": [ /* up to 600 within-profile monthly deviations, CHF, for bootstrap */ ]
+    "negativeMonthRate": 0.01          // fraction of months flagged negative_balance_requires_financing
   } ] }
 ```
-
-How the app should use it (Monte Carlo, Dev A):
-`net_t = income - rent - livingCost + resample(residualsChf) [+ decemberBonusRatio * income in December]`,
-with `livingCost` drawn by interpolating `deciles` once per path (parameter uncertainty).
-The three game cases map to `livingCostChf`: **optimistic = p10, neutral = p50, pessimistic = p90**.
 
 ## profiles-sample.json
 
 ~56 profiles (stratified: at least one per segment, always includes Alexia `P00001`). Each item:
-`{ profile, initialState, segment }`, shaped like the Kotlin `UserProfile` and `FinancialState`.
+`{ profile, initialFinance, initialLife, segment }`, shaped like the Kotlin `UserProfile`, `FinancialState`, `LifeState`.
 
-Things the loader must know:
-- `initialState.expenses` has `rent` (from the profile) and `living` (implied from that profile's ledger).
-- `assets[].annualReturn` is `null`: fill it from `Assumptions.investmentReturn`. Cash is `initialState.cash`
-  (not duplicated in `assets`).
+- `initialFinance.expenses` has `rent` (from the profile) and `living` (implied from that profile's ledger).
+- `initialLife.facts` follows the `initialFromProfile` rules of `content/facts.json` (same rules the app uses in P2).
+- `assets[].annualReturn` is `null`: fill it from `Assumptions`. Cash is `initialFinance.cash` (not in `assets`).
 - `liabilities[].monthlyPaymentChf` is an **assumption** (60-month annuity); the dataset has 0.
-- The dataset ledger excludes debt service, so debt payments are an extra outflow on top of calibrated `net`.
 - `goals[].targetMonth` is months since `startMonth` (2025-01 = 0).
 
-## backtest-report.json
+## backtest-report.json — analytic band, no Monte Carlo
 
-Calibrates on 80 % of the profiles and simulates the 24 months of the other 20 % from the opening balance,
-without looking at their ledger. Current result (seed 2026): **p10-p90 coverage 83 %** (target 80 %),
-median absolute error ≈ CHF 1,360 on the closing balance. Coverage is high for students/retired
-(too-wide band) and ≈ 80 % for employed.
+Calibrates on 80 % of the profiles and predicts the 24 months of the other 20 % from the opening balance,
+without looking at their ledger, with a closed-form band: `mean ± 1.2816 × sqrt(k²·sd(L)² + k·σ²)`
+(`L` = living cost, unknown for a new profile; `σ` = monthly noise). In the app the user's living cost is known,
+so only `k·σ²` applies. Current result (seed 2026): **p10-p90 coverage 82.7 %** (target 80 %),
+median absolute error ≈ CHF 1,330 on the closing balance.
+
+## validate_events.py — content checks and reference engine
+
+- **Validation**: `content/events.json` against the contract (`docs/README.md` 5.3) and `content/facts.json`
+  (every fact value and flag must exist in the catalog, texts in ES and EN, probabilities sum to 1...).
+- **`--preview PROFILE_ID`**: each option × case of the events eligible at the start, 120 months.
+- **`--play PROFILE_ID`**: a whole game (event selection by `requires`/`priority`, luck → case, life changes,
+  story beats, goals, attribution waterfall with its identity check).
+- The engine follows `docs/README.md` section 7 **without inflation, salary growth or asset returns** (pending
+  `content/assumptions.json`). It includes the December bonus and interest on negative cash (8.5 %).
+  Dev A can use its numbers as expected values; `test_events.py` has small hand-checked cases.
 
 ## Caveats (say them in the demo)
 - Synthetic data: good backtest scores mean we recovered the generator, not real-world accuracy.
