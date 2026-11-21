@@ -324,19 +324,23 @@ data class InterviewOption(
 enum class ProfileField { AGE, CITY, EMPLOYMENT, HOUSEHOLD, OPENING_CASH, MONTHLY_INCOME, MONTHLY_RENT, GOAL_TYPE }
 data class InterviewAnswer(val questionId: String, val optionId: String)
 
-// Calibrated from the dataset by tools/ (offline). One per segment "employment|household".
+// Calibrated from the dataset by tools/ (offline). One per segment "EMPLOYMENT|HOUSEHOLD" (24) plus
+// "EMPLOYMENT|ANY" fallbacks (6). In the data: net = income - rent - livingCost + noise (see tools/README.md).
 data class SegmentCalibration(
-    val segment: String,                     // "EMPLOYED|FAMILY"
+    val segment: String,                     // "EMPLOYED|FAMILY" or "STUDENT|ANY"
     val n: Int,                              // number of profiles in the segment
-    val netMonthlyMeanChf: Double,
-    val netMonthlySdChf: Double,
-    val netToIncomeP10: Double,              // distribution of (net transactions / income)
-    val netToIncomeP50: Double,
-    val netToIncomeP90: Double,
-    val decemberUplift: Double,              // extra net in December vs other months (CHF)
+    val lowConfidence: Boolean,              // n < 20 -> use the "EMPLOYMENT|ANY" fallback
+    val medianIncomeChf: Double,
+    val medianRentChf: Double,
+    val livingCostChf: LivingCost,           // monthly; optimistic = p10, neutral = p50, pessimistic = p90
+    val monthlyNoiseSdChf: Double,
+    val decemberUpliftChf: Double,           // extra net in December vs other months
+    val decemberBonusRatio: Double,          // same, as a fraction of monthly income (employed ~0.35)
     val negativeMonthRate: Double,           // fraction of months flagged negative_balance_requires_financing
-    val residuals: List<Double>              // monthly residuals for bootstrap
+    val residualsChf: List<Double>           // within-profile monthly deviations, for bootstrap
 )
+data class LivingCost(val mean: Double, val p10: Double, val p50: Double, val p90: Double,
+                      val deciles: List<Double>)   // 11 values: min, p10..p90, max
 
 data class Assumptions(
     val inflationAnnual: Double,
@@ -462,7 +466,7 @@ Hallazgos del análisis exploratorio:
 
 Calibración (script offline en `tools/`, Dev C):
 1. Agrupar por segmento `employment|household` y calcular los campos de `SegmentCalibration`.
-2. Los 3 casos salen del propio dato: pesimista = p10, neutro = p50 (mediana), optimista = p90 del comportamiento del segmento.
+2. Los 3 casos salen del propio dato, a través del coste de vida mensual del segmento: optimista = p10, neutro = p50 (mediana), pesimista = p90. En los datos, `neto = ingreso − alquiler − coste de vida + ruido` (detalle en `tools/README.md`).
 3. **Backtest**: calibrar con el 80 % de los perfiles; con el 20 % restante simular los 24 meses desde el saldo inicial y comparar con el saldo real (error medio en CHF y **cobertura**: si el abanico p10-p90 es correcto, ≈ 80 % de los saldos reales deben caer dentro).
 4. Más allá del mes 24 no hay datos: se usan **supuestos explícitos** (`Assumptions`: inflación, crecimiento salarial, rentabilidad) etiquetados como tales. La UI debe marcar el tramo "calibrado con datos" (0-24 meses) y el tramo "supuestos" (24-120).
 5. Aprendizaje automático solo para el vecino más cercano del perfil. Nada más en 24 h.
