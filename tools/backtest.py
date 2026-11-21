@@ -1,20 +1,31 @@
-"""Out-of-sample backtest of the calibration.
+"""Out-of-sample backtest of the analytic uncertainty band (no Monte Carlo).
 
-Calibrate on a train split of profiles, then for each test profile simulate its 24 months of cash
-from the opening balance (NOT looking at its own ledger) and compare with the real closing balances.
+Calibrate on a train split of profiles. For each test profile, predict its 24 months of cash from the opening
+balance WITHOUT looking at its own ledger, with a closed-form band:
+
+    cash_k = cash_0 + sum_{j<=k} (income - rent - L + bonus_j) + sum of k iid noises
+    mean_k = cash_0 + k * (income - rent - mean(L)) + bonuses
+    var_k  = k^2 * sd(L)^2 + k * sigma^2          (L unknown for a new profile, noise independent across months)
+    p10/p90 = mean_k -/+ 1.2816 * sqrt(var_k)
+
+In the app the living cost of the user is known, so only the k * sigma^2 term applies.
 Reports the p10-p90 coverage (ideal ~80%) and the median absolute error in CHF.
 
-    python tools/backtest.py [--data-dir DIR] [--out-dir DIR] [--seed N] [--paths N] [--test-frac F]
+    python tools/backtest.py [--data-dir DIR] [--out-dir DIR] [--seed N] [--test-frac F]
 """
 import argparse
 import json
+import math
 import random
 import statistics as st
 from collections import defaultdict
 from pathlib import Path
 
 from calibrate import build_calibration
-from common import default_data_dir, employment_fallback_key, is_december, load_dataset, quantile, segment_key
+from common import default_data_dir, employment_fallback_key, is_december, load_dataset, segment_key
+
+Z90 = 1.2816  # standard normal quantile for p90
+BONUS_EMPLOYMENT = {"EMPLOYED", "SELF_EMPLOYED"}
 
 
 def pick_segment(calib: dict, profile: dict) -> dict:
@@ -24,29 +35,20 @@ def pick_segment(calib: dict, profile: dict) -> dict:
     return seg
 
 
-def sample_living(seg: dict, rng: random.Random) -> float:
-    """Draw a living cost by interpolating the segment deciles (parameter uncertainty)."""
-    d = seg["livingCostChf"]["deciles"]
-    k = rng.random() * 10
-    lo = int(k)
-    hi = min(lo + 1, 10)
-    return d[lo] + (d[hi] - d[lo]) * (k - lo)
-
-
-def simulate_paths(profile: dict, months: list[str], seg: dict, n_paths: int, rng: random.Random) -> list[list[float]]:
-    """n_paths x len(months) closing cash balances."""
-    paths = []
-    for _ in range(n_paths):
-        living = sample_living(seg, rng)
-        cash, path = profile["openingCash"], []
-        for m in months:
-            net = profile["income"] - profile["rent"] - living + rng.choice(seg["residualsChf"])
-            if is_december(m):
-                net += seg["decemberBonusRatio"] * profile["income"]
-            cash += net
-            path.append(cash)
-        paths.append(path)
-    return paths
+def analytic_band(profile: dict, months: list[str], seg: dict, living_known: float | None = None) -> list[tuple]:
+    """(p10, p50, p90) of closing cash for each month. living_known=None means the living cost is uncertain."""
+    living = seg["livingCostChf"]["mean"] if living_known is None else living_known
+    sd_living = seg["livingCostChf"]["sd"] if living_known is None else 0.0
+    sigma = seg["monthlyNoiseSdChf"]
+    bonus_ratio = seg["decemberBonusRatio"] if profile["employment"] in BONUS_EMPLOYMENT else 0.0
+    cash, out = profile["openingCash"], []
+    for k, m in enumerate(months, start=1):
+        cash += profile["income"] - profile["rent"] - living
+        if is_december(m):
+            cash += bonus_ratio * profile["income"]
+        sd = math.sqrt((k * sd_living) ** 2 + k * sigma ** 2)
+        out.append((cash - Z90 * sd, cash, cash + Z90 * sd))
+    return out
 
 
 def main() -> None:
@@ -54,27 +56,22 @@ def main() -> None:
     ap.add_argument("--data-dir", type=Path, default=default_data_dir())
     ap.add_argument("--out-dir", type=Path, default=Path(__file__).resolve().parent / "out")
     ap.add_argument("--seed", type=int, default=2026)
-    ap.add_argument("--paths", type=int, default=300)
     ap.add_argument("--test-frac", type=float, default=0.2)
     args = ap.parse_args()
 
     ds = load_dataset(args.data_dir)
-    rng = random.Random(args.seed)
     pids = sorted(ds["profiles"])
-    rng.shuffle(pids)
+    random.Random(args.seed).shuffle(pids)
     n_test = int(len(pids) * args.test_frac)
     test, train = pids[:n_test], pids[n_test:]
-    calib = {s["segment"]: s for s in build_calibration(ds, train, args.seed)}
+    calib = {s["segment"]: s for s in build_calibration(ds, train)}
 
-    inside, abs_err, per_emp = 0, [], defaultdict(lambda: [0, 0])
-    total = 0
+    inside = total = 0
+    abs_err, per_emp = [], defaultdict(lambda: [0, 0])
     for pid in test:
         pr, rows = ds["profiles"][pid], ds["series"][pid]
-        months = [r["month"] for r in rows]
-        paths = simulate_paths(pr, months, pick_segment(calib, pr), args.paths, rng)
-        for t, row in enumerate(rows):
-            vals = [p[t] for p in paths]
-            lo, med, hi = quantile(vals, 0.10), quantile(vals, 0.50), quantile(vals, 0.90)
+        band = analytic_band(pr, [r["month"] for r in rows], pick_segment(calib, pr))
+        for (lo, med, hi), row in zip(band, rows):
             hit = lo <= row["closing"] <= hi
             inside += hit
             total += 1
@@ -83,7 +80,8 @@ def main() -> None:
             abs_err.append(abs(med - row["closing"]))
 
     report = {
-        "seed": args.seed, "paths": args.paths, "trainProfiles": len(train), "testProfiles": len(test),
+        "method": "analytic band (normal approximation), no sampling",
+        "seed": args.seed, "trainProfiles": len(train), "testProfiles": len(test),
         "coverageP10P90": round(inside / total, 4),
         "targetCoverage": 0.8,
         "medianAbsErrorChf": round(st.median(abs_err), 2),

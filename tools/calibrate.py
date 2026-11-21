@@ -2,13 +2,12 @@
 
 Outputs (in --out-dir, default tools/out):
   calibration.json     SegmentCalibration list (see tools/README.md for the schema)
-  profiles-sample.json ~50 profiles with their initial financial state (always includes Alexia, P00001)
+  profiles-sample.json ~50 profiles with their initial twin (finance + life); always includes Alexia, P00001
 
 Model found in the data (see README): for a profile and a non-December month
     net = income - rent - livingCost + noise
-so we calibrate the living cost distribution, the monthly noise (as bootstrap residuals)
-and the December bonus per segment. Usage:
-    python tools/calibrate.py [--data-dir DIR] [--out-dir DIR] [--seed N] [--sample-size N]
+so we calibrate the living cost distribution, the monthly noise sd and the December bonus per segment.
+    python tools/calibrate.py [--data-dir DIR] [--out-dir DIR] [--facts FILE] [--seed N] [--sample-size N]
 """
 import argparse
 import json
@@ -21,8 +20,8 @@ from common import (MIN_INCOME_FOR_RATIO, deciles, default_data_dir, employment_
                     is_december, load_dataset, month_index, quantile, segment_key)
 
 MIN_SEGMENT_SIZE = 20          # below this the segment is flagged lowConfidence
-MAX_RESIDUALS = 600            # cap to keep the JSON small
 ASSUMED_LOAN_TERM_MONTHS = 60  # dataset has monthly_payment = 0 for every loan; we assume an annuity
+DEFAULT_FACTS = Path(__file__).resolve().parents[1] / "content" / "facts.json"
 
 
 def profile_stats(profile: dict, rows: list[dict]) -> dict:
@@ -34,54 +33,47 @@ def profile_stats(profile: dict, rows: list[dict]) -> dict:
     return {
         "living": profile["income"] - profile["rent"] - mean_normal,   # implied monthly living cost
         "residuals": [x - mean_normal for x in normal],                # within-profile noise (CHF)
-        "decUplift": dec_uplift,
         "decRatio": dec_uplift / profile["income"] if profile["income"] >= MIN_INCOME_FOR_RATIO else None,
         "negMonths": sum(1 for r in rows if r["negative"]),
         "months": len(rows),
     }
 
 
-def calibrate_group(key: str, pids: list[str], ds: dict, rng: random.Random) -> dict:
+def calibrate_group(key: str, pids: list[str], ds: dict) -> dict:
     stats = [profile_stats(ds["profiles"][p], ds["series"][p]) for p in pids]
     living = [s["living"] for s in stats]
     residuals = [x for s in stats for x in s["residuals"]]
-    if len(residuals) > MAX_RESIDUALS:
-        residuals = rng.sample(residuals, MAX_RESIDUALS)
     ratios = [s["decRatio"] for s in stats if s["decRatio"] is not None]
-    incomes = [ds["profiles"][p]["income"] for p in pids]
-    rents = [ds["profiles"][p]["rent"] for p in pids]
     return {
         "segment": key,
         "n": len(pids),
         "lowConfidence": len(pids) < MIN_SEGMENT_SIZE,
-        "medianIncomeChf": round(st.median(incomes), 2),
-        "medianRentChf": round(st.median(rents), 2),
-        # Monthly living cost = income - rent - net. Cases: optimistic=p10, neutral=p50, pessimistic=p90.
+        "medianIncomeChf": round(st.median(ds["profiles"][p]["income"] for p in pids), 2),
+        "medianRentChf": round(st.median(ds["profiles"][p]["rent"] for p in pids), 2),
+        # Monthly living cost = income - rent - net (non-December months).
         "livingCostChf": {
             "mean": round(st.mean(living), 2),
+            "sd": round(st.pstdev(living), 2),
             "p10": round(quantile(living, 0.10), 2),
             "p50": round(quantile(living, 0.50), 2),
             "p90": round(quantile(living, 0.90), 2),
             "deciles": deciles(living),
         },
-        "monthlyNoiseSdChf": round(st.pstdev(residuals), 2),
-        "decemberUpliftChf": round(st.mean(s["decUplift"] for s in stats), 2),
+        "monthlyNoiseSdChf": round(st.pstdev(residuals), 2),           # for the analytic band
         "decemberBonusRatio": round(st.median(ratios), 4) if ratios else 0.0,   # of monthly income
         "negativeMonthRate": round(sum(s["negMonths"] for s in stats) / sum(s["months"] for s in stats), 4),
-        "residualsChf": [round(x, 2) for x in residuals],
     }
 
 
-def build_calibration(ds: dict, pids: list[str], seed: int) -> list[dict]:
+def build_calibration(ds: dict, pids: list[str]) -> list[dict]:
     """Full segments (employment|household) plus employment-level fallbacks (employment|ANY)."""
-    rng = random.Random(seed)
     by_seg, by_emp = defaultdict(list), defaultdict(list)
     for p in pids:
         pr = ds["profiles"][p]
         by_seg[segment_key(pr["employment"], pr["household"])].append(p)
         by_emp[employment_fallback_key(pr["employment"])].append(p)
     groups = {**by_seg, **by_emp}
-    return [calibrate_group(k, groups[k], ds, rng) for k in sorted(groups)]
+    return [calibrate_group(k, groups[k], ds) for k in sorted(groups)]
 
 
 def annuity_payment(principal: float, annual_rate: float, months: int) -> float:
@@ -91,15 +83,13 @@ def annuity_payment(principal: float, annual_rate: float, months: int) -> float:
     return principal * r / (1 - (1 + r) ** -months)
 
 
-def initial_state(ds: dict, pid: str) -> dict:
-    """Initial FinancialState (month 0) built from the dataset, shaped like the Kotlin dataclasses."""
+def initial_finance(ds: dict, pid: str) -> dict:
+    """Initial FinancialState built from the dataset, shaped like the Kotlin dataclass."""
     pr = ds["profiles"][pid]
     s = profile_stats(pr, ds["series"][pid])
     income_id = "pension" if pr["employment"] == "RETIRED" else "income"
     return {
-        "month": 0,
         "cash": pr["openingCash"],
-        "employment": pr["employment"],
         # annualReturn is null: the dataset has no returns; the loader fills it from Assumptions.
         "assets": [{"id": a["asset_id"], "type": a["asset_type"].upper(),
                     "valueChf": float(a["value_chf"]), "annualReturn": None}
@@ -110,17 +100,34 @@ def initial_state(ds: dict, pid: str) -> dict:
                          # ASSUMPTION: dataset payment is 0 (not amortized); we assume a 60-month annuity
                          "monthlyPaymentChf": round(annuity_payment(
                              float(l["opening_principal_chf"]), float(l["annual_interest_rate"]),
-                             ASSUMED_LOAN_TERM_MONTHS), 2)}
+                             ASSUMED_LOAN_TERM_MONTHS), 2),
+                         "sourceEventId": None}
                         for l in ds["liabilities"][pid]],
-        "income": [{"id": income_id, "label": income_id, "monthlyChf": pr["income"], "untilMonth": None}],
+        "income": [{"id": income_id, "label": income_id, "monthlyChf": pr["income"],
+                    "fromMonth": 0, "untilMonth": None, "sourceEventId": None}],
         "expenses": [
-            {"id": "rent", "category": "RENT", "monthlyChf": pr["rent"], "untilMonth": None},
-            {"id": "living", "category": "LIVING", "monthlyChf": round(s["living"], 2), "untilMonth": None},
+            {"id": "rent", "category": "RENT", "monthlyChf": pr["rent"],
+             "fromMonth": 0, "untilMonth": None, "sourceEventId": None},
+            {"id": "living", "category": "LIVING", "monthlyChf": round(s["living"], 2),
+             "fromMonth": 0, "untilMonth": None, "sourceEventId": None},
         ],
     }
 
 
-def build_profile(ds: dict, pid: str) -> dict:
+def initial_life(profile: dict, facts_catalog: dict) -> dict:
+    """Initial LifeState using the 'initialFromProfile' rules of content/facts.json."""
+    source = {"employment": profile["employment"], "household": profile["household"], "city": profile["city"]}
+    facts = {}
+    for key, rule in facts_catalog["initialFromProfile"].items():
+        raw = source[rule["from"]]
+        value = rule["map"].get(raw, rule.get("default")) if "map" in rule else raw
+        if value not in facts_catalog["facts"][key]:
+            raise ValueError(f"fact {key}={value!r} (from {raw!r}) is not in the facts catalog")
+        facts[key] = value
+    return {"employment": profile["employment"], "facts": facts, "flags": [], "pending": []}
+
+
+def build_profile(ds: dict, pid: str, facts_catalog: dict) -> dict:
     pr = ds["profiles"][pid]
     return {
         "profile": {
@@ -131,7 +138,8 @@ def build_profile(ds: dict, pid: str) -> dict:
                        "targetMonth": month_index(pr["startMonth"], g["target_date"])}
                       for g in ds["goals"][pid]],
         },
-        "initialState": initial_state(ds, pid),
+        "initialFinance": initial_finance(ds, pid),
+        "initialLife": initial_life(pr, facts_catalog),
         "segment": segment_key(pr["employment"], pr["household"]),
     }
 
@@ -156,19 +164,21 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--data-dir", type=Path, default=default_data_dir())
     ap.add_argument("--out-dir", type=Path, default=Path(__file__).resolve().parent / "out")
+    ap.add_argument("--facts", type=Path, default=DEFAULT_FACTS)
     ap.add_argument("--seed", type=int, default=2026)
     ap.add_argument("--sample-size", type=int, default=50)
     args = ap.parse_args()
 
     ds = load_dataset(args.data_dir)
+    facts_catalog = json.loads(args.facts.read_text(encoding="utf-8"))
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
-    segments = build_calibration(ds, sorted(ds["profiles"]), args.seed)
+    segments = build_calibration(ds, sorted(ds["profiles"]))
     meta = {
-        "generator": "tools/calibrate.py", "seed": args.seed,
+        "generator": "tools/calibrate.py",
         "source": "LauzHack 2026 synthetic dataset (synthetic-*.csv)",
         "nProfiles": len(ds["profiles"]), "monthsPerProfile": 24, "calibratedRange": "2025-01..2026-12",
-        "model": "net = income - rent - livingCost + noise; December adds decemberBonusRatio * income",
+        "model": "net = income - rent - livingCost + noise; December adds decemberBonusRatio * income (employed)",
         "caveats": [
             "Data are synthetic: calibration recovers the generator, not real behaviour.",
             f"Segments with n < {MIN_SEGMENT_SIZE} are flagged lowConfidence; use the 'EMPLOYMENT|ANY' fallback.",
@@ -180,7 +190,7 @@ def main() -> None:
     (args.out_dir / "calibration.json").write_text(
         json.dumps({"meta": meta, "segments": segments}, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    sample = [build_profile(ds, p) for p in sample_profiles(ds, args.sample_size, args.seed)]
+    sample = [build_profile(ds, p, facts_catalog) for p in sample_profiles(ds, args.sample_size, args.seed)]
     (args.out_dir / "profiles-sample.json").write_text(
         json.dumps({"meta": {"generator": "tools/calibrate.py", "seed": args.seed, "n": len(sample)},
                     "profiles": sample}, indent=2, ensure_ascii=False), encoding="utf-8")
