@@ -110,8 +110,8 @@ Convenciones:
 | `Employment` | `STUDENT, EMPLOYED, PART_TIME, SELF_EMPLOYED, RETIRED, UNEMPLOYED` | `employment_status` del dataset |
 | `Household` | `SINGLE, COUPLE, FAMILY, SHARED_HOUSING` | `household_type` |
 | `CaseType` | `PESSIMISTIC, NEUTRAL, OPTIMISTIC` | diagrama del equipo |
-| `AssetType` | `CASH_LIKE, INVESTMENT_PORTFOLIO, PROPERTY, OTHER` | `asset_type` (confirmar valores con `synthetic-assets.csv`) |
-| `LiabilityType` | `PERSONAL_LOAN, MORTGAGE, STUDENT_LOAN, OTHER` | `liability_type` (confirmar con `synthetic-liabilities.csv`) |
+| `AssetType` | `CASH, INVESTMENT_PORTFOLIO` | `asset_type` de `synthetic-assets.csv` (solo existen estos dos). Añadir `PROPERTY` u otros **solo si un evento lo necesita** (p. ej. comprar casa) |
+| `LiabilityType` | `PERSONAL_LOAN` | `liability_type` de `synthetic-liabilities.csv` (solo existe este). Añadir `MORTGAGE`, `STUDENT_LOAN`… **solo si un evento lo necesita** |
 | `ExpenseCategory` | `RENT, LIVING, TUITION, INSURANCE, TRAVEL, OTHER` | propio |
 | `Lang` | `ES, EN` | i18n |
 
@@ -600,4 +600,3 @@ Preguntas abiertas:
 2. ¿Se implementa el modo "elige tú el caso" (`manualCaseMode`)?
 3. ¿Se guarda la partida en disco o solo en memoria?
 4. Nombre de las personas que son Dev A y Dev C (B ya está asignado).
-5. Valores reales de `AssetType` y `LiabilityType` (confirmar con los CSV antes de congelar los enums).
