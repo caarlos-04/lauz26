@@ -113,24 +113,21 @@ Convenciones:
 | `AssetType` | `CASH_LIKE, INVESTMENT_PORTFOLIO, PROPERTY, OTHER` | `asset_type` (confirmar valores con `synthetic-assets.csv`) |
 | `LiabilityType` | `PERSONAL_LOAN, MORTGAGE, STUDENT_LOAN, OTHER` | `liability_type` (confirmar con `synthetic-liabilities.csv`) |
 | `ExpenseCategory` | `RENT, LIVING, TUITION, INSURANCE, TRAVEL, OTHER` | propio |
-| `Priority` | `HIGH, MEDIUM, LOW` | `priority` de `synthetic-goals.csv` |
 | `Lang` | `ES, EN` | i18n |
 
 ### 5.2 Perfil y estado
 
 ```kotlin
-// Static profile. Produced by the interview (or loaded for Alexia). Same fields as synthetic-profiles.csv.
+// Static profile. Produced by the interview (or loaded for Alexia). Subset of synthetic-profiles.csv.
 data class UserProfile(
     val id: String,                 // "P00001" or "USER-<uuid>"
     val displayName: String,
     val ageAtStart: Int,            // years
     val city: String,
-    val canton: String,             // "VD", "GE"...
     val employment: Employment,
     val household: Household,
     val startMonth: String,         // "2025-01"
-    val goals: List<Goal>,
-    val isSynthetic: Boolean = true
+    val goals: List<Goal>
 )
 
 // Dynamic snapshot of the person's finances at one month. This is what the engine transforms.
@@ -180,8 +177,7 @@ data class Goal(
     val id: String,                 // "G-P00001-01"
     val name: String,
     val targetChf: Double,
-    val targetMonth: Int,           // month index when it should be reached
-    val priority: Priority
+    val targetMonth: Int            // month index when it should be reached
 )
 ```
 
@@ -201,9 +197,7 @@ data class Requirements(
     val employment: List<Employment>? = null,
     val household: List<Household>? = null,
     val minAge: Int? = null,
-    val maxAge: Int? = null,
-    val minCash: Double? = null,
-    val requiresLiability: Boolean? = null
+    val maxAge: Int? = null
 )
 
 data class EventOption(
@@ -327,7 +321,7 @@ data class InterviewOption(
     val labelKey: String,
     val sets: Map<ProfileField, String>      // which profile fields this answer fills (numbers as strings)
 )
-enum class ProfileField { AGE, CITY, CANTON, EMPLOYMENT, HOUSEHOLD, OPENING_CASH, MONTHLY_INCOME, MONTHLY_RENT, GOAL_TYPE, RISK }
+enum class ProfileField { AGE, CITY, EMPLOYMENT, HOUSEHOLD, OPENING_CASH, MONTHLY_INCOME, MONTHLY_RENT, GOAL_TYPE }
 data class InterviewAnswer(val questionId: String, val optionId: String)
 
 // Calibrated from the dataset by tools/ (offline). One per segment "employment|household".
@@ -379,7 +373,7 @@ data class ChatContext(
 | **C – Datos + IA** | `Event`, `Requirements`, `EventOption`, `CaseOutcome`, `SegmentCalibration`, `Assumptions`, `ChatMessage`, `ChatContext`, `FutureSelfChat` |
 | **Compartidos (acordar al inicio)** | `UserProfile`, `Goal`, `GameSession`, `GameConfig`, todos los enums |
 
-Se pueden **dejar fuera del MVP**: `Requirements.minCash/requiresLiability`, la clase `Stats` avanzada (tasa de ahorro, endeudamiento) y modelos de hogar con varias personas.
+Se pueden **dejar fuera del MVP**: la clase `Stats` avanzada (tasa de ahorro, endeudamiento) y modelos de hogar con varias personas.
 
 ## 6. Flujo de información: input y output de cada paso
 
@@ -450,10 +444,10 @@ Datos **sintéticos** del reto en `ai-financial-twin-lauzhack-2026/Data` (1.200 
 
 | Archivo | Contenido | Va a |
 |---|---|---|
-| `synthetic-profiles.csv` | Edad, ciudad, cantón, empleo, hogar, caja, ingreso, alquiler | `UserProfile` + flujos de ingreso y alquiler |
+| `synthetic-profiles.csv` | Edad, ciudad, empleo, hogar, caja, ingreso, alquiler (se ignoran `canton`, `country`, `currency` y `synthetic`) | `UserProfile` + flujos de ingreso y alquiler |
 | `synthetic-accounts.csv` / `synthetic-assets.csv` | Saldo de apertura, efectivo, inversiones | `cash`, `assets` |
 | `synthetic-liabilities.csv` | Deudas (solo instantánea inicial, **no amortizadas**) | `liabilities` (el motor las amortiza) |
-| `synthetic-goals.csv` | Metas con importe, fecha y prioridad | `goals` |
+| `synthetic-goals.csv` | Metas con importe y fecha (se ignora `priority`) | `goals` |
 | `synthetic-cash-balances.csv` | Serie mensual de caja (24 meses por perfil) | **No entra en el modelo**: sirve para calibrar y validar |
 | `scenario-catalog.csv` / `scenario-assumptions.csv` | 120 escenarios y parámetros ilustrativos | Inspiración para el catálogo de eventos y `Assumptions` |
 
