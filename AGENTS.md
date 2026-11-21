@@ -31,3 +31,4 @@ Lee `docs/README.md` antes de empezar: contiene el plan, la arquitectura, el rep
 - Cifras y supuestos financieros: documenta unidades (CHF) y fuente. El LLM nunca inventa números: solo explica los que calcula el motor.
 - No añadas dependencias nuevas sin comentarlo con el equipo.
 - Textos de la interfaz en ES/EN, nunca cadenas fijas en el código.
+- Comentarios en ingles
