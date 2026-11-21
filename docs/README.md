@@ -517,25 +517,73 @@ Privacidad: con Ollama los datos que el usuario escribe no salen de su máquina;
 
 ## 11. Reparto del trabajo
 
-| | **Dev A – Motor** | **Dev B – UI/UX** | **Dev C – Datos + IA** |
-|---|---|---|---|
-| **Carpetas propias** | `model/` (su parte), `engine/` | `ui/`, `androidMain`, `desktopMain`, recursos i18n | `data/`, `events/`, `ai/`, `tools/` |
-| **Entregables** | `apply`, avance mensual, sorteo con semilla, contrafactual, Monte Carlo, amortización de deudas, `Stats`, tests contables | Entrevista, pantalla de dilema (2 cartas × 3 casos), animación de resolución, abanico, pantalla final, tema claro/oscuro, ES/EN | Calibración + backtest, JSON de perfiles, catálogo de eventos, vecino más cercano, `FutureSelfChat` |
-| **Primera entrega** | Motor contra mocks (h≈4) | UI completa contra datos falsos (h≈8) | JSON de eventos y parámetros (h≈6) |
+Somos 3 desarrolladores. **Dev B (front) ya está asignado**; las responsabilidades de **Dev A** y **Dev C** se reparten el resto.
+*(Pendiente: escribir aquí el nombre de cada persona.)*
 
-**Horas 0-2, los tres juntos:** esqueleto KMP que compile y arranque en Android y Desktop; acordar y subir `model/` (sección 5) y las firmas de `apply(...)`, `simulateMonteCarlo(...)`, `FutureSelfChat`; Alexia en JSON y un evento de ejemplo como datos falsos.
+| Rol | Persona | Responsabilidad principal |
+|---|---|---|
+| **Dev A – Motor + integración** | _por asignar_ | Esqueleto KMP, `model/`, motor, controlador de partida, carga de JSON, Monte Carlo, estadísticas, tests |
+| **Dev B – UI/UX (front)** | _asignado_ | Todo lo que ve el usuario: pantallas, tema, i18n, gráficos, empaquetado |
+| **Dev C – Datos + contenido + IA** | _por asignar_ | Calibración con los datos, catálogo de eventos, supuestos, chat del "yo del futuro" |
 
-**Dev A**: h2-5 `apply`, flujos, deudas · h5-8 sorteo y contrafactual · h8-12 Monte Carlo y `Stats` · h12+ tests y apoyo a integración.
-**Dev B**: h2-6 navegación, tema, i18n, entrevista → `UserProfile` · h6-12 dilema, resolución, gráficos · h12-18 pantalla final, pulido, empaquetado. Decidir pronto la librería de gráficos (Canvas o Koalaplot).
-**Dev C**: h2-6 CSV→JSON y calibración · h6-10 backtest y vecino más cercano · h2-12 (en paralelo) escribir eventos · h12-18 chat con la sesión como contexto y plan B.
+### Carpetas propias (para evitar conflictos de merge)
 
-**Cuello de botella: el contenido.** 6-8 eventos × 2 opciones × 3 casos ≈ 40-50 entradas con efectos numéricos y texto. Cada dev escribe 2-3 eventos en el formato JSON acordado y C los revisa y calibra. Un LLM puede dar borradores que se validan a mano.
+| Dev | Carpetas |
+|---|---|
+| **A** | `model/` (propone y mantiene), `engine/`, `data/` (carga de JSON), build Gradle y configuración |
+| **B** | `ui/`, `androidMain`, `desktopMain`, recursos i18n |
+| **C** | `events/`, `ai/`, `tools/` (scripts Python), JSON de contenido (`resources/`) |
 
-**Puntos de integración**: h8 A+B (UI con motor real) · h12 catálogo de C y partida completa con Alexia · h16 chat · **h18 congelar funcionalidades** · h18-24 pruebas en Android y Desktop, pulido, demo.
+### Responsabilidades de Dev A – Motor + integración
+1. **Esqueleto KMP**: Gradle, módulos, que compile y arranque en Android y Desktop. Es lo primero, porque desbloquea a los demás.
+2. **`model/`**: dataclasses de la sección 5, enums y mocks (Alexia en JSON y un evento de ejemplo). Entrega en la **hora 2**.
+3. **Motor** (`engine/`): `apply(state, option, case)`, avance mensual y amortización de deudas (sección 7), preview determinista de los 3 casos (`OptionPreview`), sorteo de caso con semilla y contrafactual.
+4. **Controlador de partida**: máquina de estados que une los pasos P3-P7 y expone a la UI el estado actual y las acciones (`startGame`, `chooseOption`, `next`). Es el punto de contacto con B.
+5. **Carga de datos** (`data/`): lectura de los JSON (perfiles, calibración, eventos, supuestos, entrevista) en `commonMain`.
+6. **Monte Carlo** (bootstrap de residuos + ruido en parámetros) y **estadísticas**: `SimulationResult`, `Stats`, `PathComparison` con los motivos de la diferencia.
+7. **Tests**: coherencia contable, semilla reproducible, probabilidades que suman 1, 2 opciones × 3 casos por evento.
 
-**Cronograma global (24 h)**: 0-2 contratos y esqueleto · 2-10 trabajo en paralelo · 10-16 integración del bucle completo · 16-21 chat, estadísticas, pulido · 21-24 demo, README, vídeo.
+### Responsabilidades de Dev C – Datos + contenido + IA
+1. **Calibración offline** (`tools/`): CSV → JSON, `SegmentCalibration` por segmento (empleo × hogar), muestra de ~50 perfiles.
+2. **Backtest** 80/20 con cobertura p10-p90 y su informe (`backtest-report.json`).
+3. **Vecino más cercano**: dado el resultado de la entrevista, elegir el perfil sintético parecido para inferir gastos, activos y deudas.
+4. **Contenido del juego**: catálogo de eventos (5-8 × 2 opciones × 3 casos, con efectos numéricos y narrativas ES/EN), y `Assumptions` con fuente de cada cifra.
+5. **Chat del "yo del futuro"** (`ai/`): implementación de `FutureSelfChat`, system prompt, construcción del contexto desde `GameSession`, proveedor gratuito y **plan B con respuestas de ejemplo**.
+6. **Calidad del prompt**: comprobar que el LLM solo usa cifras del contexto y que mantiene el aviso de "simulación, no asesoramiento".
 
-**Reglas**: una rama por persona (`dev-a/motor`, `dev-b/ui`, `dev-c/datos`), PRs pequeñas a `main`, merge al menos cada 3-4 horas. Quien termine antes ayuda con eventos o tests. Demo y README final: propuesta, Dev B.
+### Contrato entre A y C
+- **Los formatos JSON** de `Event`, `SegmentCalibration` y `Assumptions` los **define C y los aprueba A** antes de escribir contenido. Si cambian, se avisa al otro y a B.
+- A entrega `model/` y mocks en la hora 2; C entrega el primer JSON real de eventos y parámetros hacia la hora 6.
+- Nadie cambia `model/` sin avisar (es el contrato con B).
+
+### Reparto con el front (Dev B)
+Además de la UI, B es dueño de las preguntas de la entrevista (`InterviewQuestion`) y de las cadenas ES/EN, y puede ayudar con: 1-2 eventos del catálogo (formato acordado, los revisa C), el guion de demo, el README final y las notas del proceso con agentes. Gráficos: decidir pronto Canvas o Koalaplot.
+
+### Cronograma (24 h)
+- **h0-2, los tres juntos**: esqueleto KMP, acordar `model/`, mocks.
+- **h2-10**: trabajo en paralelo (A motor y controlador, B UI contra mocks, C datos y eventos).
+- **h8**: A + B conectan (UI con motor real).
+- **h12**: catálogo de C integrado, **partida completa con Alexia**.
+- **h16**: chat conectado.
+- **h18: congelar funcionalidades.**
+- **h18-24**: pruebas en Android y Desktop, pulido, demo, README, vídeo.
+
+### Orden de prioridad (si falta tiempo, se corta por abajo)
+1. Bucle de juego completo con Alexia (motor + eventos + UI).
+2. Preview de los 3 casos y sorteo.
+3. Estadísticas MVP y comparación con el camino alternativo.
+4. Entrevista y perfil propio.
+5. Chat del "yo del futuro".
+6. Monte Carlo y calibración con backtest (si no llega, el abanico se sustituye por las trayectorias de los 3 casos).
+
+### Cómo aliviar la carga
+- Reducir a 5 eventos y a las 5 estadísticas del MVP.
+- Usar un LLM para los borradores de los eventos y validarlos a mano.
+- Cada dev revisa las PRs del otro (también cuenta como proceso con agentes).
+- Quien termine antes ayuda con eventos, tests o pruebas de integración.
+
+### Reglas
+Una rama por persona (`dev-a/motor`, `dev-b/ui`, `dev-c/datos`), PRs pequeñas a `main`, merge al menos cada 3-4 horas. Ver `AGENTS.md`.
 
 ## 12. Cosas importantes y preguntas abiertas
 
@@ -551,5 +599,5 @@ Preguntas abiertas:
 1. Proveedor de LLM concreto (y quién aporta la clave, si hace falta).
 2. ¿Se implementa el modo "elige tú el caso" (`manualCaseMode`)?
 3. ¿Se guarda la partida en disco o solo en memoria?
-4. Asignación de A, B y C a cada persona.
+4. Nombre de las personas que son Dev A y Dev C (B ya está asignado).
 5. Valores reales de `AssetType` y `LiabilityType` (confirmar con los CSV antes de congelar los enums).
