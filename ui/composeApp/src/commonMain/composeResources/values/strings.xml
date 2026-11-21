@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App -->
+    <string name="app_name">Financial Twin</string>
+    <string name="app_tagline">Don’t predict the future. Make it explorable.</string>
+    <string name="action_back">Back</string>
+    <string name="action_restart">Start over</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_light">Light</string>
+    <string name="lang_toggle">ES</string>
+    <string name="months_value">%1$d months</string>
+    <string name="month_value">Month %1$d</string>
+    <string name="disclaimer">This is a simulation with synthetic data, not a prediction and not financial advice. Amounts in CHF, no taxes.</string>
+
+    <!-- Welcome -->
+    <string name="welcome_title">Design your own life</string>
+    <string name="welcome_subtitle">Make decisions for the next 10 years and see how your finances could evolve under pessimistic, neutral and optimistic cases.</string>
+    <string name="welcome_start_interview">Create my profile</string>
+    <string name="welcome_play_demo">Play as Alexia (demo)</string>
+    <string name="welcome_demo_desc">Alexia, 20, student in Lausanne, with CHF 8’000 in savings.</string>
+
+    <!-- Interview -->
+    <string name="interview_title">Tell us about you</string>
+    <string name="interview_progress">Question %1$d of %2$d</string>
+    <string name="q_age">How old are you?</string>
+    <string name="q_age_a1">18–22</string>
+    <string name="q_age_a2">23–30</string>
+    <string name="q_age_a3">31–45</string>
+    <string name="q_age_a4">46–64</string>
+    <string name="q_employment">What do you do?</string>
+    <string name="q_employment_student">Student</string>
+    <string name="q_employment_employed">Employed full time</string>
+    <string name="q_employment_part_time">Part time</string>
+    <string name="q_employment_self_employed">Self-employed</string>
+    <string name="q_household">Who do you live with?</string>
+    <string name="q_household_single">Alone</string>
+    <string name="q_household_couple">With my partner</string>
+    <string name="q_household_family">With my family (children)</string>
+    <string name="q_household_shared">Shared flat</string>
+    <string name="q_income">What is your monthly net income?</string>
+    <string name="q_income_i1">Less than CHF 1’500</string>
+    <string name="q_income_i2">CHF 1’500 – 4’000</string>
+    <string name="q_income_i3">CHF 4’000 – 7’000</string>
+    <string name="q_income_i4">More than CHF 7’000</string>
+    <string name="q_rent">How much rent do you pay per month?</string>
+    <string name="q_rent_r1">Less than CHF 1’000</string>
+    <string name="q_rent_r2">CHF 1’000 – 1’600</string>
+    <string name="q_rent_r3">CHF 1’600 – 2’500</string>
+    <string name="q_rent_r4">More than CHF 2’500</string>
+    <string name="q_cash">How much do you have saved?</string>
+    <string name="q_cash_c1">Less than CHF 5’000</string>
+    <string name="q_cash_c2">CHF 5’000 – 15’000</string>
+    <string name="q_cash_c3">CHF 15’000 – 50’000</string>
+    <string name="q_cash_c4">More than CHF 50’000</string>
+    <string name="q_goal">What is your main goal?</string>
+    <string name="q_goal_emergency">An emergency fund</string>
+    <string name="q_goal_home">Buying or renting my own home</string>
+    <string name="q_goal_travel">Travelling</string>
+    <string name="q_goal_retirement">Preparing my retirement</string>
+
+    <!-- Goals -->
+    <string name="goal_emergency">Emergency fund</string>
+    <string name="goal_travel">Big trip</string>
+    <string name="goal_home">Apartment deposit</string>
+    <string name="goal_retirement">Retirement savings</string>
+
+    <!-- Employment -->
+    <string name="employment_STUDENT">Student</string>
+    <string name="employment_EMPLOYED">Employed</string>
+    <string name="employment_PART_TIME">Part time</string>
+    <string name="employment_SELF_EMPLOYED">Self-employed</string>
+    <string name="employment_RETIRED">Retired</string>
+    <string name="employment_UNEMPLOYED">Unemployed</string>
+
+    <!-- State summary -->
+    <string name="state_cash">Cash</string>
+    <string name="state_net_worth">Net worth</string>
+    <string name="state_monthly_net">Monthly balance</string>
+    <string name="state_age">Age</string>
+    <string name="state_age_value">%1$d years</string>
+    <string name="state_status">Status</string>
+
+    <!-- Dilemma -->
+    <string name="dilemma_turn">Turn %1$d of %2$d · month %3$d</string>
+    <string name="option_label">Option %1$s</string>
+    <string name="case_PESSIMISTIC">Pessimistic</string>
+    <string name="case_NEUTRAL">Neutral</string>
+    <string name="case_OPTIMISTIC">Optimistic</string>
+    <string name="case_prob">Probability %1$s</string>
+    <string name="delta_net_worth">Net worth change</string>
+    <string name="min_cash">Lowest cash</string>
+    <string name="choose_option">Choose %1$s</string>
+    <string name="dilemma_hint">Each option shows its 3 possible cases after %1$d months. When you choose, one case is drawn at random.</string>
+
+    <!-- Resolution -->
+    <string name="resolution_title">What happened</string>
+    <string name="resolution_drawing">Drawing the case…</string>
+    <string name="resolution_case_drawn">Case drawn: %1$s</string>
+    <string name="resolution_before">Before</string>
+    <string name="resolution_after">After %1$d months</string>
+    <string name="resolution_next_turn">Next turn</string>
+    <string name="resolution_see_results">See my future</string>
+    <string name="resolution_counterfactual">With the other option (same case), your net worth would be %1$s.</string>
+
+    <!-- Results -->
+    <string name="results_title">Your next 10 years</string>
+    <string name="chart_cash">Cash over time</string>
+    <string name="chart_net_worth">Net worth over time</string>
+    <string name="chart_calibrated">Calibrated with data</string>
+    <string name="chart_assumptions">Assumptions only</string>
+    <string name="legend_band">p10–p90 range</string>
+    <string name="legend_median">Median (chosen path)</string>
+    <string name="legend_alternative">Median (alternative path)</string>
+    <string name="stats_title">Key figures</string>
+    <string name="stat_final_net_worth">Final net worth</string>
+    <string name="stat_min_cash">Lowest cash</string>
+    <string name="stat_min_cash_value">%1$s (month %2$d)</string>
+    <string name="stat_months_negative">Months with negative cash</string>
+    <string name="stat_prob_negative">Chance of negative cash</string>
+    <string name="goals_title">Goals</string>
+    <string name="goal_target">%1$s by month %2$d</string>
+    <string name="goal_reached">Reached</string>
+    <string name="goal_missed">Missed</string>
+    <string name="goal_prob">Probability: %1$s</string>
+    <string name="goal_median_month">Typically reached in month %1$d</string>
+    <string name="compare_title">Chosen path vs alternative</string>
+    <string name="compare_chosen">Chosen</string>
+    <string name="compare_alternative">Alternative</string>
+    <string name="compare_delta">Difference in final net worth</string>
+    <string name="compare_reasons">Decisions that explain the difference (largest first)</string>
+    <string name="compare_reason_line">%1$s → %2$s at that turn</string>
+    <string name="assumptions_title">Assumptions</string>
+    <string name="limitations_title">Limitations</string>
+    <string name="limitation_1">The dataset covers only 24 months; beyond that the curves rely on explicit assumptions.</string>
+    <string name="limitation_2">Data is synthetic: calibration reproduces the generator, not real behaviour.</string>
+    <string name="limitation_3">Taxes, pension pillars and household members are not modelled.</string>
+    <string name="limitation_4">Not financial advice: use it to explore, not to decide.</string>
+    <string name="results_chat">Talk to my future self</string>
+
+    <!-- Chat -->
+    <string name="chat_title">Your future self</string>
+    <string name="chat_intro">Ask your future self about your results. Answers only use the numbers computed by the simulation.</string>
+    <string name="chat_placeholder">Ask something…</string>
+    <string name="chat_send">Send</string>
+    <string name="chat_thinking">Thinking…</string>
+    <string name="chat_suggestion_risk">What was my biggest risk?</string>
+    <string name="chat_suggestion_goals">Did I reach my goals?</string>
+    <string name="chat_suggestion_other">What if I had chosen the other options?</string>
+
+    <!-- Events -->
+    <string name="event_studies_title">After your bachelor</string>
+    <string name="event_studies_desc">You are about to finish your bachelor. Do you keep studying or start working?</string>
+    <string name="event_studies_a">Do a master’s degree</string>
+    <string name="event_studies_b">Start working now</string>
+    <string name="event_housing_title">Where to live</string>
+    <string name="event_housing_desc">You want more independence. Do you move to a studio of your own?</string>
+    <string name="event_housing_a">Move to my own studio</string>
+    <string name="event_housing_b">Stay in the shared flat</string>
+    <string name="event_invest_title">Your savings</string>
+    <string name="event_invest_desc">Your savings sit in a low-interest account. Do you invest them in a stock portfolio?</string>
+    <string name="event_invest_a">Invest in stocks (ETF)</string>
+    <string name="event_invest_b">Keep it in a savings account</string>
+    <string name="event_car_title">Getting around</string>
+    <string name="event_car_desc">Commuting is becoming tiring. Do you buy a car on credit or stay with public transport?</string>
+    <string name="event_car_a">Buy a car with a loan</string>
+    <string name="event_car_b">Yearly travelcard</string>
+    <string name="event_sabbatical_title">A break?</string>
+    <string name="event_sabbatical_desc">You dream of travelling for six months. Do you take a sabbatical?</string>
+    <string name="event_sabbatical_a">Take a 6-month sabbatical</string>
+    <string name="event_sabbatical_b">Keep working and saving</string>
+
+    <!-- Decision tree (what-if) -->
+    <string name="tree_title">Your decision tree</string>
+    <string name="tree_hint">Tap the other branch of any turn to switch the decision, or pick another case. Later decisions are kept and everything below is recalculated.</string>
+    <string name="tree_start">Start · net worth %1$s</string>
+    <string name="tree_level">Turn %1$d · month %2$d</string>
+    <string name="tree_net_worth_after">Net worth after</string>
+    <string name="tree_would_be">Would be</string>
+    <string name="tree_edited">edited</string>
+    <string name="tree_reset">Back to the path I played</string>
+    <string name="chat_edited_notice">You are exploring an edited path: answers use its numbers.</string>
+
+    <string name="event_carloan_title">Your car loan</string>
+    <string name="event_carloan_desc">Interest rates went up and your car loan is getting more expensive. Do you refinance it?</string>
+    <string name="event_carloan_a">Refinance with another bank</string>
+    <string name="event_carloan_b">Keep paying as it is</string>
+    <string name="tree_pending_level">Turn %1$d · month %2$d · new question</string>
+    <string name="tree_new_question">new question</string>
+    <string name="results_incomplete">Path incomplete: answer the new question in the tree to see the full 10 years. Figures below assume no further decisions.</string>
+
+    <!-- Redesign -->
+    <string name="nav_year">Year %1$d / %2$d</string>
+    <string name="profile_you">You</string>
+    <string name="timeline_title">Your 10 years</string>
+    <string name="chart_tooltip_when">Year %1$s · month %2$s</string>
+    <string name="year_axis">Y%1$d</string>
+    <string name="welcome_badge">AI Financial Twin · LauzHack 2026</string>
+    <string name="welcome_feature_cases_title">Three cases per decision</string>
+    <string name="welcome_feature_cases_desc">Every choice shows a pessimistic, neutral and optimistic outcome before you commit.</string>
+    <string name="welcome_feature_mc_title">Thousands of futures</string>
+    <string name="welcome_feature_mc_desc">A Monte Carlo simulation turns your path into a range of outcomes, not a single guess.</string>
+    <string name="welcome_feature_chat_title">Talk to your future self</string>
+    <string name="welcome_feature_chat_desc">Ask questions about your results; answers only use the numbers the simulation computed.</string>
+    <string name="welcome_preview_label">Illustration: a range of possible futures</string>
+    <string name="tab_overview">Overview</string>
+    <string name="tab_tree">Decision tree</string>
+    <string name="tab_assumptions">Assumptions</string>
+    <string name="kpi_vs_alternative">vs. the alternative path</string>
+    <string name="goals_reached_value">%1$d of %2$d</string>
+    <string name="results_headline">Where your decisions lead</string>
+    <string name="chat_cta_desc">Ask about risks, goals or what would have happened otherwise.</string>
+    <string name="chat_future_self">You, 10 years from now</string>
+</resources>
