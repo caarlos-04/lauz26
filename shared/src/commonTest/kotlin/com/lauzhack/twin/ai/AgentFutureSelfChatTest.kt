@@ -42,7 +42,7 @@ class AgentFutureSelfChatTest {
         assertTrue(b.turns[1].quiet)
         assertEquals(ctx.result.stats.finalNetWorth, b.end.netWorthChf, 1e-6)
         assertEquals(ctx.result.session.initial.goals.size, b.goals.size)
-        assertEquals("<Emergency savings>", b.goals.first().name)
+        assertEquals("<goal_emergency_savings>", b.goals.first().name)   // looked up by its i18n key, not the dataset name
         assertTrue(b.lifeAtEnd.any { it == "Máster" })                   // fact label from the catalogue
         assertTrue(b.moments.isNotEmpty())
         assertEquals(ChatLanguage.ES, b.language)

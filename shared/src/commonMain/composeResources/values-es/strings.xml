@@ -266,7 +266,7 @@
     <string name="origin_ASSUMPTION">Supuesto</string>
     <string name="origin_note_DATASET">Aprendido del dataset sintético del reto (552.295 transacciones, 1.200 perfiles): el modelo de flujos, que depende de tu ciudad y de si estudias.</string>
     <string name="origin_note_PUBLIC">Sueldo, alquiler y precios crecen además cada mes con índices públicos suizos (BFS, SNB) y la curva de carrera por edad.</string>
-    <string name="origin_note_EVENT">Lo fija el caso de una decisión del juego; sus fuentes aparecen con la decisión.</string>
+    <string name="origin_note_EVENT">Lo fija una decisión del juego (la suerte de esa decisión sorteó su valor) o el perfil; sus fuentes aparecen con la decisión.</string>
     <string name="origin_note_ASSUMPTION">Un valor supuesto (pestaña Supuestos): intereses por caja negativa %1$s anual, rentabilidad de las inversiones %2$s anual.</string>
     <string name="eff_set_income">El sueldo pasa a %1$s al mes, desde el mes %2$d</string>
     <string name="eff_income_delta">Ingresos %1$s al mes, desde el mes %2$d</string>
@@ -280,7 +280,7 @@
     <string name="eff_fact">%1$s, desde el mes %2$d</string>
     <string name="eff_flag">Hito: %1$s</string>
     <string name="eff_duration"> · durante %1$d meses</string>
-    <string name="cat_salary">Sueldo</string>
+    <string name="cat_salary">Sueldo o ayudas</string>
     <string name="cat_bonus">Paga extra</string>
     <string name="cat_rent">Alquiler</string>
     <string name="cat_health_insurance">Seguro médico</string>

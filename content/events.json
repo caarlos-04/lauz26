@@ -42,7 +42,7 @@
         }
       },
       "sources": [
-        "Tuition: scenario-assumptions.csv (scenario S001), annual_tuition_chf p75 / p50 / p25 for the pessimistic / neutral / optimistic case; 2 years (study_duration_years). Keys tuition.monthly.*.",
+        "Tuition: scenario-assumptions.csv (scenario S001), annual_tuition_chf p25 / p50 / p75 as a distribution (the luck of the decision picks the percentile; good luck = cheaper); 2 years (study_duration_years). Keys tuition.monthly.*.",
         "Salaries: employed income p25 / p50 / p75 (synthetic-profiles.csv) scaled to the age of entry with the BFS LSE 2024 age curve (22 if you start now, 24 after the master's). Keys salary.startNow.*, salary.afterMaster.*.",
         "No master's wage premium: the dataset has no education level and the BFS table we use is by age and position, so both paths pay the same at the same age. The only difference is the age of entry.",
         "Living while studying: the flow model (students spend about 21 % less; the event's tuition replaces the learned one)."
@@ -160,7 +160,7 @@
         }
       },
       "sources": [
-        "Tuition: scenario-assumptions.csv (scenario S001), annual_tuition_chf p75 / p50 / p25 for the pessimistic / neutral / optimistic case; 2 years (study_duration_years). Keys tuition.monthly.*.",
+        "Tuition: scenario-assumptions.csv (scenario S001), annual_tuition_chf p25 / p50 / p75 as a distribution (the luck of the decision picks the percentile; good luck = cheaper); 2 years (study_duration_years). Keys tuition.monthly.*.",
         "Salaries: employed income p25 / p50 / p75 (synthetic-profiles.csv) scaled to the age of entry with the BFS LSE 2024 age curve (22 if you start now, 24 after the master's). Keys salary.startNow.*, salary.afterMaster.*.",
         "No master's wage premium: the dataset has no education level and the BFS table we use is by age and position, so both paths pay the same at the same age. The only difference is the age of entry.",
         "Living while studying: the flow model (students spend about 21 % less; the event's tuition replaces the learned one)."
@@ -584,7 +584,7 @@
       },
       "sources": [
         "Pay: employed income p25 (the offer now) and p25 / p50 / p75 after searching (income.EMPLOYED.*, synthetic-profiles.csv, rounded to 100).",
-        "Length of the search: 6 months as in catalogue S014; 12 and 3 months for the other cases are assumptions.",
+        "Length of the search: a distribution through 3 / 6 / 12 months (p25 / p50 / p75; the luck of the decision picks the percentile): 6 months as in catalogue S014, 3 and 12 are assumptions.",
         "While searching you keep your current income (the dataset's unemployed get almost none)."
       ],
       "effects": [
@@ -639,7 +639,7 @@
       },
       "sources": [
         "Pay: employed income p25 (the offer now) and p25 / p50 / p75 after searching (income.EMPLOYED.*, synthetic-profiles.csv, rounded to 100).",
-        "Length of the search: 6 months as in catalogue S014; 12 and 3 months for the other cases are assumptions.",
+        "Length of the search: a distribution through 3 / 6 / 12 months (p25 / p50 / p75; the luck of the decision picks the percentile): 6 months as in catalogue S014, 3 and 12 are assumptions.",
         "While searching you keep your current income (the dataset's unemployed get almost none)."
       ],
       "effects": [
@@ -968,7 +968,7 @@
         }
       },
       "sources": [
-        "Catalogue S032 + S049. New rent: rent model learned from synthetic-profiles.csv (household x city): a shared flat costs about 0.68 of living alone; p75 / p50 / p25 of the dataset spread for the three cases.",
+        "Catalogue S032 + S049. New rent: rent model learned from synthetic-profiles.csv (household x city): a shared flat costs about 0.68 of living alone; the luck of the decision is the quantile of the dataset spread of rents (good luck = a cheaper flat, within p5 to p95).",
         "Living costs do not depend on the household in the dataset (flow model), so only the rent changes."
       ],
       "effects": [
@@ -1047,7 +1047,7 @@
         }
       },
       "sources": [
-        "Catalogue S031. New rent: rent model learned from synthetic-profiles.csv (household x city): a shared flat costs about 0.68 of living alone; p75 / p50 / p25 of the dataset spread for the three cases.",
+        "Catalogue S031. New rent: rent model learned from synthetic-profiles.csv (household x city): a shared flat costs about 0.68 of living alone; the luck of the decision is the quantile of the dataset spread of rents (good luck = a cheaper flat, within p5 to p95).",
         "Living costs do not depend on the household in the dataset (flow model), so only the rent changes."
       ],
       "effects": [
@@ -1338,7 +1338,7 @@
       "probability": 0.08,
       "sources": [
         "Income while unemployed: median unemployed income / median employed income in synthetic-profiles.csv (ratio.unemployed). The dataset gives the unemployed almost no income; real Swiss unemployment insurance pays more, but it is not in our data.",
-        "Length of the gap: 6 months as in catalogue S014; 12 and 3 months for the other cases are assumptions.",
+        "Length of the gap: a distribution through 3 / 6 / 12 months (p25 / p50 / p75; the luck of the shock picks the percentile): 6 months as in catalogue S014, 3 and 12 are assumptions.",
         "How likely job loss is: Eurostat une_rt_m, Switzerland (unemployment.*), about 8 % under 25 and 4 % from 25 to 74.",
         "Chance per two-year turn: the Swiss unemployment rate of the age group (Eurostat une_rt_m, 5-year mean) used as the chance of losing your job during the turn (assumption); the month it happens is drawn within the turn."
       ],
@@ -1419,7 +1419,7 @@
       "probability": 0.04,
       "sources": [
         "Income while unemployed: median unemployed income / median employed income in synthetic-profiles.csv (ratio.unemployed). The dataset gives the unemployed almost no income; real Swiss unemployment insurance pays more, but it is not in our data.",
-        "Length of the gap: 6 months as in catalogue S014; 12 and 3 months for the other cases are assumptions.",
+        "Length of the gap: a distribution through 3 / 6 / 12 months (p25 / p50 / p75; the luck of the shock picks the percentile): 6 months as in catalogue S014, 3 and 12 are assumptions.",
         "How likely job loss is: Eurostat une_rt_m, Switzerland (unemployment.*), about 8 % under 25 and 4 % from 25 to 74.",
         "Chance per two-year turn: the Swiss unemployment rate of the age group (Eurostat une_rt_m, 5-year mean) used as the chance of losing your job during the turn (assumption); the month it happens is drawn within the turn."
       ],
