@@ -34,13 +34,33 @@ import com.lauzhack.twin.ui.screens.ResolutionScreen
 import com.lauzhack.twin.ui.screens.ResultsScreen
 import com.lauzhack.twin.ui.screens.WelcomeScreen
 import com.lauzhack.twin.ui.theme.TwinTheme
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import com.lauzhack.twin.content.AppContent
+import com.lauzhack.twin.interview.ContentTwinFactory
 
 /**
  * Wires the dependencies: the ONLY place to change when the real engine (Dev A) and content (Dev C) arrive.
- * - engine / twins: FakeGameEngine / FakeTwinFactory -> the real GameEngine / TwinFactory (engine/GameEngine.kt).
- * - catalog / facts / assumptions: FakeData -> content/events.json, facts.json, assumptions.json (data/ loading).
+ * - twins + interview: the real ones (#15): ContentTwinFactory and content/interview.json, from [AppContent].
+ * - engine / catalog / facts / assumptions: still FakeGameEngine + FakeData (the real engine is the next step, #16).
  * - chat: the Koog agent (ai/) when OPENAI_API_KEY or ANTHROPIC_API_KEY is set, otherwise canned answers.
  */
+fun createAppState(content: AppContent): AppState = AppState(
+    engine = FakeGameEngine(FakeData.events, FakeData.assumptions),
+    twins = ContentTwinFactory(content.facts, content.interviewDefaults, content.assumptions.objectivePenalties, content.alexia),
+    chat = createChat(FakeData.events),
+    assumptions = FakeData.assumptions,
+    facts = FakeData.facts,
+    catalog = FakeData.events,
+    interview = content.interview.questions,
+)
+
+/** Everything fake (no resources needed): previews and UI tests. */
 fun createDefaultAppState(): AppState = AppState(
     engine = FakeGameEngine(FakeData.events, FakeData.assumptions),
     twins = FakeTwinFactory(),
@@ -64,8 +84,20 @@ private fun createChat(catalog: List<Event>): FutureSelfChat {
     return AgentFutureSelfChat(agent, mapper, fallback = canned)
 }
 
+/** The app. With no [state] it first loads the packaged content (AppContent: events, interview, models...). */
 @Composable
-fun App(state: AppState = remember { createDefaultAppState() }) {
+fun App(state: AppState? = null) {
+    val loaded by produceState(state) { if (value == null) value = createAppState(AppContent.load()) }
+    val app = loaded
+    if (app == null) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        return
+    }
+    AppContentLoaded(app)
+}
+
+@Composable
+private fun AppContentLoaded(state: AppState) {
     val dark = state.darkMode ?: isSystemInDarkTheme()
     CompositionLocalProvider(LocalAppLocale provides state.lang.tag, LocalLang provides state.lang) {
         // key() forces resources to reload when the language changes.

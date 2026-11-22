@@ -123,6 +123,7 @@ import com.lauzhack.twin.ui.components.TopBarActions
 import com.lauzhack.twin.ui.components.signColor
 import com.lauzhack.twin.ui.i18n.formatChf
 import com.lauzhack.twin.ui.i18n.formatPercent
+import com.lauzhack.twin.ui.i18n.goalLabel
 import com.lauzhack.twin.ui.i18n.keyString
 import com.lauzhack.twin.ui.progress
 import com.lauzhack.twin.ui.targetMonth
@@ -295,7 +296,7 @@ private fun Overview(
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text(keyString(goal.name), style = MaterialTheme.typography.titleSmall)
+                        Text(goalLabel(goal.name), style = MaterialTheme.typography.titleSmall)
                         Text(
                             stringResource(Res.string.goal_target, formatChf(goal.targetChf), goal.targetMonth(session.initial)),
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,

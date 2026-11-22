@@ -64,6 +64,7 @@ import com.lauzhack.twin.resources.theme_light
 import com.lauzhack.twin.resources.timeline_title
 import com.lauzhack.twin.ui.i18n.formatChf
 import com.lauzhack.twin.ui.i18n.formatPercent
+import com.lauzhack.twin.ui.i18n.goalLabel
 import com.lauzhack.twin.ui.i18n.keyString
 import com.lauzhack.twin.ui.theme.LocalTwinColors
 import com.lauzhack.twin.ui.theme.Space
@@ -246,7 +247,7 @@ private fun ProfilePanel(panel: PanelData, modifier: Modifier) {
                         val fraction = (state.netWorth / goal.targetChf).coerceIn(0.0, 1.0)
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text(keyString(goal.name), style = MaterialTheme.typography.bodySmall)
+                                Text(goalLabel(goal.name), style = MaterialTheme.typography.bodySmall)
                                 Text(formatPercent(fraction), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             ThinProgress(fraction.toFloat())

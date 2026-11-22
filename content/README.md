@@ -8,6 +8,8 @@
 | `chronicle.json` | Chronicle templates (P11, plan B without network): one ES/EN sentence per `StoryBeat` kind, life-change variants and labels. Only uses the numbers the beats carry. Check: `python tools/chronicle.py --check` | `ChronicleTemplates` (Kotlin, `chronicle/Chronicle.kt`) |
 | `flow-model.json` | Simulator input: monthly flows learned from the ledger (aggregates only: factors, quantiles). **Generated** by `tools/flow_model.py` (Dev A), copied here with `python tools/ship_resources.py --from-out` | `FlowModel` (`model/Simulation.kt`) |
 | `macro.json` | Simulator input: Swiss trends and the yearly public series behind them. **Generated** by `tools/macro.py` (Dev A), copied the same way | `MacroFile` (`model/Simulation.kt`) |
+| `interview.json` | The start-of-app interview (P1): 11 multiple-choice questions whose options fill `ProfileField`s. Numbers come from the dataset. **Generated** by `python tools/interview.py --build` | `docs/README.md` 5.7, `InterviewCatalog` (Kotlin) |
+| `interview-defaults.json` | Dataset medians for "I don't know" answers (income by employment, rent by city x household, cash by age) and to size the goal. **Generated** with the file above | `InterviewDefaults` (Kotlin) |
 
 Every `*.json` here is shipped with the app: `python tools/ship_resources.py` copies them to
 `shared/src/commonMain/composeResources/files/` and `AppContent.load()` (`shared/.../content/AppContent.kt`) decodes them on
@@ -81,3 +83,17 @@ identifiers). Sources and reuse terms (checked 2026-11-22; the repository is pri
 
 The UI must show these sources (e.g. in an "About the data" screen); `macro.json` carries provider, dataset, URL and retrieval
 date for every series.
+
+## The interview (`interview.json`)
+`python tools/interview.py --build` rebuilds it from the CSVs, `--check` validates it (against the Kotlin enums in `Enums.kt`,
+`facts.json` and the dataset ranges), `--demo 5` prints five random people, `--strings-into` replaces the interview strings (`q_*`, `goal_*`) of the app's Compose resources, and
+`alexia.json` (the demo profile: Alexia's opening statement in the dataset) is rebuilt with `--build`. Texts live in `interview.json` as `{"EN","ES"}`; the UI reads them through
+`textKey` / `labelKey`.
+- **What is asked** is what the simulator reads from a person: age, city, household, employment, studies (the `EDUCATION` fact: studying is
+  independent from working), income, rent, cash, plus the goal and the preferences (`OBJECTIVE`, `MIN_CASH`). `tools/flow_model.py` found that
+  only employment, city and studying drive the flows; income and rent are the bases of the amounts.
+- **Bands** come from the data (`AGE_EDGES`... in `tools/interview.py`); each option stands for the dataset median of the people in its band.
+- **"I don't know"** (an option with empty `sets`) takes the dataset median, see `interview-defaults.json`.
+- **Goals** are the six `goal_name` values of `synthetic-goals.csv`; each carries its dataset date and priority (Emergency savings and Long-term
+  financial resilience: 2029, HIGH; the rest: 2032, MEDIUM) and a target of about 9-21 monthly incomes.
+- **Not asked**: investments and loans (no `ProfileField` for them: they start at 0) and the name. Nobody in the dataset lives abroad, so `ABROAD` is not offered.

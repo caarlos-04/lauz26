@@ -23,6 +23,13 @@ fun keyString(key: String): String {
     return stringResource(res)
 }
 
+/** String key of a dataset goal name: "Emergency savings" -> "goal_emergency_savings" (tools/interview.py writes them). */
+fun goalKey(name: String): String = "goal_" + name.lowercase().replace(Regex("[^a-z0-9]+"), "_").trim('_')
+
+/** Text of a goal: dataset goal names ("Emergency savings") through goal_<slug>, otherwise the name as a key. */
+@Composable
+fun goalLabel(name: String): String = Res.allStringResources[goalKey(name)]?.let { stringResource(it) } ?: keyString(name)
+
 /** Non-composable [keyString] for code outside the UI tree (the chat briefing). Uses the app locale. */
 suspend fun keyStringAsync(key: String): String {
     val res = Res.allStringResources[key] ?: return key
