@@ -51,7 +51,12 @@ Getting keys as a team: create a Project on platform.openai.com with a monthly b
 person creates their own key in it (shared billing, revocable one by one). If one key is shared, send it privately
 (password manager / direct message), never in the repo, issues, PRs or public channels, and rotate it after the hackathon.
 
-- Keys are **never** committed or bundled. Android and Web read no key and use the canned answers.
+- Keys are **never** committed. Web reads no key and uses the canned answers.
+- **Android:** DEBUG builds take `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `TWIN_LLM_MODEL` from the environment or the
+  repo-root `.env` **at build time** (`androidApp/build.gradle.kts` → `BuildConfig` → `AndroidEnv` in `MainActivity`), so
+  the chat talks to the real LLM on our own test phones. The key ends up inside that APK: **never share a debug APK
+  built with a key** (anyone can extract it). Release builds never get a key. The proper fix is a small Kotlin backend
+  that keeps the key (option discussed with the team).
 - Cost: ~2–4k tokens in, ~200 out per question: a fraction of a cent with a small model.
 - Privacy: the briefing contains only synthetic data; the questions the user types are sent to the provider.
 
