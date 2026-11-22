@@ -554,7 +554,7 @@ Invariants the tests must check:
 
 The challenge's **synthetic** data in `ai-financial-twin-lauzhack-2026/Data` (1,200 profiles, linked by `profile_id`)
 plus public Swiss data (`data/download.sh`). How each column ends up in the `FinancialStatement`:
-`docs/financial-statement.md`, section 3. How time moves: [`docs/simulator.md`](simulator.md).
+`docs/financial-statement.md`, section 3. How time moves: [`docs/simulator.md`](simulator.md); how it is learned from the data, step by step: [`docs/how-the-simulator-learns.md`](how-the-simulator-learns.md).
 
 | File | Content | Goes to |
 |---|---|---|
