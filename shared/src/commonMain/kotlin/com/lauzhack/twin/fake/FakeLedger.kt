@@ -1,248 +1,127 @@
 package com.lauzhack.twin.fake
 
-import com.lauzhack.twin.model.AccountStatus
-import com.lauzhack.twin.model.AccountType
 import com.lauzhack.twin.model.Assumptions
-import com.lauzhack.twin.model.BalanceSheet
-import com.lauzhack.twin.model.CashAccount
 import com.lauzhack.twin.model.CashFlow
-import com.lauzhack.twin.model.DebtLine
 import com.lauzhack.twin.model.Effect
 import com.lauzhack.twin.model.ExpenseCategory
-import com.lauzhack.twin.model.ExpenseStream
+import com.lauzhack.twin.model.FactKey
 import com.lauzhack.twin.model.FinancialStatement
-import com.lauzhack.twin.model.FlowLine
-import com.lauzhack.twin.model.GoalState
-import com.lauzhack.twin.model.GoalStatus
-import com.lauzhack.twin.model.Indexation
-import com.lauzhack.twin.model.IncomeStream
-import com.lauzhack.twin.model.LifeChange
-import com.lauzhack.twin.model.Liability
-import com.lauzhack.twin.model.LiquidityStatus
-import com.lauzhack.twin.model.Origin
-import com.lauzhack.twin.model.PersonSnapshot
-import com.lauzhack.twin.model.ProgressBasis
-import com.lauzhack.twin.model.StatementMetrics
-import com.lauzhack.twin.model.UserProfile
+import com.lauzhack.twin.model.Household
+import com.lauzhack.twin.model.Loan
+import com.lauzhack.twin.model.PendingChange
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
 
 /**
- * Simplified money engine for the fake (docs section 7, loosely): applies effects and advances
- * [FinancialStatement]s month by month. Placeholder for Dev A's engine; values are illustrative.
+ * Simplified money engine for the fake (docs/simulator.md, loosely): turns effects into [PendingChange]s and advances
+ * [FinancialStatement]s month by month. Placeholder for Dev A's engine; values are illustrative (CHF), not calibrated.
+ *
+ * Months: statement t = end of month t. A turn starting at statement m simulates months m+1..m+24; an effect with
+ * offset o applies at the start of month m+1+o (before that month's flows).
  */
 internal class FakeLedger(private val assumptions: Assumptions) {
 
-    // ---------- Building statements ----------
-
-    fun opening(
-        profile: UserProfile,
-        cashChf: Double,
-        investments: List<com.lauzhack.twin.model.Investment>,
-        income: List<IncomeStream>,
-        expenses: List<ExpenseStream>,
-        facts: Map<com.lauzhack.twin.model.FactKey, String>,
-        flags: List<String> = emptyList(),
-    ): FinancialStatement = recompute(
-        FinancialStatement(
-            version = 1,
-            profileId = profile.id,
-            month = 0,
-            period = "${profile.startMonth}-01",
-            origin = Origin.DERIVED,
-            currency = "CHF",
-            person = PersonSnapshot(
-                displayName = profile.displayName,
-                ageAtStart = profile.ageAtStart,
-                age = profile.ageAtStart,
-                city = profile.city,
-                canton = null,
-                country = "CH",
-                employment = profile.employment,
-                household = profile.household,
-                facts = facts,
-                flags = flags,
-                synthetic = true,
-            ),
-            accounts = listOf(CashAccount("cash", AccountType.CASH, "CHF", cashChf, AccountStatus.OK)),
-            investments = investments,
-            liabilities = emptyList(),
-            incomeStreams = income,
-            expenseStreams = expenses,
-            cashFlow = null,
-            balanceSheet = BalanceSheet(0.0, 0.0, 0.0, 0.0, 0.0),
-            goals = profile.goals.map {
-                GoalStatus(it.id, it.name, it.targetChf, it.targetDate, it.targetMonth, it.priority,
-                    ProgressBasis.NET_WORTH, 0.0, 0.0, it.targetMonth, GoalState.IN_PROGRESS)
-            },
-            scenarioParameters = emptyList(),
-            metrics = StatementMetrics("RUN_RATE", 0.0, 0.0, 0.0, null, null, null, null, LiquidityStatus.OK, 0.0),
-            pendingLifeChanges = emptyList(),
-        ),
-        startMonth = profile.startMonth,
-    )
-
-    /** Recomputes the derived parts (balance sheet, metrics, goal statuses, account status). */
-    fun recompute(s: FinancialStatement, startMonth: String? = null): FinancialStatement {
-        val cash = s.cash
-        val investments = s.investments.sumOf { it.valueChf }
-        val debt = s.liabilities.sumOf { it.principalChf }
-        val netWorth = cash + investments - debt
-        val t = s.month
-        val income = s.incomeStreams.filter { it.activeAt(t) }.sumOf { it.monthlyChf }
-        val expenses = s.expenseStreams.filter { it.activeAt(t) }.sumOf { it.monthlyChf }
-        val debtService = s.liabilities.filter { it.principalChf > 0 }.sumOf { it.monthlyPaymentChf }
-        val outflows = expenses + debtService
-        val net = income - outflows
-        val essential = s.expenseStreams.filter { it.activeAt(t) && it.category != ExpenseCategory.TRAVEL }.sumOf { it.monthlyChf }
-        val rent = s.expenseStreams.filter { it.activeAt(t) && it.category == ExpenseCategory.RENT }.sumOf { it.monthlyChf }
-        return s.copy(
-            period = startMonth?.let { "$it-01" } ?: s.period,
-            accounts = s.accounts.map {
-                it.copy(status = if (it.balanceChf < 0) AccountStatus.NEGATIVE_REQUIRES_FINANCING else AccountStatus.OK)
-            },
-            balanceSheet = BalanceSheet(cash, investments, cash + investments, debt, netWorth),
-            metrics = StatementMetrics(
-                basis = "RUN_RATE",
-                monthlyIncomeChf = income,
-                monthlyOutflowsChf = outflows,
-                monthlyNetCashFlowChf = net,
-                savingsRate = if (income > 0) net / income else null,
-                debtServiceRatio = if (income > 0) debtService / income else null,
-                rentToIncomeRatio = if (income > 0) rent / income else null,
-                emergencyFundMonths = if (essential > 0) cash / essential else null,
-                liquidityStatus = when {
-                    cash < 0 -> LiquidityStatus.NEGATIVE
-                    essential > 0 && cash < 3 * essential -> LiquidityStatus.LOW
-                    else -> LiquidityStatus.OK
-                },
-                netWorthChf = netWorth,
-            ),
-            goals = s.goals.map { g ->
-                val current = netWorth
-                val reached = g.status == GoalState.REACHED || (t <= g.targetMonth && current >= g.targetChf)
-                g.copy(
-                    currentChf = current,
-                    progressRatio = (current / g.targetChf).coerceIn(0.0, 1.0),
-                    monthsLeft = max(0, g.targetMonth - t),
-                    status = when {
-                        reached -> GoalState.REACHED
-                        t >= g.targetMonth -> GoalState.MISSED
-                        else -> GoalState.IN_PROGRESS
-                    },
-                )
-            },
-        )
-    }
-
     // ---------- Effects (start of a turn) ----------
 
-    /** Applies the effects of a case at month [s].month. Delayed effects become streams or pending life changes. */
+    /** Queues the effects of a case as pending changes (they apply when their month starts). */
     fun applyEffects(s: FinancialStatement, effects: List<Effect>, eventId: String): FinancialStatement =
-        recompute(effects.fold(s) { acc, effect -> applyEffect(acc, effect, eventId) })
+        s.copy(pendingChanges = s.pendingChanges + effects.flatMap { changesOf(it, s.month + 1, eventId) })
 
-    private fun applyEffect(s: FinancialStatement, effect: Effect, eventId: String): FinancialStatement {
-        val m = s.month
+    /** Pending changes of one effect; [first] is the first month of the turn. */
+    fun changesOf(effect: Effect, first: Int, eventId: String): List<PendingChange> {
+        fun at(offset: Int) = first + offset
+        fun ch(month: Int) = PendingChange(month = month, sourceEventId = eventId)
         return when (effect) {
-            is Effect.SetIncome -> {
-                val from = m + effect.startOffsetMonths
-                s.copy(incomeStreams = s.incomeStreams.map {
-                    if (it.label == effect.streamId && (it.untilMonth == null || it.untilMonth > from)) it.copy(untilMonth = maxOf(it.fromMonth, from)) else it
-                } + IncomeStream("${effect.streamId}@$from", effect.streamId, effect.monthlyChf, from, null,
-                    Indexation.WAGES, Origin.SIMULATED, eventId))
-            }
-            is Effect.IncomeDelta -> {
-                val from = m + effect.startOffsetMonths
-                s.copy(incomeStreams = s.incomeStreams + IncomeStream("${effect.streamId}+$eventId@$from", effect.streamId,
-                    effect.deltaChf, from, effect.months?.let { from + it }, Indexation.WAGES, Origin.SIMULATED, eventId))
-            }
-            is Effect.ExpenseDelta -> {
-                val from = m + effect.startOffsetMonths
-                s.copy(expenseStreams = s.expenseStreams + ExpenseStream("${effect.category.name.lowercase()}+$eventId@$from",
-                    effect.category, effect.deltaChf, from, effect.months?.let { from + it }, Indexation.CPI, Origin.SIMULATED, eventId))
-            }
-            is Effect.OneOff ->
-                if (effect.startOffsetMonths == 0) s.withCash(s.cash - effect.chf)
-                else {
-                    val from = m + effect.startOffsetMonths
-                    s.copy(expenseStreams = s.expenseStreams + ExpenseStream("oneoff+$eventId@$from", ExpenseCategory.OTHER,
-                        effect.chf, from, from + 1, Indexation.NONE, Origin.SIMULATED, eventId))
-                }
-            is Effect.AddLiability -> {
-                val r = effect.annualRate / 12
-                val payment = if (r == 0.0) effect.principalChf / effect.termMonths
-                else effect.principalChf * r / (1 - (1 + r).pow(-effect.termMonths))
-                val loan = Liability("${effect.liabilityType.name.lowercase()}+$eventId@$m", effect.liabilityType,
-                    effect.principalChf, effect.annualRate, payment, paymentIsAssumed = true, sourceEventId = eventId)
-                s.copy(liabilities = s.liabilities + loan)
-                    .let { if (effect.disburseToCash) it.withCash(it.cash + effect.principalChf) else it }
-            }
-            is Effect.AssetReturnDelta -> s.copy(investments = s.investments.map {
-                if (it.type == effect.assetType) it.copy(annualReturn = (it.annualReturn ?: assumptions.investmentReturnAnnual) + effect.deltaAnnualRate) else it
-            })
-            is Effect.SetEmployment -> s.lifeChange(LifeChange(m + effect.startOffsetMonths, eventId, employment = effect.employment))
-            is Effect.SetFact -> s.lifeChange(LifeChange(m + effect.startOffsetMonths, eventId, factKey = effect.key, factValue = effect.value))
-            is Effect.AddFlag -> s.lifeChange(LifeChange(m + effect.startOffsetMonths, eventId, flag = effect.flag))
+            is Effect.SetIncome -> listOf(ch(at(effect.startOffsetMonths)).copy(monthlyIncomeChf = effect.monthlyChf))
+            is Effect.IncomeDelta -> listOfNotNull(
+                ch(at(effect.startOffsetMonths)).copy(incomeDeltaChf = effect.deltaChf),
+                effect.months?.let { ch(at(effect.startOffsetMonths + it)).copy(incomeDeltaChf = -effect.deltaChf) },
+            )
+            is Effect.IncomeFactor -> listOfNotNull(
+                ch(at(effect.startOffsetMonths)).copy(incomeFactor = effect.factor),
+                effect.months?.let { ch(at(effect.startOffsetMonths + it)).copy(incomeFactor = 1 / effect.factor) },
+            )
+            is Effect.SetHousehold -> listOf(ch(at(effect.startOffsetMonths)).copy(household = effect.household))
+            is Effect.MarketRent -> listOf(ch(at(effect.startOffsetMonths)).copy(marketRentQuantile = effect.quantile))
+            is Effect.ExpenseDelta -> listOfNotNull(
+                ch(at(effect.startOffsetMonths)).copy(expenseCategory = effect.category, expenseDeltaChf = effect.deltaChf),
+                effect.months?.let {
+                    ch(at(effect.startOffsetMonths + it)).copy(expenseCategory = effect.category, expenseDeltaChf = -effect.deltaChf)
+                },
+            )
+            // A one-off is an OTHER expense during a single month, so it shows up in that month's cash flow.
+            is Effect.OneOff -> listOf(
+                ch(at(effect.startOffsetMonths)).copy(expenseCategory = ExpenseCategory.OTHER, expenseDeltaChf = effect.chf),
+                ch(at(effect.startOffsetMonths + 1)).copy(expenseCategory = ExpenseCategory.OTHER, expenseDeltaChf = -effect.chf),
+            )
+            is Effect.AddLiability -> listOf(
+                ch(first).copy(loan = Loan(effect.principalChf, effect.annualRate, annuity(effect.principalChf, effect.annualRate, effect.termMonths))),
+            )
+            is Effect.SetEmployment -> listOf(ch(at(effect.startOffsetMonths)).copy(employment = effect.employment))
+            is Effect.SetFact -> listOf(ch(at(effect.startOffsetMonths)).copy(factKey = effect.key, factValue = effect.value))
+            is Effect.AddFlag -> listOf(ch(at(effect.startOffsetMonths)).copy(flag = effect.flag))
         }
     }
 
-    private fun FinancialStatement.lifeChange(change: LifeChange): FinancialStatement =
-        if (change.month <= month) applyLifeChange(this, change) else copy(pendingLifeChanges = pendingLifeChanges + change)
-
-    private fun applyLifeChange(s: FinancialStatement, c: LifeChange): FinancialStatement = s.copy(
-        person = s.person.copy(
-            employment = c.employment ?: s.person.employment,
-            facts = if (c.factKey != null && c.factValue != null) s.person.facts + (c.factKey to c.factValue) else s.person.facts,
-            flags = if (c.flag != null && c.flag !in s.person.flags) s.person.flags + c.flag else s.person.flags,
-        ),
-    )
+    private fun applyChange(s: FinancialStatement, c: PendingChange): FinancialStatement {
+        val p = s.person
+        return when {
+            c.employment != null -> s.copy(person = p.copy(employment = c.employment))
+            c.factKey != null && c.factValue != null -> s.copy(person = p.copy(facts = p.facts + (c.factKey to c.factValue)))
+            c.flag != null -> s.copy(person = p.copy(flags = if (c.flag in p.flags) p.flags else p.flags + c.flag))
+            c.household != null -> s.copy(person = p.copy(household = c.household))
+            c.monthlyIncomeChf != null -> s.copy(monthlyIncomeChf = c.monthlyIncomeChf)
+            c.incomeDeltaChf != null -> s.copy(monthlyIncomeChf = max(0.0, s.monthlyIncomeChf + c.incomeDeltaChf))
+            c.incomeFactor != null -> s.copy(monthlyIncomeChf = s.monthlyIncomeChf * c.incomeFactor)
+            c.marketRentQuantile != null -> s.copy(monthlyRentChf = marketRent(s, c.marketRentQuantile))
+            c.expenseCategory != null && c.expenseDeltaChf != null -> {
+                val v = (s.eventExpensesChf[c.expenseCategory] ?: 0.0) + c.expenseDeltaChf
+                s.copy(eventExpensesChf = if (kotlin.math.abs(v) < 0.005) s.eventExpensesChf - c.expenseCategory else s.eventExpensesChf + (c.expenseCategory to v))
+            }
+            c.loan != null -> s.copy(cashChf = s.cashChf + c.loan.principalChf, loan = merge(s.loan, c.loan))
+            else -> s
+        }
+    }
 
     // ---------- Monthly step ----------
 
-    /** Advances one month: flows, debt, financing cost on negative cash, investment growth, due life changes. */
-    fun step(s: FinancialStatement, noiseChf: Double = 0.0, returnShock: Double = 0.0): FinancialStatement {
-        val t = s.month
-        val years = t / 12.0
-        val incomeLines = s.incomeStreams.filter { it.activeAt(t) }.map {
-            val growth = if (it.indexation == Indexation.WAGES) (1 + assumptions.salaryGrowthAnnual).pow(years) else 1.0
-            FlowLine("income:${it.label}", it.monthlyChf * growth, it.origin, it.sourceEventId)
-        }
-        val expenseLines = s.expenseStreams.filter { it.activeAt(t) }.map {
-            val growth = if (it.indexation == Indexation.CPI) (1 + assumptions.inflationAnnual).pow(years) else 1.0
-            FlowLine("expense:${it.category.name}", it.monthlyChf * growth, it.origin, it.sourceEventId)
-        }
-        val debtLines = mutableListOf<DebtLine>()
-        val liabilities = s.liabilities.map { l ->
-            if (l.principalChf <= 0.0) return@map l
-            val interest = l.principalChf * l.annualRate / 12
-            val payment = min(l.monthlyPaymentChf, l.principalChf + interest)
-            debtLines += DebtLine(l.id, payment, interest, payment - interest, l.sourceEventId)
-            l.copy(principalChf = max(0.0, l.principalChf + interest - payment))
-        }
-        val financing = if (s.cash < 0) -s.cash * assumptions.financingRateAnnual / 12 else 0.0
-        val totalIncome = incomeLines.sumOf { it.amountChf }
-        val totalExpenses = expenseLines.sumOf { it.amountChf }
-        val totalDebt = debtLines.sumOf { it.paymentChf }
-        val net = totalIncome - totalExpenses - totalDebt - financing + noiseChf
-        val closing = s.cash + net
-        val next = t + 1
-        var out = s.copy(
+    /** Advances one month: due changes, flows, loan, financing cost on negative cash, investment growth. */
+    fun step(s0: FinancialStatement, noiseChf: Double = 0.0, returnShock: Double = 0.0): FinancialStatement {
+        val next = s0.month + 1
+        val s = s0.pendingChanges.filter { it.month <= next }.fold(s0) { acc, c -> applyChange(acc, c) }
+
+        val income = mapOf("salary" to s.monthlyIncomeChf).filterValues { it > 0 }
+        val expenses = buildMap {
+            put("rent", s.monthlyRentChf)
+            put("living", livingCost(s))
+            s.eventExpensesChf.forEach { (k, v) ->
+                val key = if (k == ExpenseCategory.RENT) "rent" else k.name   // a rent change adds to the rent line
+                put(key, (get(key) ?: 0.0) + v)
+            }
+        }.filterValues { it != 0.0 }
+        val loan = s.loan?.takeIf { it.principalChf > 0.005 }
+        val interest = loan?.let { it.principalChf * it.annualRate / 12 } ?: 0.0
+        val payment = loan?.let { min(it.monthlyPaymentChf, it.principalChf + interest) } ?: 0.0
+        val financing = if (s.cashChf < 0) -s.cashChf * assumptions.financingRateAnnual / 12 else 0.0
+        val net = income.values.sum() - expenses.values.sum() - payment - financing + noiseChf
+
+        return s.copy(
             month = next,
-            origin = Origin.SIMULATED,
-            accounts = s.accounts.map { it.copy(balanceChf = closing) },
-            investments = s.investments.map {
-                val r = (it.annualReturn ?: assumptions.investmentReturnAnnual) + returnShock
-                it.copy(valueChf = it.valueChf * (1 + r / 12))
-            },
-            liabilities = liabilities,
-            person = s.person.copy(age = s.person.ageAtStart + next / 12),
-            cashFlow = CashFlow(s.cash, incomeLines, expenseLines, debtLines, noiseChf, financing,
-                totalIncome, totalExpenses, totalDebt, net, closing),
-            pendingLifeChanges = s.pendingLifeChanges.filter { it.month > next },
+            period = periodOf(s0, next),
+            person = if (next % 12 == 0) s.person.copy(age = s.person.age + 1) else s.person,
+            cashChf = s.cashChf + net,
+            investmentsChf = s.investmentsChf * (1 + (assumptions.investmentReturnAnnual + returnShock) / 12),
+            loan = loan?.let { it.copy(principalChf = max(0.0, it.principalChf + interest - payment)) },
+            cashFlow = CashFlow(
+                incomeChf = income,
+                expensesChf = expenses + (if (noiseChf != 0.0) mapOf("noise" to -noiseChf) else emptyMap()),
+                loanPaymentChf = payment,
+                financingCostChf = financing,
+                netChf = net,
+            ),
+            pendingChanges = s.pendingChanges.filter { it.month > next },
         )
-        s.pendingLifeChanges.filter { it.month <= next }.forEach { out = applyLifeChange(out, it) }
-        return recompute(out)
     }
 
     /** [start] plus the next [months] statements. */
@@ -256,12 +135,52 @@ internal class FakeLedger(private val assumptions: Assumptions) {
         }
         return out
     }
+
+    // ---------- Fake calibration (illustrative CHF, NOT the learned FlowModel) ----------
+
+    /** Groceries, insurance, transport... by household, plus a share of income above 4,000. */
+    private fun livingCost(s: FinancialStatement): Double {
+        val base = when (s.person.household) {
+            Household.SINGLE -> 1_100.0
+            Household.SHARED_HOUSING -> 850.0
+            Household.COUPLE -> 1_600.0
+            Household.FAMILY -> 2_600.0
+        }
+        return base + 0.15 * max(0.0, s.monthlyIncomeChf - 4_000.0)
+    }
+
+    /** Stand-in for FlowModel.rentModel: median rent by household, cheaper outside the big cities. */
+    private fun marketRent(s: FinancialStatement, quantile: Double): Double {
+        val median = when (s.person.household) {
+            Household.SINGLE -> 1_450.0
+            Household.SHARED_HOUSING -> 850.0
+            Household.COUPLE -> 1_900.0
+            Household.FAMILY -> 2_500.0
+        }
+        val city = when (s.person.facts[FactKey.CITY]) {
+            "Zurich", "Geneva" -> 1.2
+            "Lausanne", "Basel", "Lucerne" -> 1.0
+            else -> 0.85
+        }
+        return median * city * (0.7 + 0.6 * quantile.coerceIn(0.0, 1.0))
+    }
+
+    private fun annuity(principal: Double, annualRate: Double, months: Int): Double {
+        val r = annualRate / 12
+        return if (r == 0.0) principal / months else principal * r / (1 - (1 + r).pow(-months))
+    }
+
+    private fun merge(old: Loan?, new: Loan): Loan {
+        if (old == null || old.principalChf <= 0.005) return new
+        val total = old.principalChf + new.principalChf
+        return Loan(total, (old.annualRate * old.principalChf + new.annualRate * new.principalChf) / total,
+            old.monthlyPaymentChf + new.monthlyPaymentChf)
+    }
+
+    /** "2025-01-01" (opening) -> "2025-01" for month 1, then one calendar month per step. */
+    private fun periodOf(prev: FinancialStatement, month: Int): String {
+        val (y, m) = prev.period.split("-").let { it[0].toInt() to it[1].toInt() }
+        val index = y * 12 + (m - 1) + if (prev.month == 0 || month == 0) 0 else 1
+        return "${index / 12}-${(index % 12 + 1).toString().padStart(2, '0')}"
+    }
 }
-
-internal fun IncomeStream.activeAt(t: Int) = fromMonth <= t && (untilMonth == null || t < untilMonth)
-internal fun ExpenseStream.activeAt(t: Int) = fromMonth <= t && (untilMonth == null || t < untilMonth)
-
-internal val FinancialStatement.cash: Double get() = accounts.sumOf { it.balanceChf }
-
-internal fun FinancialStatement.withCash(value: Double): FinancialStatement =
-    copy(accounts = accounts.mapIndexed { i, a -> if (i == 0) a.copy(balanceChf = value) else a.copy(balanceChf = 0.0) })

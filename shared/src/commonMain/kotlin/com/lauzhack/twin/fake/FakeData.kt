@@ -1,7 +1,6 @@
 package com.lauzhack.twin.fake
 
 import com.lauzhack.twin.model.Assumptions
-import com.lauzhack.twin.model.AssetType
 import com.lauzhack.twin.model.CaseOutcome
 import com.lauzhack.twin.model.CaseType
 import com.lauzhack.twin.model.Effect
@@ -9,31 +8,26 @@ import com.lauzhack.twin.model.Employment
 import com.lauzhack.twin.model.Event
 import com.lauzhack.twin.model.EventOption
 import com.lauzhack.twin.model.ExpenseCategory
-import com.lauzhack.twin.model.ExpenseStream
 import com.lauzhack.twin.model.FactCatalog
 import com.lauzhack.twin.model.FactKey
+import com.lauzhack.twin.model.FinancialStatement
 import com.lauzhack.twin.model.Goal
 import com.lauzhack.twin.model.Household
-import com.lauzhack.twin.model.IncomeStream
-import com.lauzhack.twin.model.Indexation
 import com.lauzhack.twin.model.InterviewOption
 import com.lauzhack.twin.model.InterviewQuestion
-import com.lauzhack.twin.model.Investment
 import com.lauzhack.twin.model.Lang
-import com.lauzhack.twin.model.LiabilityType
 import com.lauzhack.twin.model.LocalizedText
 import com.lauzhack.twin.model.Objective
-import com.lauzhack.twin.model.Origin
+import com.lauzhack.twin.model.Person
 import com.lauzhack.twin.model.Preferences
 import com.lauzhack.twin.model.Priority
 import com.lauzhack.twin.model.ProfileField
 import com.lauzhack.twin.model.Requirements
-import com.lauzhack.twin.model.UserProfile
 
 /**
  * Placeholder data so the UI runs before the engine and the full content exist.
  * ALL values are synthetic and illustrative (CHF, rough Swiss orders of magnitude), not calibrated.
- * Fact codes and flags follow content/facts.json. Goal names are UI i18n keys.
+ * Fact codes and flags follow content/facts.json. Goal names follow synthetic-goals ("Emergency savings"...).
  */
 object FakeData {
 
@@ -49,14 +43,12 @@ object FakeData {
         return "$year-${month.toString().padStart(2, '0')}-$days"
     }
 
-    internal fun goal(id: String, nameKey: String, target: Double, month: Int, priority: Priority, start: String = "2025-01") =
-        Goal(id, nameKey, target, targetDate(start, month), month, priority)
+    internal fun goal(name: String, target: Double, month: Int, priority: Priority, start: String = "2025-01") =
+        Goal(name, target, targetDate(start, month), priority)
 
     // ---------- Assumptions ----------
 
     val assumptions = Assumptions(
-        inflationAnnual = 0.01,
-        salaryGrowthAnnual = 0.015,
         investmentReturnAnnual = 0.04,
         financingRateAnnual = 0.085,
         defaultCaseProbs = mapOf(CaseType.PESSIMISTIC to 0.2, CaseType.NEUTRAL to 0.6, CaseType.OPTIMISTIC to 0.2),
@@ -64,8 +56,8 @@ object FakeData {
         sensitivity = emptyList(),
         // Shown verbatim in the UI; Dev C will replace them with content/assumptions.json.
         sourceNotes = listOf(
-            "Inflation 1 %/yr, salary growth 1.5 %/yr: placeholder assumptions (not calibrated).",
-            "Investment return 4 %/yr by default; events can move it up or down.",
+            "Fake engine: flat income and rent, living costs by household (placeholder, not the learned flow model).",
+            "Investment return 4 %/yr.",
             "Negative cash is financed at 8.5 %/yr (max rate in synthetic-liabilities.csv).",
             "Case probabilities 20 % / 60 % / 20 % by default.",
             "No taxes are modelled.",
@@ -107,52 +99,50 @@ object FakeData {
             "did_master" to t("Did a master's degree", "Hizo un máster"),
             "started_working_early" to t("Started working early", "Empezó a trabajar pronto"),
             "took_loan" to t("Took a loan", "Pidió un préstamo"),
-            "family_help" to t("Got help from family", "Recibió ayuda familiar"),
+            "rented_own_flat" to t("Rented a flat of their own", "Alquiló un piso propio"),
+            "promoted" to t("Got promoted", "Ascendió"),
         ),
         initialFromProfile = emptyMap(),
     )
 
     // ---------- Alexia (demo profile) ----------
 
-    val alexiaProfile = UserProfile(
-        id = "DEMO-ALEXIA",
-        displayName = "Alexia",
-        ageAtStart = 20,
-        city = "Lausanne",
-        employment = Employment.PART_TIME,
-        household = Household.SHARED_HOUSING,
-        startMonth = "2025-01",
-        goals = listOf(
-            goal("G-ALEXIA-01", "goal_emergency", 10_000.0, 36, Priority.HIGH),
-            goal("G-ALEXIA-02", "goal_travel", 6_000.0, 60, Priority.MEDIUM),
-            goal("G-ALEXIA-03", "goal_home", 40_000.0, 108, Priority.MEDIUM),
-        ),
+    val alexiaGoals = listOf(
+        goal("Emergency savings", 10_000.0, 36, Priority.HIGH),
+        goal("Travel fund", 6_000.0, 60, Priority.MEDIUM),
+        goal("Housing deposit", 40_000.0, 108, Priority.MEDIUM),
     )
 
     val alexiaPreferences = Preferences(Objective.BALANCED, minCashChf = 3_000.0, penaltyChfPerMonthBelowMin = 50.0)
 
-    private fun income(id: String, label: String, chf: Double) =
-        IncomeStream(id, label, chf, indexation = Indexation.WAGES, origin = Origin.ASSUMED)
-
-    private fun expense(id: String, category: ExpenseCategory, chf: Double) =
-        ExpenseStream(id, category, chf, indexation = Indexation.CPI, origin = Origin.ASSUMED)
-
-    internal val alexiaIncome = listOf(income("income", "income", 1_500.0), income("family", "family", 500.0))
-    internal val alexiaExpenses = listOf(
-        expense("rent", ExpenseCategory.RENT, 800.0),
-        expense("living", ExpenseCategory.LIVING, 700.0),
-        expense("insurance", ExpenseCategory.INSURANCE, 280.0),
-        expense("tuition", ExpenseCategory.TUITION, 120.0),
-    )
-    internal val alexiaInvestments = listOf(
-        Investment("savings-3a", null, AssetType.INVESTMENT_PORTFOLIO, 2_000.0, 0.01, "assumed"),
-    )
-    internal val alexiaFacts = mapOf(
-        FactKey.EDUCATION to "BACHELOR_IN_PROGRESS",
-        FactKey.OCCUPATION to "NONE",
-        FactKey.CITY to "Lausanne",
-        FactKey.HOUSING to "SHARED_FLAT",
-        FactKey.FAMILY to "SINGLE",
+    /** Opening statement (month 0) of the demo profile: 20, studying a bachelor and working part time, Lausanne. */
+    val alexia = FinancialStatement(
+        profileId = "DEMO-ALEXIA",
+        month = 0,
+        period = "2025-01-01",
+        person = Person(
+            displayName = "Alexia",
+            age = 20,
+            employment = Employment.PART_TIME,
+            household = Household.SHARED_HOUSING,
+            facts = mapOf(
+                FactKey.EDUCATION to "BACHELOR_IN_PROGRESS",
+                FactKey.OCCUPATION to "NONE",
+                FactKey.CITY to "Lausanne",
+                FactKey.HOUSING to "SHARED_FLAT",
+                FactKey.FAMILY to "SINGLE",
+            ),
+            flags = emptyList(),
+        ),
+        cashChf = 8_000.0,
+        investmentsChf = 0.0,
+        loan = null,
+        monthlyIncomeChf = 2_000.0,
+        monthlyRentChf = 800.0,
+        eventExpensesChf = mapOf(ExpenseCategory.TUITION to 120.0),
+        cashFlow = null,
+        goals = alexiaGoals,
+        pendingChanges = emptyList(),
     )
 
     // ---------- Event catalogue ----------
@@ -183,7 +173,7 @@ object FakeData {
                         outcome(0.2, "You need an extra semester and pay for books and fees.",
                             "Necesitas un semestre extra y pagas libros y tasas.",
                             Effect.ExpenseDelta(ExpenseCategory.TUITION, 150.0, months = 24),
-                            Effect.IncomeDelta("income", -300.0, months = 24),
+                            Effect.IncomeDelta(-300.0, months = 24),
                             Effect.OneOff(1_500.0),
                             Effect.SetFact(FactKey.EDUCATION, "MASTER_IN_PROGRESS"),
                             Effect.SetFact(FactKey.EDUCATION, "MASTER", startOffsetMonths = 24),
@@ -191,14 +181,14 @@ object FakeData {
                         outcome(0.6, "The master goes as planned; you work fewer hours.",
                             "El máster va según lo previsto; trabajas menos horas.",
                             Effect.ExpenseDelta(ExpenseCategory.TUITION, 150.0, months = 24),
-                            Effect.IncomeDelta("income", -300.0, months = 24),
+                            Effect.IncomeDelta(-300.0, months = 24),
                             Effect.SetFact(FactKey.EDUCATION, "MASTER_IN_PROGRESS"),
                             Effect.SetFact(FactKey.EDUCATION, "MASTER", startOffsetMonths = 24),
                             Effect.AddFlag("did_master", startOffsetMonths = 24)),
                         outcome(0.2, "You win a scholarship that covers part of your costs.",
                             "Consigues una beca que cubre parte de tus gastos.",
                             Effect.ExpenseDelta(ExpenseCategory.TUITION, 150.0, months = 24),
-                            Effect.IncomeDelta("scholarship", 500.0, months = 24),
+                            Effect.IncomeDelta(500.0, months = 24),
                             Effect.SetFact(FactKey.EDUCATION, "MASTER_IN_PROGRESS"),
                             Effect.SetFact(FactKey.EDUCATION, "MASTER", startOffsetMonths = 24),
                             Effect.AddFlag("did_master", startOffsetMonths = 24)),
@@ -237,16 +227,16 @@ object FakeData {
                     cases(
                         outcome(0.2, "Only an expensive studio is free; furniture costs more than expected.",
                             "Solo queda un estudio caro; los muebles cuestan más de lo previsto.",
-                            Effect.ExpenseDelta(ExpenseCategory.RENT, 650.0), Effect.OneOff(3_000.0),
-                            Effect.SetFact(FactKey.HOUSING, "RENTED_FLAT")),
+                            Effect.SetHousehold(Household.SINGLE), Effect.MarketRent(0.75), Effect.OneOff(3_000.0),
+                            Effect.SetFact(FactKey.HOUSING, "RENTED_FLAT"), Effect.AddFlag("rented_own_flat")),
                         outcome(0.6, "You rent a small studio near the lake.",
                             "Alquilas un pequeño estudio cerca del lago.",
-                            Effect.ExpenseDelta(ExpenseCategory.RENT, 500.0), Effect.OneOff(2_000.0),
-                            Effect.SetFact(FactKey.HOUSING, "RENTED_FLAT")),
+                            Effect.SetHousehold(Household.SINGLE), Effect.MarketRent(0.5), Effect.OneOff(2_000.0),
+                            Effect.SetFact(FactKey.HOUSING, "RENTED_FLAT"), Effect.AddFlag("rented_own_flat")),
                         outcome(0.2, "A friend sublets you a cheap studio, already furnished.",
                             "Un amigo te subalquila un estudio barato y amueblado.",
-                            Effect.ExpenseDelta(ExpenseCategory.RENT, 300.0), Effect.OneOff(500.0),
-                            Effect.SetFact(FactKey.HOUSING, "RENTED_FLAT")),
+                            Effect.SetHousehold(Household.SINGLE), Effect.MarketRent(0.25), Effect.OneOff(500.0),
+                            Effect.SetFact(FactKey.HOUSING, "RENTED_FLAT"), Effect.AddFlag("rented_own_flat")),
                     ),
                 ),
                 EventOption(
@@ -265,41 +255,39 @@ object FakeData {
             ),
         ),
         Event(
-            id = "E-invest",
-            category = "Savings & investing",
-            title = t("Your savings", "Tus ahorros"),
+            id = "E-hours",
+            category = "Career & employment",
+            title = t("Fewer hours?", "¿Menos horas?"),
             description = t(
-                "Your savings sit in a low-interest account. Do you invest them in a stock portfolio?",
-                "Tus ahorros están en una cuenta con poco interés. ¿Los inviertes en una cartera de acciones?",
+                "Your employer offers to cut your hours to 80 % of your salary. Do you take it?",
+                "Tu empresa te ofrece reducir tu jornada al 80 % del sueldo. ¿La aceptas?",
             ),
             earliestTurn = 2,
+            requires = Requirements(employment = listOf(Employment.EMPLOYED, Employment.PART_TIME)),
             sources = listOf(FAKE_SOURCE),
             options = listOf(
                 EventOption(
-                    "A", t("Invest in stocks (ETF)", "Invertir en acciones (ETF)"),
+                    "A", t("Work 80 %", "Trabajar al 80 %"),
                     cases(
-                        outcome(0.2, "Markets fall: your portfolio loses value for years.",
-                            "Los mercados caen: tu cartera pierde valor durante años.",
-                            Effect.AssetReturnDelta(AssetType.INVESTMENT_PORTFOLIO, -0.03)),
-                        outcome(0.6, "Markets grow at an average pace.",
-                            "Los mercados crecen a un ritmo medio.",
-                            Effect.AssetReturnDelta(AssetType.INVESTMENT_PORTFOLIO, 0.03)),
-                        outcome(0.2, "A bull market boosts your portfolio.",
-                            "Un mercado alcista impulsa tu cartera.",
-                            Effect.AssetReturnDelta(AssetType.INVESTMENT_PORTFOLIO, 0.06)),
+                        outcome(0.2, "Your workload stays the same, for less pay.",
+                            "La carga de trabajo es la misma, por menos sueldo.",
+                            Effect.IncomeFactor(0.8), Effect.AddFlag("four_day_week")),
+                        outcome(0.6, "You earn less but have a free day every week.",
+                            "Ganas menos pero tienes un día libre cada semana.",
+                            Effect.IncomeFactor(0.8), Effect.AddFlag("four_day_week")),
+                        outcome(0.2, "You use the free day for a paid side project.",
+                            "Usas el día libre para un proyecto remunerado.",
+                            Effect.IncomeFactor(0.8), Effect.IncomeDelta(500.0), Effect.AddFlag("four_day_week")),
                     ),
                 ),
                 EventOption(
-                    "B", t("Keep it in a savings account", "Dejarlo en una cuenta de ahorro"),
+                    "B", t("Keep my hours", "Mantener mi jornada"),
                     cases(
-                        outcome(0.2, "Interest rates drop to almost zero.",
-                            "Los tipos de interés bajan casi a cero.",
-                            Effect.AssetReturnDelta(AssetType.INVESTMENT_PORTFOLIO, -0.005)),
-                        outcome(0.6, "Your savings earn a small, stable interest.",
-                            "Tus ahorros dan un interés pequeño y estable."),
-                        outcome(0.2, "Rates go up slightly.",
-                            "Los tipos suben ligeramente.",
-                            Effect.AssetReturnDelta(AssetType.INVESTMENT_PORTFOLIO, 0.005)),
+                        outcome(0.2, "Nothing changes.", "Nada cambia."),
+                        outcome(0.6, "You get a small raise.", "Consigues un pequeño aumento.",
+                            Effect.IncomeDelta(200.0)),
+                        outcome(0.2, "You are promoted.", "Te ascienden.",
+                            Effect.IncomeDelta(600.0), Effect.SetFact(FactKey.OCCUPATION, "SENIOR"), Effect.AddFlag("promoted")),
                     ),
                 ),
             ),
@@ -326,7 +314,7 @@ object FakeData {
                             *carLoan(), Effect.ExpenseDelta(ExpenseCategory.OTHER, 250.0)),
                         outcome(0.2, "The car lets you take a better-paid job outside the city.",
                             "El coche te permite un trabajo mejor pagado fuera de la ciudad.",
-                            *carLoan(), Effect.ExpenseDelta(ExpenseCategory.OTHER, 250.0), Effect.IncomeDelta("income", 400.0)),
+                            *carLoan(), Effect.ExpenseDelta(ExpenseCategory.OTHER, 250.0), Effect.IncomeDelta(400.0)),
                     ),
                 ),
                 EventOption(
@@ -396,12 +384,12 @@ object FakeData {
                     cases(
                         outcome(0.2, "The trip costs more and finding work again takes time.",
                             "El viaje cuesta más y volver a encontrar trabajo lleva tiempo.",
-                            Effect.OneOff(12_000.0), Effect.IncomeDelta("income", -2_000.0, months = 8)),
+                            Effect.OneOff(12_000.0), Effect.IncomeDelta(-2_000.0, months = 8)),
                         outcome(0.6, "Six months travelling; you come back with stories and less money.",
                             "Seis meses de viaje; vuelves con historias y menos dinero.",
-                            Effect.OneOff(9_000.0), Effect.IncomeDelta("income", -1_500.0, months = 6)),
+                            Effect.OneOff(9_000.0), Effect.IncomeDelta(-1_500.0, months = 6)),
                         outcome(0.2, "You work remotely part of the trip.", "Trabajas en remoto parte del viaje.",
-                            Effect.OneOff(7_000.0), Effect.IncomeDelta("income", -500.0, months = 6)),
+                            Effect.OneOff(7_000.0), Effect.IncomeDelta(-500.0, months = 6)),
                     ),
                 ),
                 EventOption(
@@ -409,9 +397,9 @@ object FakeData {
                     cases(
                         outcome(0.2, "No bonus this time, but your job is stable.", "Esta vez no hay bonus, pero tu trabajo es estable."),
                         outcome(0.6, "You keep working and get a small raise.", "Sigues trabajando y consigues un pequeño aumento.",
-                            Effect.IncomeDelta("income", 300.0)),
+                            Effect.IncomeDelta(300.0)),
                         outcome(0.2, "You are promoted.", "Te ascienden.",
-                            Effect.IncomeDelta("income", 700.0), Effect.SetFact(FactKey.OCCUPATION, "SENIOR")),
+                            Effect.IncomeDelta(700.0), Effect.SetFact(FactKey.OCCUPATION, "SENIOR"), Effect.AddFlag("promoted")),
                     ),
                 ),
             ),
@@ -420,17 +408,17 @@ object FakeData {
 
     private fun startWorking(salary: Double): Array<Effect> = arrayOf(
         Effect.SetEmployment(Employment.EMPLOYED),
-        Effect.SetIncome("income", salary),
-        Effect.IncomeDelta("family", -500.0),
-        Effect.ExpenseDelta(ExpenseCategory.TUITION, -120.0),
+        Effect.SetIncome(salary),
+                Effect.ExpenseDelta(ExpenseCategory.TUITION, -120.0),
         Effect.SetFact(FactKey.EDUCATION, "BACHELOR"),
         Effect.SetFact(FactKey.OCCUPATION, "JUNIOR"),
         Effect.AddFlag("started_working_early"),
     )
 
     private fun carLoan(): Array<Effect> = arrayOf(
-        // The loan pays the seller: debt without cash (the car itself is not modelled as an asset).
-        Effect.AddLiability(LiabilityType.PERSONAL_LOAN, 15_000.0, 0.06, termMonths = 60, disburseToCash = false),
+        // The loan is paid out to cash and the car is bought with it (a one-off): the car is not an asset.
+        Effect.AddLiability(15_000.0, 0.06, termMonths = 60),
+        Effect.OneOff(15_000.0),
         Effect.AddFlag("took_loan"),
     )
 
@@ -445,12 +433,24 @@ object FakeData {
             "a2" to mapOf(ProfileField.AGE to "27"),
             "a3" to mapOf(ProfileField.AGE to "38"),
             "a4" to mapOf(ProfileField.AGE to "55")),
-        // A student is NOT_WORKING (or PART_TIME) with EDUCATION in progress (docs 5.1).
+        q("city",
+            "lausanne" to mapOf(ProfileField.CITY to "Lausanne"),
+            "geneva" to mapOf(ProfileField.CITY to "Geneva"),
+            "zurich" to mapOf(ProfileField.CITY to "Zurich"),
+            "bern" to mapOf(ProfileField.CITY to "Bern")),
+        // Work and studies are independent: a working student is PART_TIME + MASTER_IN_PROGRESS (docs 5.1, #15).
         q("employment",
-            "student" to mapOf(ProfileField.EMPLOYMENT to "NOT_WORKING"),
+            "not_working" to mapOf(ProfileField.EMPLOYMENT to "NOT_WORKING"),
             "employed" to mapOf(ProfileField.EMPLOYMENT to "EMPLOYED"),
             "part_time" to mapOf(ProfileField.EMPLOYMENT to "PART_TIME"),
             "self_employed" to mapOf(ProfileField.EMPLOYMENT to "SELF_EMPLOYED")),
+        // Codes of content/facts.json (FactKey.EDUCATION).
+        q("education",
+            "bachelor_in_progress" to mapOf(ProfileField.EDUCATION to "BACHELOR_IN_PROGRESS"),
+            "master_in_progress" to mapOf(ProfileField.EDUCATION to "MASTER_IN_PROGRESS"),
+            "bachelor" to mapOf(ProfileField.EDUCATION to "BACHELOR"),
+            "master" to mapOf(ProfileField.EDUCATION to "MASTER"),
+            "none" to mapOf(ProfileField.EDUCATION to "UNKNOWN")),
         q("household",
             "single" to mapOf(ProfileField.HOUSEHOLD to "SINGLE"),
             "couple" to mapOf(ProfileField.HOUSEHOLD to "COUPLE"),

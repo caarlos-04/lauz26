@@ -1,5 +1,6 @@
 package com.lauzhack.twin.ai
 
+import com.lauzhack.twin.engine.CashBand
 import com.lauzhack.twin.model.Assumptions
 import com.lauzhack.twin.model.ChatMessage
 import com.lauzhack.twin.model.FactCatalog
@@ -25,6 +26,8 @@ data class ChatContext(
     val language: Lang,
     /** Front addition (defaulted): turn indices the user changed in the what-if tree; empty = the played game. */
     val whatIfTurns: Set<Int> = emptySet(),
+    /** Front addition (defaulted): noise band of the engine (#12), null if it provides none. */
+    val noiseBand: CashBand? = null,
 )
 
 /** Implemented by chats that can fall back to offline answers, so the UI can say so. */

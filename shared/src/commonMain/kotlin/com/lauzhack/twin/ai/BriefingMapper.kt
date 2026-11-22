@@ -7,12 +7,18 @@ import com.lauzhack.twin.model.FactCatalog
 import com.lauzhack.twin.model.FactKey
 import com.lauzhack.twin.model.FinancialStatement
 import com.lauzhack.twin.model.GameResult
-import com.lauzhack.twin.model.GoalState
 import com.lauzhack.twin.model.Lang
 import com.lauzhack.twin.model.LocalizedText
 import com.lauzhack.twin.model.ParallelKind
 import com.lauzhack.twin.model.StoryBeat
 import com.lauzhack.twin.model.Turn
+import com.lauzhack.twin.model.city
+import com.lauzhack.twin.ui.cash
+import com.lauzhack.twin.ui.debt
+import com.lauzhack.twin.ui.monthlyNet
+import com.lauzhack.twin.ui.netWorth
+import com.lauzhack.twin.ui.progress
+import com.lauzhack.twin.ui.targetMonth
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -30,20 +36,20 @@ class BriefingMapper(
     suspend fun map(ctx: ChatContext): LifeBriefing {
         val r = ctx.result
         val session = r.session
-        val profile = session.profile
+        val person = session.initial.person
         val lang = ctx.language
         val end = session.turns.lastOrNull()?.stateAfter ?: session.initial
-        val goalNames = profile.goals.associate { it.id to text(it.name) }
+        val goalNames = (session.initial.goals + end.goals).associate { it.name to text(it.name) }
 
         return LifeBriefing(
             language = if (lang == Lang.ES) ChatLanguage.ES else ChatLanguage.EN,
             profile = ProfileLine(
-                name = profile.displayName,
-                ageAtStart = profile.ageAtStart,
-                startYear = profile.startMonth.take(4).toIntOrNull() ?: 2025,
+                name = person.displayName,
+                ageAtStart = person.age,
+                startYear = session.initial.period.take(4).toIntOrNull() ?: 2025,
                 horizonYears = session.config.horizonMonths / 12,
-                city = profile.city,
-                household = profile.household.readable(),
+                city = person.city.orEmpty(),
+                household = person.household.readable(),
                 objective = session.preferences.objective.readable(),
                 minCashChf = session.preferences.minCashChf,
             ),
@@ -54,12 +60,12 @@ class BriefingMapper(
             turns = turns(session.turns, session.initial, lang, ctx.whatIfTurns),
             moments = r.beats.mapNotNull { moment(it, ctx.facts, lang, goalNames) },
             goals = end.goals.map { g ->
-                GoalLine(goalNames[g.id] ?: text(g.name), g.targetChf, g.targetMonth, g.status == GoalState.REACHED, (g.progressRatio * 100).roundToInt())
+                GoalLine(goalNames[g.name] ?: text(g.name), g.targetChf, g.targetMonth(session.initial), g.name in r.stats.goalsReached, (g.progress(end) * 100).roundToInt())
             },
             risk = RiskLine(r.stats.minCash, r.stats.monthOfMinCash, r.stats.monthsNegativeCash, r.stats.monthsBelowMinCash, r.stats.financingCostChf),
-            outlook = r.cashBand.takeIf { it.p50.isNotEmpty() }?.let { OutlookLine(it.p10.last(), it.p50.last(), it.p90.last()) },
+            outlook = ctx.noiseBand?.takeIf { it.p50.isNotEmpty() }?.let { OutlookLine(it.p10.last(), it.p50.last(), it.p90.last()) },
             drivers = r.attribution.items.sortedByDescending { abs(it.chf) }.take(6).map { item ->
-                DriverLine(driverLabel(item.key, item.sourceEventId, lang), item.chf)
+                DriverLine(driverLabel(item.key), item.chf)
             },
             parallelLives = r.parallelLives.map { life ->
                 ParallelLine(
@@ -94,9 +100,9 @@ class BriefingMapper(
                 notChosen = other?.label?.of(lang),
                 luck = turn.resolvedCase?.toLuck(),
                 outcome = turn.resolvedCase?.let { chosen?.cases?.get(it)?.narrative?.of(lang) },
-                netWorthBeforeChf = before.balanceSheet.netWorthChf,
-                netWorthAfterChf = turn.stateAfter.balanceSheet.netWorthChf,
-                cashAfterChf = turn.stateAfter.balanceSheet.cashChf,
+                netWorthBeforeChf = before.netWorth,
+                netWorthAfterChf = turn.stateAfter.netWorth,
+                cashAfterChf = turn.stateAfter.cash,
                 editedInWhatIf = i in edited,
             )
         }
@@ -136,26 +142,22 @@ class BriefingMapper(
         s.person.facts.mapNotNull { (key, code) -> facts.facts[key]?.get(code)?.of(lang) } +
             s.person.flags.map { facts.flags[it]?.of(lang) ?: it }
 
-    private fun driverLabel(key: String, sourceEventId: String?, lang: Lang): String {
-        val base = when {
-            key.startsWith("income:") -> "Income (${key.removePrefix("income:")})"
-            key.startsWith("expense:") -> "Spending (${key.removePrefix("expense:").lowercase()})"
-            key.startsWith("event:") -> "One-off costs and loans"
-            key == "debt_interest" -> "Loan interest"
-            key == "financing_cost" -> "Cost of negative cash"
-            key == "investment_return" -> "Investment returns"
-            else -> "Other"
-        }
-        val event = sourceEventId?.let(eventById)?.title?.of(lang)
-        return if (event != null) "$base, from \"$event\"" else base
+    /** Attribution keys of docs/README.md 5.3 ("income:salary", "expense:rent", "loan_interest"...). */
+    private fun driverLabel(key: String): String = when {
+        key.startsWith("income:") -> "Income (${key.removePrefix("income:")})"
+        key.startsWith("expense:") -> "Spending (${key.removePrefix("expense:").lowercase().replace('_', ' ')})"
+        key == "loan_interest" -> "Loan interest"
+        key == "financing_cost" -> "Cost of negative cash"
+        key == "investment_growth" -> "Investment growth"
+        else -> "Other"
     }
 
     private fun FinancialStatement.snapshot() = MoneySnapshot(
         month = month,
-        cashChf = balanceSheet.cashChf,
-        netWorthChf = balanceSheet.netWorthChf,
-        monthlyNetChf = metrics.monthlyNetCashFlowChf,
-        debtChf = balanceSheet.totalLiabilitiesChf,
+        cashChf = cash,
+        netWorthChf = netWorth,
+        monthlyNetChf = monthlyNet,
+        debtChf = debt,
         employment = person.employment.readable(),
     )
 

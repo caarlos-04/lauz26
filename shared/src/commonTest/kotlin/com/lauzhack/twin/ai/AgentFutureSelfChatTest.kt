@@ -29,7 +29,7 @@ class AgentFutureSelfChatTest {
     /** Plays Alexia always with option A and the engine's luck, then finishes the game. */
     private fun context(whatIfTurns: Set<Int> = emptySet()): ChatContext {
         val game = FakeTwinFactory().demo()
-        var s = GameSession(game.profile, game.opening, 11L, game.preferences, emptyList(), GameConfig())
+        var s = GameSession(game.opening, 11L, game.preferences, emptyList(), GameConfig())
         while (!s.isOver) {
             val event = engine.nextEvent(s)
             s = if (event == null) s.copy(turns = s.turns + engine.playTurn(s, null, null, null, 0.5)) else {
@@ -49,8 +49,8 @@ class AgentFutureSelfChatTest {
         assertEquals("Después del grado", b.turns.first().question)     // LocalizedText in the chat language
         assertEquals(ctx.result.stats.finalNetWorth, b.end.netWorthChf, 1e-6)
         assertEquals(2, b.parallelLives.size)
-        assertEquals(ctx.result.session.profile.goals.size, b.goals.size)
-        assertEquals("<goal_emergency>", b.goals.first().name)
+        assertEquals(ctx.result.session.initial.goals.size, b.goals.size)
+        assertEquals("<Emergency savings>", b.goals.first().name)
         assertTrue(b.lifeAtEnd.any { it == "Máster" })                   // fact label from the catalogue
         assertTrue(b.moments.isNotEmpty())
         assertEquals(ChatLanguage.ES, b.language)

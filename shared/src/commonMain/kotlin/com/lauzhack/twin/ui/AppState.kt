@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import com.lauzhack.twin.ai.ChatContext
 import com.lauzhack.twin.ai.FutureSelfChat
 import com.lauzhack.twin.ai.ReportsOffline
+import com.lauzhack.twin.engine.CashBand
 import com.lauzhack.twin.engine.GameEngine
 import com.lauzhack.twin.engine.NewGame
 import com.lauzhack.twin.engine.TwinFactory
@@ -43,7 +44,7 @@ class AppState(
     private val twins: TwinFactory,
     private val chat: FutureSelfChat,
     val assumptions: Assumptions,
-    private val facts: FactCatalog,
+    val facts: FactCatalog,
     private val catalog: List<Event>,
     val interview: List<InterviewQuestion>,
     initialLang: Lang = Lang.EN,
@@ -56,6 +57,9 @@ class AppState(
     var currentEvent by mutableStateOf<Event?>(null); private set
     var lastTurn by mutableStateOf<Turn?>(null); private set
     var results by mutableStateOf<GameResult?>(null); private set
+
+    /** Optional noise band of the current path (#12): month-to-month noise only, not the analysis. */
+    var noiseBand by mutableStateOf<CashBand?>(null); private set
 
     /** Path actually played, captured when the game ends; used to reset the what-if edits. */
     var playedSession by mutableStateOf<GameSession?>(null); private set
@@ -100,9 +104,10 @@ class AppState(
     fun startDemo() = startGame(twins.demo(), DEMO_SEED)
 
     private fun startGame(game: NewGame, seed: Long) {
-        session = GameSession(game.profile, game.opening, seed, game.preferences, emptyList(), config)
+        session = GameSession(game.opening, seed, game.preferences, emptyList(), config)
         lastTurn = null
         results = null
+        noiseBand = null
         playedSession = null
         pendingEvent = null
         memory = emptyMap()
@@ -146,6 +151,7 @@ class AppState(
         playedSession = s
         memory = memory.record(s)
         results = engine.finish(s)
+        noiseBand = engine.noiseBand(s)
         return Screen.RESULTS
     }
 
@@ -189,6 +195,7 @@ class AppState(
         memory = memory.record(s)
         lastTurn = s.turns.lastOrNull()
         results = engine.finish(s)
+        noiseBand = engine.noiseBand(s)
         // New path => new conversation and story (the old answers referred to other numbers).
         resetChat()
     }
@@ -204,6 +211,7 @@ class AppState(
         currentEvent = null
         lastTurn = null
         results = null
+        noiseBand = null
         answers.clear()
         resetChat()
         screen = Screen.WELCOME
@@ -215,7 +223,7 @@ class AppState(
 
     private fun chatContext(): ChatContext? {
         val r = results ?: return null
-        return ChatContext(r, facts, assumptions, lang, whatIfTurns(r.session))
+        return ChatContext(r, facts, assumptions, lang, whatIfTurns(r.session), noiseBand)
     }
 
     private val lastAnswerOffline: Boolean get() = (chat as? ReportsOffline)?.lastAnswerOffline == true

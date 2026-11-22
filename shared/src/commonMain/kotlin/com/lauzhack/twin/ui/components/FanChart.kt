@@ -46,7 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.lauzhack.twin.model.Band
+import com.lauzhack.twin.engine.CashBand
 import com.lauzhack.twin.resources.Res
 import com.lauzhack.twin.resources.chart_assumptions
 import com.lauzhack.twin.resources.chart_calibrated
@@ -61,14 +61,14 @@ import com.lauzhack.twin.ui.theme.LocalTwinColors
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Monte Carlo fan chart drawn with Canvas (no chart library):
+ * Noise fan chart (#12) drawn with Canvas (no chart library):
  * p10-p90 gradient band + median of the chosen path, optional dashed median of the alternative path,
  * a shaded zone for the months that rely only on assumptions (after [calibratedMonths]),
  * x axis in years, and a crosshair + tooltip on hover (desktop) / touch (Android).
  */
 @Composable
 fun FanChart(
-    band: Band,
+    band: CashBand,
     alternativeMedian: List<Double>?,
     calibratedMonths: Int = 24,
     modifier: Modifier = Modifier,

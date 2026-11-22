@@ -7,6 +7,7 @@ import com.lauzhack.twin.model.GameSession
 import com.lauzhack.twin.model.InterviewAnswer
 import com.lauzhack.twin.model.Lang
 import com.lauzhack.twin.model.ParallelKind
+import com.lauzhack.twin.model.netWorthChf
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -21,7 +22,7 @@ class FakeGameEngineTest {
 
     private fun newSession(seed: Long = 42L): GameSession {
         val game = twins.demo()
-        return GameSession(game.profile, game.opening, seed, game.preferences, emptyList(), GameConfig())
+        return GameSession(game.opening, seed, game.preferences, emptyList(), GameConfig())
     }
 
     private fun playAll(start: GameSession): GameSession {
@@ -65,7 +66,7 @@ class FakeGameEngineTest {
     @Test
     fun alexiaPlaysTheExpectedStory() {
         val s = playAll(newSession(11L))
-        assertEquals(listOf("E-studies", "E-housing", "E-invest", "E-car", "E-car-loan"), s.turns.map { it.eventId })
+        assertEquals(listOf("E-studies", "E-housing", "E-hours", "E-car", "E-car-loan"), s.turns.map { it.eventId })
         val end = s.turns.last().stateAfter.person
         assertEquals("MASTER", end.facts[com.lauzhack.twin.model.FactKey.EDUCATION])
         assertTrue("did_master" in end.flags && "took_loan" in end.flags)
@@ -75,7 +76,7 @@ class FakeGameEngineTest {
     fun profileWithoutFittingEventsGetsAQuietTurn() {
         val employedSingle = listOf(InterviewAnswer("employment", "employed"), InterviewAnswer("household", "single"))
         val game = twins.fromInterview(FakeData.interview, employedSingle)
-        val s = GameSession(game.profile, game.opening, 1L, game.preferences, emptyList(), GameConfig())
+        val s = GameSession(game.opening, 1L, game.preferences, emptyList(), GameConfig())
         assertNull(engine.nextEvent(s))
         val turn = engine.playTurn(s, null, null, null, 0.5)
         assertNull(turn.eventId)
@@ -95,12 +96,12 @@ class FakeGameEngineTest {
     fun finishBuildsConsistentResults() {
         val s = playAll(newSession(3L))
         val r = engine.finish(s)
-        val band = r.cashBand
+        val band = engine.noiseBand(s)
         assertEquals(121, band.p50.size)
         for (m in 0..120) assertTrue(band.p10[m] <= band.p50[m] && band.p50[m] <= band.p90[m])
         // Attribution closes: start + items = end.
         assertEquals(r.attribution.endNetWorth, r.attribution.startNetWorth + r.attribution.items.sumOf { it.chf }, 1.0)
-        assertEquals(r.stats.finalNetWorth, s.turns.last().stateAfter.balanceSheet.netWorthChf, 1e-6)
+        assertEquals(r.stats.finalNetWorth, s.turns.last().stateAfter.netWorthChf(), 1e-6)
         assertEquals(setOf(ParallelKind.OTHER_FIRST_CHOICE, ParallelKind.OPTIMAL_STRATEGY), r.parallelLives.map { it.kind }.toSet())
         val other = r.parallelLives.first { it.kind == ParallelKind.OTHER_FIRST_CHOICE }
         assertTrue(other.turns.first().chosenOptionId != s.turns.first().chosenOptionId)
@@ -111,6 +112,27 @@ class FakeGameEngineTest {
         val ledger = FakeLedger(FakeData.assumptions)
         val s = twins.demo().opening
         val next = ledger.step(s)
-        assertTrue(abs(s.cash + s.metrics.monthlyNetCashFlowChf - next.cash) < 0.01)
+        val flow = assertNotNull(next.cashFlow)
+        assertTrue(abs(s.cashChf + flow.netChf - next.cashChf) < 0.01)
+        // net = income - expenses - loan payment - financing cost (docs/financial-statement.md)
+        assertEquals(flow.incomeChf.values.sum() - flow.expensesChf.values.sum() - flow.loanPaymentChf - flow.financingCostChf, flow.netChf, 1e-9)
+    }
+
+    @Test
+    fun interviewBuildsTheOpeningStatement() {
+        val answers = listOf(
+            InterviewAnswer("city", "geneva"),
+            InterviewAnswer("employment", "part_time"),
+            InterviewAnswer("education", "master_in_progress"),
+            InterviewAnswer("cash", "c3"),
+        )
+        val opening = twins.fromInterview(FakeData.interview, answers).opening
+        assertEquals(0, opening.month)
+        assertEquals(25_000.0, opening.cashChf)
+        // Studying is independent from working (#15): a working student.
+        assertEquals(com.lauzhack.twin.model.Employment.PART_TIME, opening.person.employment)
+        assertEquals("MASTER_IN_PROGRESS", opening.person.facts[com.lauzhack.twin.model.FactKey.EDUCATION])
+        assertEquals("Geneva", opening.person.facts[com.lauzhack.twin.model.FactKey.CITY])
+        assertTrue(opening.goals.isNotEmpty())
     }
 }

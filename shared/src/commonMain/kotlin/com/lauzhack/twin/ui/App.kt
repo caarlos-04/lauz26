@@ -91,11 +91,11 @@ fun App(state: AppState = remember { createDefaultAppState() }) {
 private fun panelData(state: AppState): PanelData? {
     val s = state.session ?: return null
     return PanelData(
-        name = s.profile.displayName,
+        name = s.initial.person.displayName,
         age = s.current.person.age,
         employment = s.current.employment,
         state = s.current,
-        goals = s.profile.goals,
+        goals = s.current.goals,
         turnsDone = s.turns.size,
         maxTurns = s.config.maxTurns,
         monthsPerTurn = s.config.monthsPerTurn,
@@ -139,7 +139,9 @@ private fun Router(state: AppState, screen: Screen, actions: TopBarActions) {
                     panel = panel,
                     session = session,
                     results = results,
+                    noiseBand = state.noiseBand,
                     assumptions = state.assumptions,
+                    facts = state.facts,
                     eventById = state::eventById,
                     playedTurns = state.playedSession?.turns,
                     isEdited = state.isEdited,

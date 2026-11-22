@@ -15,12 +15,6 @@ enum class Household { SINGLE, COUPLE, FAMILY, SHARED_HOUSING }
 enum class CaseType { PESSIMISTIC, NEUTRAL, OPTIMISTIC }
 
 @Serializable
-enum class AssetType { CASH, INVESTMENT_PORTFOLIO }
-
-@Serializable
-enum class LiabilityType { PERSONAL_LOAN }
-
-@Serializable
 enum class ExpenseCategory { RENT, LIVING, TUITION, INSURANCE, TRAVEL, OTHER }
 
 @Serializable
@@ -29,28 +23,9 @@ enum class FactKey { EDUCATION, OCCUPATION, CITY, HOUSING, FAMILY }
 @Serializable
 enum class Priority { HIGH, MEDIUM }
 
-// Where an amount comes from.
+// Where a trend comes from (macro.json): public data or our assumption.
 @Serializable
-enum class Origin { OBSERVED, DERIVED, ASSUMED, SIMULATED }
-
-// Which index updates a stream when inflation is modelled.
-@Serializable
-enum class Indexation { WAGES, CPI, NONE }
-
-@Serializable
-enum class AccountType { CASH }
-
-@Serializable
-enum class AccountStatus { OK, NEGATIVE_REQUIRES_FINANCING }
-
-@Serializable
-enum class ProgressBasis { CASH, NET_WORTH }
-
-@Serializable
-enum class GoalState { IN_PROGRESS, REACHED, MISSED }
-
-@Serializable
-enum class LiquidityStatus { NEGATIVE, LOW, OK }
+enum class Origin { OBSERVED, ASSUMED }
 
 @Serializable
 enum class Objective { GROWTH, BALANCED, SAFE }
@@ -74,8 +49,9 @@ enum class ChatRole { USER, TWIN }
 enum class Persona { FUTURE_SELF, PARALLEL_SELF }
 
 @Serializable
+// EDUCATION takes a FactKey.EDUCATION code (e.g. "BACHELOR_IN_PROGRESS" = studying), independent from EMPLOYMENT.
 enum class ProfileField {
-    AGE, CITY, EMPLOYMENT, HOUSEHOLD, OPENING_CASH, MONTHLY_INCOME, MONTHLY_RENT, GOAL_TYPE, OBJECTIVE, MIN_CASH
+    AGE, CITY, EMPLOYMENT, EDUCATION, HOUSEHOLD, OPENING_CASH, MONTHLY_INCOME, MONTHLY_RENT, GOAL_TYPE, OBJECTIVE, MIN_CASH
 }
 
 // Content texts are written inline in both languages: {"ES": "...", "EN": "..."}.

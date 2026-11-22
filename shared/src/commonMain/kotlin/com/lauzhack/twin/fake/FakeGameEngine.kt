@@ -1,11 +1,11 @@
 package com.lauzhack.twin.fake
 
+import com.lauzhack.twin.engine.CashBand
 import com.lauzhack.twin.engine.GameEngine
 import com.lauzhack.twin.engine.isOver
 import com.lauzhack.twin.model.Assumptions
 import com.lauzhack.twin.model.Attribution
 import com.lauzhack.twin.model.AttributionItem
-import com.lauzhack.twin.model.Band
 import com.lauzhack.twin.model.BeatKind
 import com.lauzhack.twin.model.CasePreview
 import com.lauzhack.twin.model.CaseType
@@ -15,14 +15,19 @@ import com.lauzhack.twin.model.EventOption
 import com.lauzhack.twin.model.FinancialStatement
 import com.lauzhack.twin.model.GameResult
 import com.lauzhack.twin.model.GameSession
-import com.lauzhack.twin.model.GoalState
-import com.lauzhack.twin.model.LifeChange
+import com.lauzhack.twin.model.Goal
 import com.lauzhack.twin.model.OptionPreview
+import com.lauzhack.twin.model.PendingChange
 import com.lauzhack.twin.model.ParallelKind
 import com.lauzhack.twin.model.ParallelLife
 import com.lauzhack.twin.model.Stats
 import com.lauzhack.twin.model.StoryBeat
 import com.lauzhack.twin.model.Turn
+import com.lauzhack.twin.ui.basisChf
+import com.lauzhack.twin.ui.cash
+import com.lauzhack.twin.ui.current
+import com.lauzhack.twin.ui.netWorth
+import com.lauzhack.twin.ui.targetMonth
 import kotlin.math.abs
 import kotlin.math.min
 import kotlin.random.Random
@@ -30,8 +35,8 @@ import kotlin.random.Random
 /**
  * Simplified stand-in for Dev A's engine so the UI runs end to end on main's model.
  * Follows docs sections 6-7 loosely: event selection by requirements/priority, luck from (seed, turn),
- * 24-month turns, life changes, moments, counterfactual, parallel lives (greedy, not expectimax) and a naive
- * Monte Carlo cash band. NOT calibrated. Replace by passing another [GameEngine] to AppState.
+ * 24-month turns, pending changes, moments, counterfactual, parallel lives (greedy, not expectimax) and a naive
+ * noise band (#12). NOT calibrated. Replace by passing another [GameEngine] to AppState.
  */
 class FakeGameEngine(
     private val catalog: List<Event>,
@@ -83,7 +88,7 @@ class FakeGameEngine(
                         stateAfter = after,
                         deltaNetWorth = after.netWorth - before.netWorth,
                         minCash = trajectory.minOf { it.cash },
-                        lifeChanges = lifeChangesOf(outcome.effects, before.month, event.id),
+                        pendingChanges = lifeChangesOf(outcome.effects, before.month, event.id),
                         narrative = outcome.narrative,
                     )
                 },
@@ -106,7 +111,7 @@ class FakeGameEngine(
         val index = session.turns.size
         if (event == null || optionId == null || case == null) {
             val trajectory = ledger.advance(before, months)
-            val beats = listOf(StoryBeat(before.month, before.person.age, BeatKind.QUIET_PERIOD)) + monitor(trajectory, null)
+            val beats = listOf(StoryBeat(before.month, before.person.age, BeatKind.QUIET_PERIOD)) + monitor(trajectory, null, session.initial)
             return Turn(index, null, null, luck, null, trajectory.last(), emptyMap(), beats)
         }
         val chosen = event.options.first { it.id == optionId }
@@ -119,7 +124,7 @@ class FakeGameEngine(
         val beats = listOf(
             StoryBeat(before.month, age, BeatKind.DECISION, event.id, mapOf("option" to optionId)),
             StoryBeat(before.month, age, BeatKind.CASE_RESOLVED, event.id, mapOf("case" to case.name, "option" to optionId)),
-        ) + monitor(trajectory, event.id)
+        ) + monitor(trajectory, event.id, session.initial)
         return Turn(index, event.id, optionId, luck, case, trajectory.last(), counterfactual, beats)
     }
 
@@ -135,28 +140,25 @@ class FakeGameEngine(
             session.turns.forEach { addAll(it.beats) }
             val low = path.months.minBy { it.cash }
             if (low.cash < start.cash) add(StoryBeat(low.month, low.person.age, BeatKind.LOW_POINT, data = mapOf("cash" to low.cash.toLong().toString())))
-            end.goals.filter { it.status == GoalState.MISSED }.forEach {
-                add(StoryBeat(min(it.targetMonth, end.month), end.person.age, BeatKind.GOAL_MISSED, data = mapOf("goal" to it.id)))
+            end.goals.filter { !reached(it, path.months, start) }.forEach {
+                add(StoryBeat(min(it.targetMonth(start), end.month), end.person.age, BeatKind.GOAL_MISSED, data = mapOf("goal" to it.name)))
             }
             add(StoryBeat(end.month, end.person.age, BeatKind.END))
         }.sortedBy { it.month }
         return GameResult(
             session = session,
             stats = stats,
-            attribution = path.attribution(start, end),
+            attribution = attribution(path.months),
             beats = beats,
             parallelLives = listOf(
                 parallelLife(session, ParallelKind.OTHER_FIRST_CHOICE),
                 parallelLife(session, ParallelKind.OPTIMAL_STRATEGY),
             ),
             sensitivity = emptyList(), // P10 belongs to the real engine.
-            cashBand = cashBand(session),
         )
     }
 
     // ---------- internals ----------
-
-    private val GameSession.current: FinancialStatement get() = turns.lastOrNull()?.stateAfter ?: initial
 
     private fun monthsLeftInTurn(session: GameSession): Int =
         min(session.config.monthsPerTurn, session.config.horizonMonths - session.current.month).coerceAtLeast(0)
@@ -173,17 +175,13 @@ class FakeGameEngine(
         return CaseType.OPTIMISTIC
     }
 
-    private fun lifeChangesOf(effects: List<Effect>, month: Int, eventId: String): List<LifeChange> = effects.mapNotNull {
-        when (it) {
-            is Effect.SetEmployment -> LifeChange(month + it.startOffsetMonths, eventId, employment = it.employment)
-            is Effect.SetFact -> LifeChange(month + it.startOffsetMonths, eventId, factKey = it.key, factValue = it.value)
-            is Effect.AddFlag -> LifeChange(month + it.startOffsetMonths, eventId, flag = it.flag)
-            else -> null
-        }
-    }
+    /** The life part of a case (work, facts, milestones, household), as the pending changes it will create. */
+    private fun lifeChangesOf(effects: List<Effect>, month: Int, eventId: String): List<PendingChange> = effects
+        .filter { it is Effect.SetEmployment || it is Effect.SetFact || it is Effect.AddFlag || it is Effect.SetHousehold }
+        .flatMap { ledger.changesOf(it, month + 1, eventId) }
 
     /** Moments inside a turn: life changes, cash turning negative / recovering, goals reached. */
-    private fun monitor(trajectory: List<FinancialStatement>, eventId: String?): List<StoryBeat> {
+    private fun monitor(trajectory: List<FinancialStatement>, eventId: String?, opening: FinancialStatement): List<StoryBeat> {
         val out = mutableListOf<StoryBeat>()
         trajectory.zipWithNext { a, b ->
             if (a.cash >= 0 && b.cash < 0) out += StoryBeat(b.month, b.person.age, BeatKind.CASH_NEGATIVE, eventId)
@@ -199,9 +197,8 @@ class FakeGameEngine(
                 }
             }
             b.goals.forEach { g ->
-                val was = a.goals.firstOrNull { it.id == g.id }?.status
-                if (g.status == GoalState.REACHED && was != GoalState.REACHED) {
-                    out += StoryBeat(b.month, b.person.age, BeatKind.GOAL_REACHED, data = mapOf("goal" to g.id))
+                if (b.month <= g.targetMonth(opening) && g.basisChf(a) < g.targetChf && g.basisChf(b) >= g.targetChf) {
+                    out += StoryBeat(b.month, b.person.age, BeatKind.GOAL_REACHED, data = mapOf("goal" to g.name))
                 }
             }
         }
@@ -209,49 +206,53 @@ class FakeGameEngine(
     }
 
     /** Month-by-month replay of a session with its own choices and cases. */
-    private class Path(val months: List<FinancialStatement>, val jumps: List<AttributionItem>) {
-        fun attribution(start: FinancialStatement, end: FinancialStatement): Attribution {
-            val items = mutableMapOf<Pair<String, String?>, Double>()
-            fun add(key: String, chf: Double, source: String?) { items[key to source] = (items[key to source] ?: 0.0) + chf }
-            months.drop(1).forEach { m ->
-                val f = m.cashFlow ?: return@forEach
-                f.income.forEach { add(it.key, it.amountChf, it.sourceEventId) }
-                f.expenses.forEach { add(it.key, -it.amountChf, it.sourceEventId) }
-                f.debtService.forEach { add("debt_interest", -it.interestChf, it.sourceEventId) }
-                if (f.financingCostChf != 0.0) add("financing_cost", -f.financingCostChf, null)
-                if (f.otherChf != 0.0) add("other", f.otherChf, null)
-            }
-            months.zipWithNext { a, b ->
-                val growth = b.investments.sumOf { it.valueChf } - a.investments.sumOf { it.valueChf }
-                if (growth != 0.0 && a.month == b.month - 1) add("investment_return", growth, null)
-            }
-            jumps.forEach { add(it.key, it.chf, it.sourceEventId) }
-            val list = items.map { (k, v) -> AttributionItem(k.first, v, k.second) }
-            val residual = end.netWorth - start.netWorth - list.sumOf { it.chf }
-            val all = if (abs(residual) > 0.5) list + AttributionItem("other", residual, null) else list
-            return Attribution(start.netWorth, all.sortedByDescending { abs(it.chf) }, end.netWorth)
+    private class Path(val months: List<FinancialStatement>)
+
+    /** A goal counts as reached if its basis hits the target on or before its target month. */
+    private fun reached(goal: Goal, months: List<FinancialStatement>, opening: FinancialStatement): Boolean {
+        val deadline = goal.targetMonth(opening)
+        return months.any { it.month <= deadline && goal.basisChf(it) >= goal.targetChf }
+    }
+
+    /**
+     * start + items = end. Per month: income and expenses by category, the loan's interest, the financing cost and
+     * the investments' growth (a loan's payout and the principal part of its payments do not change net worth).
+     */
+    private fun attribution(months: List<FinancialStatement>): Attribution {
+        val items = linkedMapOf<String, Double>()
+        fun add(key: String, chf: Double) { if (chf != 0.0) items[key] = (items[key] ?: 0.0) + chf }
+        months.zipWithNext { a, b ->
+            val f = b.cashFlow ?: return@zipWithNext
+            f.incomeChf.forEach { (k, v) -> add("income:$k", v) }
+            f.expensesChf.forEach { (k, v) -> add("expense:$k", -v) }
+            add("financing_cost", -f.financingCostChf)
+            val paidOut = a.pendingChanges.filter { it.month <= b.month }.sumOf { it.loan?.principalChf ?: 0.0 }
+            val interest = (b.loan?.principalChf ?: 0.0) - ((a.loan?.principalChf ?: 0.0) + paidOut) + f.loanPaymentChf
+            add("loan_interest", -interest)
+            add("investment_growth", b.investmentsChf - a.investmentsChf)
         }
+        val start = months.first().netWorth
+        val end = months.last().netWorth
+        val list = items.map { (k, v) -> AttributionItem(k, v) }
+        val residual = end - start - list.sumOf { it.chf }
+        val all = if (abs(residual) > 0.5) list + AttributionItem("other", residual) else list
+        return Attribution(start, all.sortedByDescending { abs(it.chf) }, end)
     }
 
     private fun replay(session: GameSession): Path {
         val months = mutableListOf(session.initial)
-        val jumps = mutableListOf<AttributionItem>()
         var s = session.copy(turns = emptyList())
         for (turn in session.turns) {
             val before = s.current
             val event = turn.eventId?.let { eventsById[it] }
-            if (event != null && turn.chosenOptionId != null && turn.resolvedCase != null) {
+            val start = if (event != null && turn.chosenOptionId != null && turn.resolvedCase != null) {
                 val effects = event.options.first { it.id == turn.chosenOptionId }.cases.getValue(turn.resolvedCase).effects
-                val applied = ledger.applyEffects(before, effects, event.id)
-                val jump = applied.netWorth - before.netWorth
-                if (jump != 0.0) jumps += AttributionItem("event:${event.id}", jump, event.id)
-                months += ledger.advance(applied, monthsLeftInTurn(s)).drop(1)
-            } else {
-                months += ledger.advance(before, monthsLeftInTurn(s)).drop(1)
-            }
+                ledger.applyEffects(before, effects, event.id)
+            } else before
+            months += ledger.advance(start, monthsLeftInTurn(s)).drop(1)
             s = s.copy(turns = s.turns + turn)
         }
-        return Path(months, jumps)
+        return Path(months)
     }
 
     private fun statsOf(months: List<FinancialStatement>, session: GameSession): Stats {
@@ -265,8 +266,8 @@ class FakeGameEngine(
             monthsNegativeCash = active.count { it.cash < 0 },
             monthsBelowMinCash = active.count { it.cash < session.preferences.minCashChf },
             financingCostChf = active.sumOf { it.cashFlow?.financingCostChf ?: 0.0 },
-            goalsReached = end.goals.filter { it.status == GoalState.REACHED }.map { it.id },
-            goalsMissed = end.goals.filter { it.status != GoalState.REACHED }.map { it.id },
+            goalsReached = end.goals.filter { reached(it, months, session.initial) }.map { it.name },
+            goalsMissed = end.goals.filter { !reached(it, months, session.initial) }.map { it.name },
         )
     }
 
@@ -297,17 +298,22 @@ class FakeGameEngine(
             }
         }
         val path = replay(s)
-        return ParallelLife(kind, s.turns, path.months.last(), statsOf(path.months, s), path.attribution(s.initial, path.months.last()))
+        return ParallelLife(kind, s.turns, path.months.last(), statsOf(path.months, s), attribution(path.months))
     }
 
-    /** Naive Monte Carlo of cash with the played options: random luck per turn, monthly noise, return shock. */
-    private fun cashBand(session: GameSession, nPaths: Int = 200): Band {
+    /**
+     * #12 option 2: cash with the played choices and cases under month-to-month noise (and a small return shock).
+     * Only "how much noise moves your cash"; the analysis is the decision tree and the parallel lives.
+     */
+    override fun noiseBand(session: GameSession): CashBand = noiseBand(session, 200)
+
+    private fun noiseBand(session: GameSession, nPaths: Int): CashBand {
         val horizon = session.config.horizonMonths
         val rng = Random(session.seed + 7919L)
         val paths = List(nPaths) {
             val shock = (rng.nextDouble() - 0.5) * 0.04
             val noise: (FinancialStatement) -> Double = { st ->
-                val sd = 0.10 * st.metrics.monthlyIncomeChf + 60.0
+                val sd = 0.10 * st.monthlyIncomeChf + 60.0
                 (rng.nextDouble() + rng.nextDouble() + rng.nextDouble() - 1.5) * sd
             }
             val cash = mutableListOf(session.initial.cash)
@@ -315,8 +321,9 @@ class FakeGameEngine(
             for (turn in session.turns) {
                 val event = turn.eventId?.let { eventsById[it] }
                 val option = event?.options?.firstOrNull { it.id == turn.chosenOptionId }
-                val applied = if (event != null && option != null)
-                    ledger.applyEffects(state, option.cases.getValue(caseFor(option, rng.nextDouble())).effects, event.id)
+                val case = turn.resolvedCase
+                val applied = if (event != null && option != null && case != null)
+                    ledger.applyEffects(state, option.cases.getValue(case).effects, event.id)
                 else state
                 val months = min(session.config.monthsPerTurn, horizon - state.month)
                 val traj = ledger.advance(applied, months, noise, shock)
@@ -330,12 +337,10 @@ class FakeGameEngine(
             val sorted = paths.map { it[m] }.sorted()
             return sorted[((sorted.size - 1) * q).toInt()]
         }
-        return Band(
+        return CashBand(
             p10 = (0..horizon).map { pct(it, 0.10) },
             p50 = (0..horizon).map { pct(it, 0.50) },
             p90 = (0..horizon).map { pct(it, 0.90) },
         )
     }
 }
-
-internal val FinancialStatement.netWorth: Double get() = balanceSheet.netWorthChf

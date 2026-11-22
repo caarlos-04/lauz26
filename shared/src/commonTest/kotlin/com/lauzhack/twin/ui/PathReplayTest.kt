@@ -19,10 +19,10 @@ class PathReplayTest {
     private val byId = { id: String -> FakeData.events.firstOrNull { it.id == id } }
     private val carTurn = 3 // E-car has earliestTurn = 3
 
-    /** Plays always option A: studies, housing, invest, car with loan, then the car-loan question. */
+    /** Plays always option A: studies, housing, hours, car with loan, then the car-loan question. */
     private fun played(): GameSession {
         val game = FakeTwinFactory().demo()
-        var s = GameSession(game.profile, game.opening, 11L, game.preferences, emptyList(), GameConfig())
+        var s = GameSession(game.opening, 11L, game.preferences, emptyList(), GameConfig())
         while (!s.isOver) {
             val event = engine.nextEvent(s) ?: break
             val option = event.options.first()
@@ -35,7 +35,7 @@ class PathReplayTest {
     @Test
     fun playedPathAsksCarLoanQuestion() {
         val s = played()
-        assertEquals(listOf("E-studies", "E-housing", "E-invest", "E-car", "E-car-loan"), s.turns.map { it.eventId })
+        assertEquals(listOf("E-studies", "E-housing", "E-hours", "E-car", "E-car-loan"), s.turns.map { it.eventId })
     }
 
     @Test

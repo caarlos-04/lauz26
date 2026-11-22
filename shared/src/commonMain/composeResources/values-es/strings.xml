@@ -27,8 +27,19 @@
     <string name="q_age_a2">23–30</string>
     <string name="q_age_a3">31–45</string>
     <string name="q_age_a4">46–64</string>
+    <string name="q_city">¿Dónde vives?</string>
+    <string name="q_city_lausanne">Lausana</string>
+    <string name="q_city_geneva">Ginebra</string>
+    <string name="q_city_zurich">Zúrich</string>
+    <string name="q_city_bern">Berna</string>
+    <string name="q_education">¿Estás estudiando?</string>
+    <string name="q_education_bachelor_in_progress">Sí, un grado</string>
+    <string name="q_education_master_in_progress">Sí, un máster</string>
+    <string name="q_education_bachelor">No, tengo un grado</string>
+    <string name="q_education_master">No, tengo un máster</string>
+    <string name="q_education_none">No, no tengo título</string>
     <string name="q_employment">¿A qué te dedicas?</string>
-    <string name="q_employment_student">Estudiante</string>
+    <string name="q_employment_not_working">No trabajo</string>
     <string name="q_employment_employed">Empleado a tiempo completo</string>
     <string name="q_employment_part_time">Tiempo parcial</string>
     <string name="q_employment_self_employed">Autónomo</string>
@@ -65,7 +76,6 @@
     <string name="goal_retirement">Ahorro para la jubilación</string>
 
     <!-- Employment -->
-    <string name="employment_STUDENT">Estudiante</string>
     <string name="employment_EMPLOYED">Empleado</string>
     <string name="employment_PART_TIME">Tiempo parcial</string>
     <string name="employment_SELF_EMPLOYED">Autónomo</string>
@@ -172,8 +182,8 @@
     <string name="welcome_badge">AI Financial Twin · LauzHack 2026</string>
     <string name="welcome_feature_cases_title">Tres casos por decisión</string>
     <string name="welcome_feature_cases_desc">Cada elección muestra un resultado pesimista, neutro y optimista antes de decidir.</string>
-    <string name="welcome_feature_mc_title">Miles de futuros</string>
-    <string name="welcome_feature_mc_desc">Una simulación Monte Carlo convierte tu camino en un rango de resultados, no en una sola apuesta.</string>
+    <string name="welcome_feature_mc_title">Explora cada rama</string>
+    <string name="welcome_feature_mc_desc">Un árbol de decisiones exacto y vidas paralelas muestran qué cambió cada decisión, con la misma suerte.</string>
     <string name="welcome_feature_chat_title">Habla con tu yo del futuro</string>
     <string name="welcome_feature_chat_desc">Pregunta por tus resultados; las respuestas solo usan las cifras calculadas por la simulación.</string>
     <string name="welcome_preview_label">Ilustración: un rango de futuros posibles</string>
@@ -201,10 +211,9 @@
     <string name="drivers_title">Qué movió tu patrimonio</string>
     <string name="driver_income">Ingresos</string>
     <string name="driver_expense">Gastos</string>
-    <string name="driver_event">Gastos puntuales y préstamos</string>
     <string name="driver_debt">Intereses del préstamo</string>
     <string name="driver_financing">Coste de la caja negativa</string>
-    <string name="driver_investment">Rentabilidad de inversiones</string>
+    <string name="driver_investment">Crecimiento de inversiones</string>
     <string name="driver_other">Otros</string>
     <string name="chronicle_title">Tu historia</string>
     <string name="chronicle_desc">Tu yo del futuro cuenta estos diez años, usando solo las cifras calculadas.</string>
@@ -222,6 +231,25 @@
     <string name="q_mincash_m2">Unos 3.000 CHF</string>
     <string name="q_mincash_m3">Unos 6.000 CHF</string>
     <string name="q_mincash_m4">Unos 12.000 CHF</string>
-    <string name="cash_band_title">Caja: abanico de futuros</string>
-    <string name="cash_band_desc">p10–p90 de futuros simulados con tus decisiones</string>
+    <string name="cash_band_title">Caja: ruido mes a mes</string>
+    <string name="cash_band_desc">Cuánto mueven tu caja los altibajos de cada mes (p10–p90), con tus decisiones y tu suerte fijas. El análisis está en el árbol de decisiones y las vidas paralelas.</string>
+    <string name="lifeline_title">Tu línea de vida</string>
+    <string name="lifeline_subtitle">Los momentos que marcaron tus diez años, calculados por el motor</string>
+    <string name="beat_when">Mes %1$d · %2$d años</string>
+    <string name="beat_start">Inicio de la partida</string>
+    <string name="beat_end">Fin de los diez años</string>
+    <string name="beat_decision">%1$s → %2$s</string>
+    <string name="beat_cash_negative">La caja bajó de cero (financiada con intereses)</string>
+    <string name="beat_cash_recovered">La caja vuelve a ser positiva</string>
+    <string name="beat_low_point">Caja mínima: %1$s</string>
+    <string name="beat_goal_reached">Objetivo alcanzado: %1$s</string>
+    <string name="beat_goal_missed">Objetivo no alcanzado: %1$s</string>
+    <string name="beat_milestone">Hito: %1$s</string>
+    <string name="beat_work">Trabajo: %1$s</string>
+    <string name="waterfall_start">Patrimonio al inicio</string>
+    <string name="waterfall_end">Patrimonio al final</string>
+    <string name="pl_side_title">Lado a lado: la otra primera elección</string>
+    <string name="pl_side_desc">La misma suerte en cada turno; solo cambia la primera decisión. La diferencia es lo que aportó esa decisión.</string>
+    <string name="pl_row_turn">Turno %1$d</string>
+    <string name="employment_NOT_WORKING">Sin trabajo</string>
 </resources>

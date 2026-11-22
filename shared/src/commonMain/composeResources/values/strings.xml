@@ -27,8 +27,19 @@
     <string name="q_age_a2">23–30</string>
     <string name="q_age_a3">31–45</string>
     <string name="q_age_a4">46–64</string>
+    <string name="q_city">Where do you live?</string>
+    <string name="q_city_lausanne">Lausanne</string>
+    <string name="q_city_geneva">Geneva</string>
+    <string name="q_city_zurich">Zurich</string>
+    <string name="q_city_bern">Bern</string>
+    <string name="q_education">Are you studying?</string>
+    <string name="q_education_bachelor_in_progress">Yes, a bachelor</string>
+    <string name="q_education_master_in_progress">Yes, a master</string>
+    <string name="q_education_bachelor">No, I have a bachelor</string>
+    <string name="q_education_master">No, I have a master</string>
+    <string name="q_education_none">No, I have no degree</string>
     <string name="q_employment">What do you do?</string>
-    <string name="q_employment_student">Student</string>
+    <string name="q_employment_not_working">Not working</string>
     <string name="q_employment_employed">Employed full time</string>
     <string name="q_employment_part_time">Part time</string>
     <string name="q_employment_self_employed">Self-employed</string>
@@ -65,7 +76,6 @@
     <string name="goal_retirement">Retirement savings</string>
 
     <!-- Employment -->
-    <string name="employment_STUDENT">Student</string>
     <string name="employment_EMPLOYED">Employed</string>
     <string name="employment_PART_TIME">Part time</string>
     <string name="employment_SELF_EMPLOYED">Self-employed</string>
@@ -172,8 +182,8 @@
     <string name="welcome_badge">AI Financial Twin · LauzHack 2026</string>
     <string name="welcome_feature_cases_title">Three cases per decision</string>
     <string name="welcome_feature_cases_desc">Every choice shows a pessimistic, neutral and optimistic outcome before you commit.</string>
-    <string name="welcome_feature_mc_title">Thousands of futures</string>
-    <string name="welcome_feature_mc_desc">A Monte Carlo simulation turns your path into a range of outcomes, not a single guess.</string>
+    <string name="welcome_feature_mc_title">Explore every branch</string>
+    <string name="welcome_feature_mc_desc">An exact decision tree and parallel lives show what each decision changed, with the same luck.</string>
     <string name="welcome_feature_chat_title">Talk to your future self</string>
     <string name="welcome_feature_chat_desc">Ask questions about your results; answers only use the numbers the simulation computed.</string>
     <string name="welcome_preview_label">Illustration: a range of possible futures</string>
@@ -201,10 +211,9 @@
     <string name="drivers_title">What moved your net worth</string>
     <string name="driver_income">Income</string>
     <string name="driver_expense">Spending</string>
-    <string name="driver_event">One-off costs and loans</string>
     <string name="driver_debt">Loan interest</string>
     <string name="driver_financing">Cost of negative cash</string>
-    <string name="driver_investment">Investment returns</string>
+    <string name="driver_investment">Investment growth</string>
     <string name="driver_other">Other</string>
     <string name="chronicle_title">Your story</string>
     <string name="chronicle_desc">Your future self tells these ten years, using only the computed numbers.</string>
@@ -222,6 +231,25 @@
     <string name="q_mincash_m2">About CHF 3,000</string>
     <string name="q_mincash_m3">About CHF 6,000</string>
     <string name="q_mincash_m4">About CHF 12,000</string>
-    <string name="cash_band_title">Cash: range of futures</string>
-    <string name="cash_band_desc">p10–p90 of simulated futures with your choices</string>
+    <string name="cash_band_title">Cash: month-to-month noise</string>
+    <string name="cash_band_desc">How much the monthly ups and downs move your cash (p10–p90), with your choices and luck fixed. The analysis is in the decision tree and the parallel lives.</string>
+    <string name="lifeline_title">Your life line</string>
+    <string name="lifeline_subtitle">The moments that shaped your ten years, computed by the engine</string>
+    <string name="beat_when">Month %1$d · %2$d years</string>
+    <string name="beat_start">Start of the game</string>
+    <string name="beat_end">End of the ten years</string>
+    <string name="beat_decision">%1$s → %2$s</string>
+    <string name="beat_cash_negative">Cash went below zero (financed with interest)</string>
+    <string name="beat_cash_recovered">Cash is positive again</string>
+    <string name="beat_low_point">Lowest cash: %1$s</string>
+    <string name="beat_goal_reached">Goal reached: %1$s</string>
+    <string name="beat_goal_missed">Goal missed: %1$s</string>
+    <string name="beat_milestone">Milestone: %1$s</string>
+    <string name="beat_work">Work: %1$s</string>
+    <string name="waterfall_start">Net worth at the start</string>
+    <string name="waterfall_end">Net worth at the end</string>
+    <string name="pl_side_title">Side by side: the other first choice</string>
+    <string name="pl_side_desc">Same luck in every turn; only the first decision changes. The difference is what that decision contributed.</string>
+    <string name="pl_row_turn">Turn %1$d</string>
+    <string name="employment_NOT_WORKING">Not working</string>
 </resources>

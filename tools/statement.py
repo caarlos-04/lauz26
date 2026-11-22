@@ -1,226 +1,132 @@
-"""FinancialStatement: everything we know about a person at one point in time (docs/financial-statement.md).
+"""FinancialStatement: the person at one point in time (docs/financial-statement.md).
 
-Built by joining every dataset by profile_id. Month convention:
-  month 0      = opening statement, as of startMonth-01 (2025-01-01); no cash flow yet
-  month t >= 1 = statement at the END of calendar month startMonth + (t - 1), with that month's cash flow
-Every flow line carries an origin: OBSERVED (dataset value), DERIVED (computed from the dataset),
-ASSUMED (our assumption) or SIMULATED (engine). The same shape is produced by the reference engine
-(validate_events.py) so the app, the LLM and the tests all read one structure.
+Only what the datasets have and what the simulator needs to produce the next statement:
+    profileId, month, period, person, cashChf, investmentsChf, loan, monthlyIncomeChf, monthlyRentChf,
+    eventExpensesChf, cashFlow, goals, pendingChanges
+Month 0 = opening statement ('2025-01-01'); month t = end of calendar month start + t - 1, with that month's cash flow.
+Net worth, goal progress and ratios are computed from these fields when needed, never stored.
 """
-from common import month_index, segment_key, work_status
+from common import work_status
 
-STATEMENT_VERSION = 1
-CURRENCY = "CHF"
-# Which balance counts towards each goal (assumption, documented): cash-like goals use cash, the rest net worth.
-GOAL_BASIS = {"Emergency savings": "CASH", "Housing deposit": "CASH"}
-EMERGENCY_FUND_LOW_MONTHS = 3.0     # rule of thumb used for liquidityStatus (assumption)
-ASSUMED_LOAN_TERM_MONTHS = 60       # dataset monthly_payment_chf is 0 for every loan; we assume an annuity
+GOAL_BASIS = {"Emergency savings": "CASH", "Housing deposit": "CASH"}   # the rest: net worth (assumption, shown)
+ASSUMED_LOAN_TERM_MONTHS = 60       # the dataset never pays its loans (monthly_payment_chf = 0): annuity assumed
 
 
-def period_of(start_month: str, month: int) -> str:
-    """Calendar period covered by statement `month` ('2025-01-01' for the opening statement)."""
-    if month == 0:
-        return f"{start_month}-01"
-    y, m = int(start_month[:4]), int(start_month[5:7]) + month - 1
-    y, m = y + (m - 1) // 12, (m - 1) % 12 + 1
-    return f"{y:04d}-{m:02d}"
+# ---------------------------------------------------------------- time
+
+def next_period(period: str) -> str:
+    """'2025-01-01' (opening) -> '2025-01'; '2025-01' -> '2025-02'; '2025-12' -> '2026-01'."""
+    if len(period) == 10:
+        return period[:7]
+    y, m = int(period[:4]), int(period[5:7]) + 1
+    return f"{y + (m - 1) // 12:04d}-{(m - 1) % 12 + 1:02d}"
 
 
-def goal_target_month(start_month: str, target_date: str) -> int:
-    """Statement month at the END of the target date's calendar month (2029-12-31 -> 60 for start 2025-01)."""
-    return month_index(start_month, target_date) + 1
+def calendar_month(period: str) -> int:
+    return int(period[5:7])
 
 
-def _active(stream: dict, t: int) -> bool:
-    return stream.get("fromMonth", 0) <= t and (stream.get("untilMonth") is None or t < stream["untilMonth"])
+# ---------------------------------------------------------------- derived values (computed, not stored)
+
+def net_worth(s: dict) -> float:
+    return s["cashChf"] + s["investmentsChf"] - (s["loan"]["principalChf"] if s["loan"] else 0.0)
 
 
-def run_rate(income: list, expenses: list, liabilities: list, t: int) -> dict:
-    """Expected monthly amounts for the month that starts after statement t (streams active at index t)."""
-    inc = sum(s["monthlyChf"] for s in income if _active(s, t))
-    exp = sum(s["monthlyChf"] for s in expenses if _active(s, t))
-    rent = sum(s["monthlyChf"] for s in expenses if _active(s, t) and s["category"] == "RENT")
-    debt = sum(l["monthlyPaymentChf"] for l in liabilities if l["principalChf"] > 0)
-    return {"income": inc, "expenses": exp, "rent": rent, "debtService": debt}
+def goal_value(goal: dict, s: dict) -> float:
+    """Cash-like goals are measured with cash, the rest with net worth."""
+    return s["cashChf"] if GOAL_BASIS.get(goal["name"], "NET_WORTH") == "CASH" else net_worth(s)
 
 
-def metrics(cash: float, net_worth: float, rr: dict) -> dict:
-    inc, out = rr["income"], rr["expenses"] + rr["debtService"]
-    net = inc - out
-    months = cash / out if out > 0 else None
-    if cash < 0:
-        status = "NEGATIVE"
-    elif months is not None and months < EMERGENCY_FUND_LOW_MONTHS:
-        status = "LOW"
-    else:
-        status = "OK"
-    ratio = (lambda x: round(x / inc, 4) if inc > 0 else None)
-    return {
-        "basis": "RUN_RATE",                       # computed from the streams active next month
-        "monthlyIncomeChf": round(inc, 2),
-        "monthlyOutflowsChf": round(out, 2),       # expenses + debt service
-        "monthlyNetCashFlowChf": round(net, 2),
-        "savingsRate": ratio(net),
-        "debtServiceRatio": ratio(rr["debtService"]),
-        "rentToIncomeRatio": ratio(rr["rent"]),
-        "emergencyFundMonths": round(months, 2) if months is not None else None,
-        "liquidityStatus": status,                 # NEGATIVE | LOW (< 3 months) | OK
-        "netWorthChf": round(net_worth, 2),
-    }
+def goal_state(goal: dict, s: dict) -> str:
+    """REACHED, MISSED (its date has passed) or IN_PROGRESS."""
+    if goal_value(goal, s) >= goal["targetChf"]:
+        return "REACHED"
+    return "MISSED" if s["period"][:7] > goal["targetDate"][:7] else "IN_PROGRESS"
 
 
-def goal_status(goals: list, month: int, cash: float, net_worth: float) -> list:
-    out = []
-    for g in goals:
-        basis = GOAL_BASIS.get(g["name"], "NET_WORTH")
-        value = cash if basis == "CASH" else net_worth
-        reached = value >= g["targetChf"]
-        status = "REACHED" if reached else ("MISSED" if month > g["targetMonth"] else "IN_PROGRESS")
-        out.append({**g, "progressBasis": basis, "currentChf": round(value, 2),
-                    "progressRatio": round(max(0.0, min(1.0, value / g["targetChf"])), 4),
-                    "monthsLeft": g["targetMonth"] - month, "status": status})
-    return out
+# ---------------------------------------------------------------- building
+
+def statement(*, profile_id: str, month: int, period: str, person: dict, cash: float, investments: float,
+              loan: dict | None, income: float, rent: float, event_expenses: dict, cash_flow: dict | None,
+              goals: list, pending: list) -> dict:
+    return {"profileId": profile_id, "month": month, "period": period, "person": person,
+            "cashChf": round(cash, 2), "investmentsChf": round(investments, 2), "loan": loan,
+            "monthlyIncomeChf": round(income, 2), "monthlyRentChf": round(rent, 2),
+            "eventExpensesChf": {k: round(v, 2) for k, v in event_expenses.items() if abs(v) > 0.005},
+            "cashFlow": cash_flow, "goals": goals, "pendingChanges": pending}
 
 
-def balance_sheet(accounts: list, investments: list, liabilities: list) -> dict:
-    cash = sum(a["balanceChf"] for a in accounts)
-    inv = sum(i["valueChf"] for i in investments)
-    debt = sum(l["principalChf"] for l in liabilities)
-    return {"cashChf": round(cash, 2), "investmentsChf": round(inv, 2), "totalAssetsChf": round(cash + inv, 2),
-            "totalLiabilitiesChf": round(debt, 2), "netWorthChf": round(cash + inv - debt, 2)}
+def annuity_payment(principal: float, annual_rate: float, months: int) -> float:
+    """Monthly payment that repays `principal` in `months` at `annual_rate`."""
+    r = annual_rate / 12
+    if r == 0:
+        return principal / months
+    return principal * r / (1 - (1 + r) ** -months)
 
 
-def assemble(*, profile_id: str, month: int, start_month: str, origin: str, person: dict, accounts: list,
-             investments: list, liabilities: list, income: list, expenses: list, cash_flow: dict | None,
-             goals: list, scenario_parameters: list, pending: list) -> dict:
-    """Build a FinancialStatement dict from its parts (balance sheet, goals and metrics are derived here)."""
-    bs = balance_sheet(accounts, investments, liabilities)
-    return {
-        "version": STATEMENT_VERSION,
-        "profileId": profile_id,
-        "month": month,
-        "period": period_of(start_month, month),
-        "origin": origin,                          # OBSERVED (dataset months) | SIMULATED (engine)
-        "currency": CURRENCY,
-        "person": person,
-        "accounts": accounts,
-        "investments": investments,
-        "liabilities": liabilities,
-        "incomeStreams": income,
-        "expenseStreams": expenses,
-        "cashFlow": cash_flow,
-        "balanceSheet": bs,
-        "goals": goal_status(goals, month, bs["cashChf"], bs["netWorthChf"]),
-        "scenarioParameters": scenario_parameters,
-        "metrics": metrics(bs["cashChf"], bs["netWorthChf"], run_rate(income, expenses, liabilities, month)),
-        "pendingLifeChanges": pending,
-    }
+def initial_facts(dataset_employment: str, household: str, city: str, facts_catalog: dict) -> dict:
+    """Initial facts with the 'initialFromProfile' rules of content/facts.json. `dataset_employment` is the dataset's
+    employment_status (upper case), which also encodes studying: STUDENT = studying and not working."""
+    source = {"datasetEmployment": dataset_employment, "household": household, "city": city}
+    facts = {}
+    for key, rule in facts_catalog["initialFromProfile"].items():
+        raw = source[rule["from"]]
+        value = rule["map"].get(raw, rule.get("default")) if "map" in rule else raw
+        if value not in facts_catalog["facts"][key]:
+            raise ValueError(f"fact {key}={value!r} (from {raw!r}) is not in the facts catalog")
+        facts[key] = value
+    return facts
 
 
-# ---------------------------------------------------------------- from the dataset
-
-def dataset_parts(ds: dict, pid: str, initial_life: dict, living_chf: float, annuity) -> dict:
-    """Static parts of the opening statement for one profile (every CSV joined by profile_id)."""
-    pr, raw = ds["profiles"][pid], ds["raw_profiles"][pid]
-    income_id = "pension" if pr["employment"] == "RETIRED" else "income"
-    person = {
-        "displayName": pr["displayName"], "ageAtStart": pr["ageAtStart"], "age": pr["ageAtStart"],
-        "city": pr["city"], "canton": raw["canton"], "country": raw["country"],
-        "employment": work_status(pr["employment"]), "household": pr["household"],
-        "facts": initial_life["facts"], "flags": initial_life["flags"], "synthetic": raw["synthetic"] == "true",
-    }
-    accounts = [{"id": a["account_id"], "type": a["account_type"].upper(), "currency": a["currency"],
-                 "balanceChf": float(a["opening_balance_chf"]), "status": "OK"}
-                for a in ds["accounts"][pid]]
-    investments = [{"id": a["asset_id"], "accountId": a["account_id"], "type": a["asset_type"].upper(),
-                    "valueChf": float(a["value_chf"]), "annualReturn": None,      # not in the dataset
-                    "valuationBasis": a["valuation_basis"]}
-                   for a in ds["assets"][pid] if a["asset_type"] != "cash"]      # cash asset = cash account
-    liabilities = [{"id": l["liability_id"], "type": l["liability_type"].upper(),
-                    "principalChf": float(l["opening_principal_chf"]),
-                    "annualRate": float(l["annual_interest_rate"]),
-                    "monthlyPaymentChf": round(annuity(float(l["opening_principal_chf"]),
-                                                       float(l["annual_interest_rate"]), ASSUMED_LOAN_TERM_MONTHS), 2),
-                    "paymentIsAssumed": True,       # dataset monthly_payment_chf = 0 (not amortized)
-                    "datasetMonthlyPaymentChf": float(l["monthly_payment_chf"]),
-                    "sourceEventId": None}
-                   for l in ds["liabilities"][pid]]
-    income = [{"id": income_id, "label": income_id, "monthlyChf": pr["income"], "fromMonth": 0,
-               "untilMonth": None, "indexation": "WAGES", "origin": "OBSERVED", "sourceEventId": None}]
-    expenses = [
-        {"id": "rent", "category": "RENT", "monthlyChf": pr["rent"], "fromMonth": 0, "untilMonth": None,
-         "indexation": "CPI", "origin": "OBSERVED", "sourceEventId": None},
-        {"id": "living", "category": "LIVING", "monthlyChf": round(living_chf, 2), "fromMonth": 0,
-         "untilMonth": None, "indexation": "CPI", "origin": "DERIVED", "sourceEventId": None},
-    ]
-    goals = [{"id": g["goal_id"], "name": g["goal_name"], "targetChf": float(g["target_amount_chf"]),
-              "targetDate": g["target_date"], "targetMonth": goal_target_month(pr["startMonth"], g["target_date"]),
-              "priority": g["priority"].upper()}
-             for g in ds["goals"][pid]]
-    params = [{"id": a["assumption_id"], "scenarioId": a["scenario_id"], "parameter": a["parameter"],
-               "value": float(a["value"]), "unit": a["unit"], "frequency": a["frequency"],
-               "sourceType": a["source_type"], "notes": a["notes"]}
-              for a in ds["scenario_assumptions"][pid]]
-    return {"person": person, "accounts": accounts, "investments": investments, "liabilities": liabilities,
-            "income": income, "expenses": expenses, "goals": goals, "params": params,
-            "segment": segment_key(pr["employment"], pr["household"])}
+def new_person(*, profile_id: str, display_name: str, age: int, city: str, employment: str, household: str,
+               education: str, cash: float, income: float, rent: float, facts_catalog: dict,
+               start_period: str = "2025-01-01", investments: float = 0.0, loan: dict | None = None,
+               goals: list | None = None) -> dict:
+    """Opening statement (month 0) of a person from the interview. Studying (education ending in _IN_PROGRESS) is
+    independent from work: a working student is PART_TIME + MASTER_IN_PROGRESS."""
+    if education not in facts_catalog["facts"]["EDUCATION"]:
+        raise ValueError(f"EDUCATION={education!r} is not in the facts catalog")
+    studying = education.endswith("_IN_PROGRESS")
+    facts = initial_facts("STUDENT" if studying and employment == "NOT_WORKING" else employment, household, city,
+                          facts_catalog)
+    facts["EDUCATION"] = education
+    person = {"displayName": display_name, "age": age, "employment": employment, "household": household,
+              "facts": facts, "flags": []}
+    return statement(profile_id=profile_id, month=0, period=start_period, person=person, cash=cash,
+                     investments=investments, loan=loan, income=income, rent=rent, event_expenses={},
+                     cash_flow=None, goals=goals or [], pending=[])
 
 
-def opening_statement(ds: dict, pid: str, parts: dict) -> dict:
+def dataset_opening(ds: dict, pid: str, facts_catalog: dict) -> dict:
+    """Opening statement of a dataset profile: every CSV joined by profile_id (docs/financial-statement.md, section 3)."""
     pr = ds["profiles"][pid]
-    return assemble(profile_id=pid, month=0, start_month=pr["startMonth"], origin="OBSERVED",
-                    person=parts["person"], accounts=parts["accounts"], investments=parts["investments"],
-                    liabilities=parts["liabilities"], income=parts["income"], expenses=parts["expenses"],
-                    cash_flow=None, goals=parts["goals"], scenario_parameters=parts["params"], pending=[])
+    person = {"displayName": pr["displayName"], "age": pr["ageAtStart"], "employment": work_status(pr["employment"]),
+              "household": pr["household"],
+              "facts": initial_facts(pr["employment"], pr["household"], pr["city"], facts_catalog), "flags": []}
+    loans = [{"principalChf": float(l["opening_principal_chf"]), "annualRate": float(l["annual_interest_rate"]),
+              "monthlyPaymentChf": round(annuity_payment(float(l["opening_principal_chf"]),
+                                                         float(l["annual_interest_rate"]),
+                                                         ASSUMED_LOAN_TERM_MONTHS), 2)}
+             for l in ds["liabilities"][pid]]
+    goals = [{"name": g["goal_name"], "targetChf": float(g["target_amount_chf"]), "targetDate": g["target_date"],
+              "priority": g["priority"].upper()} for g in ds["goals"][pid]]
+    return statement(profile_id=pid, month=0, period=f"{pr['startMonth']}-01", person=person,
+                     cash=sum(float(a["opening_balance_chf"]) for a in ds["accounts"][pid]),
+                     investments=sum(float(a["value_chf"]) for a in ds["assets"][pid] if a["asset_type"] != "cash"),
+                     loan=loans[0] if loans else None, income=pr["income"], rent=pr["rent"], event_expenses={},
+                     cash_flow=None, goals=goals, pending=[])
 
 
-def observed_statements(ds: dict, pid: str, parts: dict) -> list:
-    """Statements for the 24 dataset months. The ledger only has net transactions, so the cash flow is
-    decomposed as income (observed) - rent (observed) - living (derived) + variance (derived, = rest)."""
-    pr = ds["profiles"][pid]
-    living = next(e["monthlyChf"] for e in parts["expenses"] if e["id"] == "living")
-    out = []
-    for t, row in enumerate(ds["series"][pid], start=1):
-        variance = row["net"] - (pr["income"] - pr["rent"] - living)
-        lines_in = [{"key": f"income:{parts['income'][0]['id']}", "amountChf": pr["income"], "origin": "OBSERVED",
-                     "sourceEventId": None}]
-        lines_out = [{"key": "expense:RENT", "amountChf": pr["rent"], "origin": "OBSERVED", "sourceEventId": None},
-                     {"key": "expense:LIVING", "amountChf": living, "origin": "DERIVED", "sourceEventId": None}]
-        cash_flow = {
-            "openingCashChf": row["opening"],
-            "income": lines_in, "expenses": lines_out, "debtService": [],   # loans are not paid in the ledger
-            "otherChf": round(variance, 2),        # DERIVED: noise, December bonus, anything not itemised
-            "financingCostChf": 0.0,
-            "totalIncomeChf": pr["income"], "totalExpensesChf": round(pr["rent"] + living, 2),
-            "totalDebtServiceChf": 0.0,
-            "netCashFlowChf": row["net"],          # OBSERVED (net_transactions_chf)
-            "closingCashChf": row["closing"],      # OBSERVED (closing_cash_chf)
-        }
-        accounts = [{**a, "balanceChf": row["closing"],
-                     "status": "NEGATIVE_REQUIRES_FINANCING" if row["negative"] else "OK"} for a in parts["accounts"]]
-        person = {**parts["person"], "age": pr["ageAtStart"] + t // 12}
-        out.append(assemble(profile_id=pid, month=t, start_month=pr["startMonth"], origin="OBSERVED",
-                            person=person, accounts=accounts, investments=parts["investments"],
-                            liabilities=parts["liabilities"], income=parts["income"], expenses=parts["expenses"],
-                            cash_flow=cash_flow, goals=parts["goals"], scenario_parameters=parts["params"],
-                            pending=[]))
-    return out
+# ---------------------------------------------------------------- checks
 
-
-def check_statement(s: dict, tol: float = 0.02) -> list[str]:
-    """Accounting identities every statement must satisfy (used by tests and the build script)."""
-    errors = []
-    bs = s["balanceSheet"]
-    if abs(bs["cashChf"] + bs["investmentsChf"] - bs["totalLiabilitiesChf"] - bs["netWorthChf"]) > tol:
-        errors.append("balance sheet: cash + investments - liabilities != net worth")
-    cf = s["cashFlow"]
+def check_statement(s: dict, prev: dict | None = None, tol: float = 0.02) -> list[str]:
+    """The month's lines add up to its net, and (with the previous statement) cash(t) = cash(t-1) + net."""
+    errors, cf = [], s["cashFlow"]
     if cf is not None:
-        net = (cf["totalIncomeChf"] - cf["totalExpensesChf"] - cf["totalDebtServiceChf"]
-               - cf["financingCostChf"] + cf.get("otherChf", 0.0))
-        if abs(net - cf["netCashFlowChf"]) > tol:
-            errors.append(f"cash flow: lines sum {net:.2f} != net {cf['netCashFlowChf']:.2f}")
-        if abs(cf["openingCashChf"] + cf["netCashFlowChf"] - cf["closingCashChf"]) > tol:
-            errors.append("cash flow: opening + net != closing")
-        if abs(cf["closingCashChf"] - bs["cashChf"]) > tol:
-            errors.append("cash flow closing cash != balance sheet cash")
+        net = (sum(cf["incomeChf"].values()) - sum(cf["expensesChf"].values()) - cf["loanPaymentChf"]
+               - cf["financingCostChf"])
+        if abs(net - cf["netChf"]) > tol:
+            errors.append(f"cash flow: lines sum {net:.2f} != net {cf['netChf']:.2f}")
+        if prev is not None and abs(prev["cashChf"] + cf["netChf"] - s["cashChf"]) > tol:
+            errors.append(f"cash: {prev['cashChf']:.2f} + {cf['netChf']:.2f} != {s['cashChf']:.2f}")
     return errors

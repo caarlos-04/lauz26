@@ -11,7 +11,6 @@ import com.lauzhack.twin.model.InterviewQuestion
 import com.lauzhack.twin.model.OptionPreview
 import com.lauzhack.twin.model.Preferences
 import com.lauzhack.twin.model.Turn
-import com.lauzhack.twin.model.UserProfile
 
 /*
  * Contract between the UI (Dev B) and the engine / game controller (Dev A), docs section 6 (P2-P10).
@@ -25,14 +24,13 @@ import com.lauzhack.twin.model.UserProfile
 
 /** Everything needed to start a game (P2 output). */
 data class NewGame(
-    val profile: UserProfile,
-    val opening: FinancialStatement,   // month 0
+    val opening: FinancialStatement,   // month 0 (person, money, goals)
     val preferences: Preferences,
 )
 
 /** P2: initial twin. */
 interface TwinFactory {
-    /** Builds the profile, opening statement and preferences from the interview answers. */
+    /** P1-P2 (`statement.new_person`): opening statement and preferences from the interview answers. */
     fun fromInterview(questions: List<InterviewQuestion>, answers: List<InterviewAnswer>): NewGame
 
     /** Alexia, the preloaded demo profile. */
@@ -63,9 +61,23 @@ interface GameEngine {
      */
     fun playTurn(session: GameSession, event: Event?, optionId: String?, case: CaseType?, luck: Double): Turn
 
-    /** P8-P10 at the end of the game: stats, attribution, moments, parallel lives, sensitivity and cash band. */
+    /** P8-P10 at the end of the game: stats, attribution, moments, parallel lives and sensitivity. */
     fun finish(session: GameSession): GameResult
+
+    /**
+     * Optional (#12, option 2): cash percentiles per month (0..horizon) replaying the played choices with the
+     * simulator's sampled monthly flows. Shown as "how much month-to-month noise moves your cash", NOT as the
+     * analysis (that is the decision tree and the parallel lives). null = the engine does not provide it.
+     */
+    fun noiseBand(session: GameSession): CashBand? = null
 }
+
+/** p10 / p50 / p90 of cash (CHF) per month, index = month (0..horizon). */
+data class CashBand(
+    val p10: List<Double>,
+    val p50: List<Double>,
+    val p90: List<Double>,
+)
 
 /** The game ends after `maxTurns` turns (quiet turns count). */
 val GameSession.isOver: Boolean get() = turns.size >= config.maxTurns
