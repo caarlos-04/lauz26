@@ -1,5 +1,11 @@
 package com.lauzhack.twin.ui.screens
 
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import com.lauzhack.twin.resources.chat_suggestion_changed
 import com.lauzhack.twin.resources.chat_moment_name
 import com.lauzhack.twin.resources.chat_moment_intro
@@ -115,9 +121,23 @@ fun ChatScreen(
         scope.launch { onAsk(text.trim()) }
     }
 
-    AppShell(actions, panel = panel, onBack = onBack, scrollable = false, maxContentWidth = 820.dp) {
+    // On a phone the conversation gets the screen: no money strip, a two-line header, one row of suggestions,
+    // messages without the side icon. Wide windows keep the full layout.
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+    val compact = maxWidth < 600.dp
+    val modelLabel = if (aiModel != null) stringResource(Res.string.chat_ai_badge, aiModel) else stringResource(Res.string.chat_offline_badge)
+    AppShell(actions, panel = if (compact) null else panel, onBack = onBack, scrollable = false, maxContentWidth = 820.dp) {
         // Header
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.m)) {
+        if (compact) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    if (moment != null && midLife) stringResource(Res.string.chat_moment_title, moment.age, moment.year) else stringResource(Res.string.chat_title),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                moment?.after?.let { Text(stringResource(Res.string.chat_moment_after, it), style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+                Text(modelLabel, style = MaterialTheme.typography.labelSmall, color = if (aiModel != null) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        } else Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.m)) {
             IconBadge(TwinIcons.Sparkle, size = 44.dp)
             Column(Modifier.weight(1f)) {
                 Text(
@@ -136,10 +156,7 @@ fun ChatScreen(
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Pill(
-                if (aiModel != null) stringResource(Res.string.chat_ai_badge, aiModel) else stringResource(Res.string.chat_offline_badge),
-                color = if (aiModel != null) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Pill(modelLabel, color = if (aiModel != null) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant)
         }
         // Persona (docs 5.8): the future self, or the parallel self who took the other first option.
         if (!midLife) Row(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
@@ -156,17 +173,19 @@ fun ChatScreen(
         }
 
         // Conversation
-        SurfaceCard(Modifier.weight(1f), padding = Space.l) {
-            val futureSelf = when {
-                moment != null && midLife -> stringResource(Res.string.chat_moment_name, moment.age)
-                persona == Persona.PARALLEL_SELF -> stringResource(Res.string.persona_parallel)
-                else -> stringResource(Res.string.chat_future_self)
-            }
+        val futureSelf = when {
+            moment != null && midLife -> stringResource(Res.string.chat_moment_name, moment.age)
+            persona == Persona.PARALLEL_SELF -> stringResource(Res.string.persona_parallel)
+            else -> stringResource(Res.string.chat_future_self)
+        }
+        val conversation: @Composable ColumnScope.() -> Unit = {
             LazyColumn(state = listState, modifier = Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(Space.m)) {
-                items(history) { Bubble(it, futureSelf) }
+                items(history) { Bubble(it, futureSelf, compact) }
                 if (loading) item { TypingIndicator() }
             }
         }
+        if (compact) Column(Modifier.fillMaxWidth().weight(1f), content = conversation)
+        else SurfaceCard(Modifier.weight(1f), padding = Space.l, content = conversation)
 
         // Suggestions + input
         val suggestions = listOf(
@@ -174,7 +193,7 @@ fun ChatScreen(
             stringResource(Res.string.chat_suggestion_goals),
             stringResource(if (midLife) Res.string.chat_suggestion_changed else Res.string.chat_suggestion_other),
         )
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
+        val chips: @Composable () -> Unit = {
             suggestions.forEach { s ->
                 SuggestionChip(
                     onClick = { send(s) },
@@ -184,6 +203,9 @@ fun ChatScreen(
                 )
             }
         }
+        // One scrollable row on a phone; they wrap on wide windows.
+        if (compact) Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Space.s)) { chips() }
+        else FlowRow(horizontalArrangement = Arrangement.spacedBy(Space.s)) { chips() }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.s)) {
             OutlinedTextField(
                 value = input,
@@ -199,19 +221,20 @@ fun ChatScreen(
                     focusedBorderColor = MaterialTheme.colorScheme.secondary,
                 ),
             )
-            FilledIconButton(onClick = { send(input) }, enabled = !loading && input.isNotBlank(), modifier = Modifier.size(52.dp)) {
+            FilledIconButton(onClick = { send(input) }, enabled = !loading && input.isNotBlank(), modifier = Modifier.size(if (compact) 48.dp else 52.dp)) {
                 Icon(TwinIcons.Send, stringResource(Res.string.chat_send))
             }
         }
     }
+    }
 }
 
 @Composable
-private fun Bubble(bubble: ChatBubble, futureSelfName: String) {
+private fun Bubble(bubble: ChatBubble, futureSelfName: String, compact: Boolean = false) {
     val message = bubble.message
     val mine = message.role == ChatRole.USER
     Row(Modifier.fillMaxWidth(), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start, verticalAlignment = Alignment.Top) {
-        if (!mine) {
+        if (!mine && !compact) {
             IconBadge(TwinIcons.Sparkle, size = 32.dp)
             Spacer(Modifier.size(Space.s))
         }
