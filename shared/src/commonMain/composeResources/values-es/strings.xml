@@ -197,7 +197,7 @@
 
     <!-- Decision tree (what-if) -->
     <string name="tree_title">Tu árbol de decisiones</string>
-    <string name="tree_hint">Toca la otra rama de cualquier turno para cambiar la decisión, o elige otro caso. Las decisiones posteriores se mantienen y todo lo de abajo se recalcula.</string>
+    <string name="tree_hint">Toca la otra rama de cualquier turno para vivir esa otra vida. La suerte es la misma en todas las ramas: solo cambia tu decisión. Las vidas que ya exploraste se guardan.</string>
     <string name="tree_start">Inicio · patrimonio %1$s</string>
     <string name="tree_level">Turno %1$d · mes %2$d</string>
     <string name="tree_net_worth_after">Patrimonio después</string>

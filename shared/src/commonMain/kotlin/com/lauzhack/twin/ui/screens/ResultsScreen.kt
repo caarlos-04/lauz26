@@ -156,7 +156,7 @@ fun ResultsScreen(
     isEdited: Boolean,
     pendingEvent: Event?,
     pendingPreviews: List<OptionPreview>,
-    onEditTurn: (index: Int, optionId: String?, case: CaseType?) -> Unit,
+    onSwitch: (index: Int) -> Unit,
     onDecide: (optionId: String) -> Unit,
     onResetPath: () -> Unit,
     onChat: () -> Unit,
@@ -206,7 +206,7 @@ fun ResultsScreen(
         when (tab) {
             0 -> Overview(session, results, noiseBand, facts, eventById, chronicle, chronicleLoading, onWriteChronicle)
             1 -> SectionCard(stringResource(Res.string.tree_title), icon = TwinIcons.Tree) {
-                DecisionTree(session, playedTurns, isEdited, pendingEvent, pendingPreviews, eventById, onEditTurn, onDecide, onResetPath)
+                DecisionTree(session, playedTurns, isEdited, pendingEvent, pendingPreviews, eventById, onSwitch, onDecide, onResetPath)
             }
             else -> AssumptionsTab(assumptions)
         }

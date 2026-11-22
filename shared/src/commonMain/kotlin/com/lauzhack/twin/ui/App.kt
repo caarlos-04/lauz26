@@ -180,7 +180,7 @@ private fun Router(state: AppState, screen: Screen, actions: TopBarActions) {
                     isEdited = state.isEdited,
                     pendingEvent = state.pendingEvent,
                     pendingPreviews = state.pendingEvent?.let { ev -> remember(session, ev, state.lang) { state.previews(ev) } }.orEmpty(),
-                    onEditTurn = state::editTurn,
+                    onSwitch = state::switchAt,
                     onDecide = state::decidePending,
                     onResetPath = state::resetToPlayed,
                     onChat = state::openChat,

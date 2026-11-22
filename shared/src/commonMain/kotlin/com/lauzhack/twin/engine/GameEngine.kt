@@ -57,7 +57,7 @@ interface GameEngine {
     /**
      * P7: applies the case, advances the turn's months, applies life changes, detects moments and computes the
      * counterfactual of the other option. [event] == null plays a quiet turn (then optionId and case are null).
-     * [case] may differ from the one [luck] selects: the what-if tree lets the user force the case.
+     * The UI always passes the case [luck] selects (the life tree never changes the luck of a turn).
      */
     fun playTurn(session: GameSession, event: Event?, optionId: String?, case: CaseType?, luck: Double): Turn
 

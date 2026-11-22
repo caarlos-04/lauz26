@@ -1,6 +1,7 @@
 package com.lauzhack.twin.ui
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -13,7 +14,6 @@ import com.lauzhack.twin.engine.NewGame
 import com.lauzhack.twin.engine.TwinFactory
 import com.lauzhack.twin.engine.isOver
 import com.lauzhack.twin.model.Assumptions
-import com.lauzhack.twin.model.CaseType
 import com.lauzhack.twin.model.ChatMessage
 import com.lauzhack.twin.model.ChatRole
 import com.lauzhack.twin.model.Event
@@ -34,10 +34,10 @@ enum class Screen { WELCOME, INTERVIEW, DILEMMA, RESOLUTION, RESULTS, CHAT }
 data class ChatBubble(val message: ChatMessage, val offline: Boolean = false)
 
 /**
- * UI state holder. [GameSession] is the single source of truth during the game and [GameResult] at the end
- * (docs section 6); everything else here is navigation or view state. The engine ([GameEngine], [TwinFactory])
- * and the chat ([FutureSelfChat]) are injected, so the fakes are swapped for the real ones in one place
- * (createDefaultAppState in App.kt) without touching the screens.
+ * UI state holder. The [LifeTree] is the single source of truth: every life explored in the game and the node the
+ * user is at ([session] = the turns up to that node). Everything else here is navigation, view state or a cache of
+ * pure engine results per node. The engine ([GameEngine], [TwinFactory]) and the chat ([FutureSelfChat]) are
+ * injected, so the fakes are swapped for the real ones in one place (createAppState in App.kt).
  */
 class AppState(
     private val engine: GameEngine,
@@ -53,30 +53,59 @@ class AppState(
     var lang by mutableStateOf(initialLang)
     var darkMode by mutableStateOf<Boolean?>(null) // null = follow the system
 
-    var session by mutableStateOf<GameSession?>(null); private set
+    /** Every explored life and where the user is; null before a game starts. */
+    var tree by mutableStateOf<LifeTree?>(null); private set
+
+    /** The node the user is at: the turns played on the current branch. */
+    val session: GameSession? get() = tree?.current
+
+    /** The question waiting at the current node (live play, or after switching branch in the tree). */
     var currentEvent by mutableStateOf<Event?>(null); private set
-    var lastTurn by mutableStateOf<Turn?>(null); private set
-    var results by mutableStateOf<GameResult?>(null); private set
 
-    /** Optional noise band of the current path (#12): month-to-month noise only, not the analysis. */
-    var noiseBand by mutableStateOf<CashBand?>(null); private set
+    /** The last turn of the current node (what the resolution screen shows). */
+    val lastTurn: Turn? get() = session?.turns?.lastOrNull()
 
-    /** Path actually played, captured when the game ends; used to reset the what-if edits. */
-    var playedSession by mutableStateOf<GameSession?>(null); private set
+    /** The first complete life the user played: "the path I played", to go back to it and to mark what-ifs. */
+    var playedKey by mutableStateOf<NodeKey?>(null); private set
+    val playedSession: GameSession? get() = playedKey?.let { tree?.nodes?.get(it) }
 
-    /** First unanswered question after a what-if edit (the tree stops there), or null. */
-    var pendingEvent by mutableStateOf<Event?>(null); private set
+    // Pure engine results per node, computed once (the tree never changes a node).
+    private val resultCache = mutableMapOf<NodeKey, GameResult>()
+    private val bandCache = mutableMapOf<NodeKey, CashBand?>()
 
-    /** Explored branches of the what-if tree. */
-    private var memory: PathMemory = emptyMap()
+    /** Results of the current node (P8-P10); for a node before the end they assume no further decisions. */
+    val results: GameResult?
+        get() {
+            val t = tree ?: return null
+            if (playedKey == null) return null           // no results before the first life is complete
+            return resultCache.getOrPut(t.cursor) { engine.finish(t.current) }
+        }
+
+    /** Optional noise band of the current node (#12): month-to-month noise only, not the analysis. */
+    val noiseBand: CashBand?
+        get() {
+            val t = tree ?: return null
+            if (playedKey == null) return null
+            return bandCache.getOrPut(t.cursor) { engine.noiseBand(t.current) }
+        }
+
+    /** First unanswered question on the current branch after a what-if switch (the results stop there), or null. */
+    val pendingEvent: Event?
+        get() = if (screen == Screen.RESULTS && playedKey != null) currentEvent else null
 
     val answers = mutableStateListOf<InterviewAnswer>()
-    val chatHistory = mutableStateListOf<ChatBubble>()
     var chatLoading by mutableStateOf(false); private set
     var persona by mutableStateOf(Persona.FUTURE_SELF); private set
 
-    /** Chronicle of the current path (P11), generated on demand; cleared when the path changes. */
-    var chronicle by mutableStateOf<ChatBubble?>(null); private set
+    /** One conversation per node and persona, kept for the whole session. */
+    private val chats = mutableStateMapOf<String, List<ChatBubble>>()
+    private fun chatKey(node: NodeKey, p: Persona) = "$node|$p"
+    val chatHistory: List<ChatBubble>
+        get() = tree?.let { chats[chatKey(it.cursor, persona)] }.orEmpty()
+
+    /** Chronicle per node (P11), generated on demand. */
+    private val chronicles = mutableStateMapOf<NodeKey, ChatBubble>()
+    val chronicle: ChatBubble? get() = tree?.let { chronicles[it.cursor] }
     var chronicleLoading by mutableStateOf(false); private set
 
     val config = GameConfig()
@@ -104,117 +133,94 @@ class AppState(
     fun startDemo() = startGame(twins.demo(), DEMO_SEED)
 
     private fun startGame(game: NewGame, seed: Long) {
-        session = GameSession(game.opening, seed, game.preferences, emptyList(), config)
-        lastTurn = null
-        results = null
-        noiseBand = null
-        playedSession = null
-        pendingEvent = null
-        memory = emptyMap()
-        resetChat()
+        clearGame()
+        tree = LifeTree.start(GameSession(game.opening, seed, game.preferences, emptyList(), config))
         nextTurn()
     }
 
     fun previews(event: Event) = session?.let { engine.preview(it, event) }.orEmpty()
 
+    /** Live play: the user picks an option of the current question; the turn's fixed luck draws the case. */
     fun choose(optionId: String) {
-        val s = session ?: return
-        val event = currentEvent ?: return
-        val option = event.options.first { it.id == optionId }
-        val (luck, case) = engine.resolveLuck(s, option)
-        play(s, event, optionId, case, luck)
+        val t = tree ?: return
+        tree = engine.choose(t, optionId)
+        currentEvent = null
+        screen = Screen.RESOLUTION
     }
 
     /** Next turn: a dilemma, or a quiet period shown directly as its resolution, or the results. */
     fun nextTurn() {
-        val s = session ?: return
-        if (s.isOver) {
-            screen = finishGame()
+        val t = tree ?: return
+        if (t.current.isOver) {
+            if (playedKey == null) playedKey = t.cursor
+            currentEvent = null
+            screen = Screen.RESULTS
             return
         }
-        val event = engine.nextEvent(s)
+        val event = engine.questionAt(t)
         currentEvent = event
-        if (event == null) play(s, null, null, null, QUIET_LUCK) else screen = Screen.DILEMMA
-    }
-
-    private fun play(s: GameSession, event: Event?, optionId: String?, case: CaseType?, luck: Double) {
-        val turn = engine.playTurn(s, event, optionId, case, luck)
-        session = s.copy(turns = s.turns + turn)
-        lastTurn = turn
-        screen = Screen.RESOLUTION
+        if (event == null) {
+            tree = engine.playQuiet(t)
+            screen = Screen.RESOLUTION
+        } else {
+            screen = Screen.DILEMMA
+        }
     }
 
     val isLastTurn: Boolean get() = session?.isOver ?: true
 
-    private fun finishGame(): Screen {
-        val s = session ?: return Screen.WELCOME
-        playedSession = s
-        memory = memory.record(s)
-        results = engine.finish(s)
-        noiseBand = engine.noiseBand(s)
-        return Screen.RESULTS
-    }
+    // ---------- Exploring the other lives (what-if) ----------
 
-    // ---------- What-if editing of the finished game ----------
-
+    /** True when the current node is not the life first played. */
     val isEdited: Boolean
-        get() = playedSession != null && (session != playedSession || pendingEvent != null)
+        get() = playedKey != null && tree?.cursor != playedKey
 
     /**
-     * Changes the option and/or case of one past turn. Later questions are kept if still valid,
-     * replaced otherwise; unanswered ones become [pendingEvent]. Everything is recomputed.
+     * Takes the other option at turn [index] of the current branch and goes down that branch as far as it was
+     * explored. The case of every turn is fixed by its luck: only the option changes.
      */
-    fun editTurn(index: Int, optionId: String? = null, case: CaseType? = null) {
-        val s = session ?: return
-        val old = s.turns.getOrNull(index)?.takeIf { it.eventId != null }?.choice ?: return
-        val choice = old.copy(optionId = optionId ?: old.optionId, case = case ?: old.case)
-        if (choice == old) return
-        memory = memory.record(s)
-        apply(engine.editPath(s, index, choice, memory, ::eventById))
+    fun switchAt(index: Int) {
+        val t = tree ?: return
+        if (t.cursor.getOrNull(index)?.let { it == QUIET } != false) return
+        moveTo(engine.switchAt(t, index))
     }
 
-    /** Answers the pending question; the case comes from the turn's luck, as in live play. */
+    /** Answers the question waiting on the current branch after a switch; then goes down as far as possible. */
     fun decidePending(optionId: String) {
-        val s = session ?: return
-        val event = pendingEvent ?: return
-        val option = event.options.first { it.id == optionId }
-        val (luck, case) = engine.resolveLuck(s, option)
-        val next = s.copy(turns = s.turns + engine.playTurn(s, event, optionId, case, luck))
-        apply(engine.resolvePath(next, emptyList(), memory, ::eventById))
+        val t = tree ?: return
+        if (currentEvent == null) return
+        moveTo(engine.descend(engine.choose(t, optionId)))
     }
 
     fun resetToPlayed() {
-        val played = playedSession ?: return
-        apply(ResolvedPath(played, null))
+        val t = tree ?: return
+        val key = playedKey ?: return
+        moveTo(t.goTo(key))
     }
 
-    private fun apply(resolved: ResolvedPath) {
-        val s = resolved.session
-        session = s
-        pendingEvent = resolved.pending
-        memory = memory.record(s)
-        lastTurn = s.turns.lastOrNull()
-        results = engine.finish(s)
-        noiseBand = engine.noiseBand(s)
-        // New path => new conversation and story (the old answers referred to other numbers).
-        resetChat()
+    private fun moveTo(t: LifeTree) {
+        tree = t
+        currentEvent = engine.questionAt(t)
     }
 
     fun openChat() { screen = Screen.CHAT }
     fun backToResults() { screen = Screen.RESULTS }
 
     fun restart() {
-        playedSession = null
-        pendingEvent = null
-        memory = emptyMap()
-        session = null
-        currentEvent = null
-        lastTurn = null
-        results = null
-        noiseBand = null
+        clearGame()
         answers.clear()
-        resetChat()
         screen = Screen.WELCOME
+    }
+
+    private fun clearGame() {
+        tree = null
+        playedKey = null
+        currentEvent = null
+        resultCache.clear()
+        bandCache.clear()
+        chats.clear()
+        chronicles.clear()
+        persona = Persona.FUTURE_SELF
     }
 
     fun eventById(id: String): Event? = catalog.firstOrNull { it.id == id }
@@ -228,46 +234,43 @@ class AppState(
 
     private val lastAnswerOffline: Boolean get() = (chat as? ReportsOffline)?.lastAnswerOffline == true
 
-    /** Switching persona starts a new conversation (the other self has another life). */
+    /** Each persona has its own conversation at each node (the other self has another life). */
     fun choosePersona(p: Persona) {
-        if (p == persona) return
         persona = p
-        chatHistory.clear()
     }
 
     suspend fun ask(question: String) {
+        val node = tree?.cursor ?: return
         val context = chatContext() ?: return
         if (question.isBlank() || chatLoading) return
+        // The answer goes to the conversation the question was asked in, even if the user moves meanwhile.
+        val key = chatKey(node, persona)
         // Offline (canned) answers are not the agent's words: they stay out of the history it receives.
-        val history = chatHistory.filterNot { it.offline }.map { it.message }
-        chatHistory += ChatBubble(ChatMessage(ChatRole.USER, question))
+        val history = chats[key].orEmpty().filterNot { it.offline }.map { it.message }
+        chats[key] = chats[key].orEmpty() + ChatBubble(ChatMessage(ChatRole.USER, question))
         chatLoading = true
         try {
             val answer = chat.ask(context, persona, history, question)
-            chatHistory += ChatBubble(answer, offline = lastAnswerOffline)
+            chats[key] = chats[key].orEmpty() + ChatBubble(answer, offline = lastAnswerOffline)
         } finally {
             chatLoading = false
         }
     }
 
     suspend fun writeChronicle() {
+        val node = tree?.cursor ?: return
         val context = chatContext() ?: return
         if (chronicleLoading) return
         chronicleLoading = true
         try {
             val story = chat.chronicle(context)
-            chronicle = ChatBubble(ChatMessage(ChatRole.TWIN, story), offline = lastAnswerOffline)
+            chronicles[node] = ChatBubble(ChatMessage(ChatRole.TWIN, story), offline = lastAnswerOffline)
         } finally {
             chronicleLoading = false
         }
     }
 
-    private fun resetChat() {
-        chatHistory.clear()
-        chronicle = null
-    }
-
-    /** Turns whose event, option or luck differ from the game actually played. */
+    /** Turns whose event, option or case differ from the life first played. */
     private fun whatIfTurns(s: GameSession): Set<Int> {
         val played = playedSession?.turns ?: return emptySet()
         return s.turns.indices.filterTo(mutableSetOf()) { i ->
@@ -279,8 +282,5 @@ class AppState(
 
     companion object {
         const val DEMO_SEED = 2026L
-
-        /** Luck stored for quiet turns (no case to resolve). */
-        private const val QUIET_LUCK = 0.5
     }
 }

@@ -9,15 +9,12 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -49,7 +46,6 @@ import com.lauzhack.twin.resources.tree_pending_level
 import com.lauzhack.twin.resources.tree_reset
 import com.lauzhack.twin.resources.tree_start
 import com.lauzhack.twin.resources.tree_would_be
-import com.lauzhack.twin.ui.choice
 import com.lauzhack.twin.resources.quiet_node
 import com.lauzhack.twin.ui.i18n.formatChf
 import com.lauzhack.twin.ui.i18n.keyString
@@ -59,7 +55,7 @@ import org.jetbrains.compose.resources.stringResource
 /**
  * Editable decision tree of a finished game. Each level is one turn with its two options:
  * the chosen branch continues the path, the other one shows what it would have given.
- * Tapping the other branch switches the option; the chips change the case of the chosen one.
+ * Tapping the other branch switches to that life. The case of each turn is fixed by its luck: it is shown, not edited.
  * If an edit leads to a question never answered, the tree ends with a pending level to decide it.
  */
 @Composable
@@ -70,7 +66,7 @@ fun DecisionTree(
     pendingEvent: Event?,
     pendingPreviews: List<OptionPreview>,
     eventById: (String) -> Event?,
-    onEditTurn: (index: Int, optionId: String?, case: CaseType?) -> Unit,
+    onSwitch: (index: Int) -> Unit,
     onDecide: (optionId: String) -> Unit,
     onReset: () -> Unit,
 ) {
@@ -124,12 +120,12 @@ fun DecisionTree(
                         val badge = when {
                             played == null -> null
                             played.eventId != turn.eventId -> stringResource(Res.string.tree_new_question)
-                            played.choice != turn.choice -> stringResource(Res.string.tree_edited)
+                            played.chosenOptionId != turn.chosenOptionId -> stringResource(Res.string.tree_edited)
                             else -> null
                         }
-                        ChosenNode(option, turn, badge, { case -> onEditTurn(index, null, case) }, mod)
+                        ChosenNode(option, turn, badge, mod)
                     } else {
-                        OtherNode(option, turn, { onEditTurn(index, option.id, null) }, mod)
+                        OtherNode(option, turn, { onSwitch(index) }, mod)
                     }
                 }
             }
@@ -199,7 +195,7 @@ private fun QuietNode(index: Int, month: Int, turn: Turn) {
 }
 
 @Composable
-private fun ChosenNode(option: EventOption, turn: Turn, badge: String?, onCase: (CaseType) -> Unit, modifier: Modifier) {
+private fun ChosenNode(option: EventOption, turn: Turn, badge: String?, modifier: Modifier) {
     Card(
         modifier = modifier,
         shape = MaterialTheme.shapes.large,
@@ -212,20 +208,7 @@ private fun ChosenNode(option: EventOption, turn: Turn, badge: String?, onCase: 
                 if (badge != null) Text(badge, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary)
             }
             Text(localized(option.label), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                CaseType.entries.forEach { case ->
-                    val color = caseColor(case)
-                    FilterChip(
-                        selected = case == turn.resolvedCase,
-                        onClick = { onCase(case) },
-                        label = { Text(caseName(case), style = MaterialTheme.typography.labelSmall) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = color.copy(alpha = 0.25f),
-                            selectedLabelColor = color,
-                        ),
-                    )
-                }
-            }
+            turn.resolvedCase?.let { CaseBadge(it) }   // drawn by the turn's luck: the same in every branch
             LabeledValue(stringResource(Res.string.tree_net_worth_after), formatChf(turn.stateAfter.netWorth))
         }
     }

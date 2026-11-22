@@ -197,7 +197,7 @@
 
     <!-- Decision tree (what-if) -->
     <string name="tree_title">Your decision tree</string>
-    <string name="tree_hint">Tap the other branch of any turn to switch the decision, or pick another case. Later decisions are kept and everything below is recalculated.</string>
+    <string name="tree_hint">Tap the other branch of any turn to live that other life. Luck is the same in every branch: only your decision changes. Lives you already explored are kept.</string>
     <string name="tree_start">Start · net worth %1$s</string>
     <string name="tree_level">Turn %1$d · month %2$d</string>
     <string name="tree_net_worth_after">Net worth after</string>
