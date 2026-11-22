@@ -71,27 +71,56 @@ class AppState(
     var playedKey by mutableStateOf<NodeKey?>(null); private set
     val playedSession: GameSession? get() = playedKey?.let { tree?.nodes?.get(it) }
 
-    // Pure engine results per node, computed once (the tree never changes a node).
-    private val resultCache = mutableMapOf<NodeKey, GameResult>()
-    private val bandCache = mutableMapOf<NodeKey, CashBand?>()
+    // Pure engine results per node, computed once (the tree never changes a node) and OFF the UI thread: the screens
+    // only read these caches and show a progress indicator until [prepareResults] / [prepareNoiseBand] fill them.
+    // Measured on the JVM (warm): finish ~30 ms, noise band ~220 ms; several times more on a phone.
+    // The caches are written on the UI thread (after withContext), so they need no locking.
+    private val resultCache = mutableStateMapOf<NodeKey, GameResult>()
+    private val bandCache = mutableStateMapOf<NodeKey, CashBand?>()
 
-    /** Results of the current node (P8-P10); for a node before the end they assume no further decisions. */
+    /** Results of the current node (P8-P10), or null while they are computed (see [prepareResults]). */
     val results: GameResult?
         get() {
             val t = tree ?: return null
             if (playedKey == null) return null           // no results screen before the first life is complete
-            return resultAt(t, t.cursor)
+            return resultCache[t.cursor]
         }
 
-    private fun resultAt(t: LifeTree, key: NodeKey): GameResult = resultCache.getOrPut(key) { engine.finish(t.nodes.getValue(key)) }
+    /** Computes the results of the current node in the background, once. */
+    suspend fun prepareResults() {
+        val t = tree ?: return
+        resultFor(t, t.cursor)
+    }
 
-    /** Optional noise band of the current node (#12): month-to-month noise only, not the analysis. */
+    private suspend fun resultFor(t: LifeTree, key: NodeKey): GameResult {
+        resultCache[key]?.let { return it }
+        val session = t.nodes.getValue(key)
+        val r = withContext(Dispatchers.Default) { engine.finish(session) }
+        resultCache[key] = r
+        return r
+    }
+
+    /** Optional noise band of the current node (#12): month-to-month noise only, not the analysis. Null until ready. */
     val noiseBand: CashBand?
         get() {
             val t = tree ?: return null
             if (playedKey == null) return null
-            return bandCache.getOrPut(t.cursor) { engine.noiseBand(t.current) }
+            return bandCache[t.cursor]
         }
+
+    /** Computes the noise band of the current node in the background, once (only for complete lives). */
+    suspend fun prepareNoiseBand() {
+        val t = tree ?: return
+        if (t.current.isOver) bandFor(t, t.cursor)
+    }
+
+    private suspend fun bandFor(t: LifeTree, key: NodeKey): CashBand? {
+        if (bandCache.containsKey(key)) return bandCache[key]
+        val session = t.nodes.getValue(key)
+        val band = withContext(Dispatchers.Default) { engine.noiseBand(session) }
+        bandCache[key] = band
+        return band
+    }
 
     /** True once every possible life of the game is in the tree (see [prepareMap]). */
     var mapReady by mutableStateOf(false); private set
@@ -343,11 +372,9 @@ class AppState(
      * What the self of the current moment may know: the life up to this node. Before the end of the game the other
      * lives and the noise band are left out (they describe years this self has not lived).
      */
-    private fun chatContext(): ChatContext? {
-        val t = tree ?: return null
-        if (!canChat) return null
-        val r = resultAt(t, t.cursor)
-        return if (t.current.isOver) ChatContext(r, facts, assumptions, lang, whatIfTurns(r.session), noiseBand)
+    private suspend fun chatContext(t: LifeTree, key: NodeKey): ChatContext {
+        val r = resultFor(t, key)
+        return if (t.nodes.getValue(key).isOver) ChatContext(r, facts, assumptions, lang, whatIfTurns(r.session), bandFor(t, key))
         else ChatContext(r.copy(parallelLives = emptyList(), sensitivity = emptyList()), facts, assumptions, lang, whatIfTurns(r.session), null)
     }
 
@@ -360,17 +387,19 @@ class AppState(
     }
 
     suspend fun ask(question: String) {
-        val node = tree?.cursor ?: return
-        val context = chatContext() ?: return
-        if (question.isBlank() || chatLoading) return
+        val t = tree ?: return
+        val node = t.cursor
+        if (!canChat || question.isBlank() || chatLoading) return
         // The answer goes to the conversation the question was asked in, even if the user moves meanwhile.
-        val key = chatKey(node, persona)
+        val asked = persona
+        val key = chatKey(node, asked)
         // Offline (canned) answers are not the agent's words: they stay out of the history it receives.
         val history = chats[key].orEmpty().filterNot { it.offline }.map { it.message }
         chats[key] = chats[key].orEmpty() + ChatBubble(ChatMessage(ChatRole.USER, question))
         chatLoading = true
         try {
-            val answer = chat.ask(context, persona, history, question)
+            val context = chatContext(t, node)           // computed in the background if not cached yet
+            val answer = chat.ask(context, asked, history, question)
             chats[key] = chats[key].orEmpty() + ChatBubble(answer, offline = lastAnswerOffline)
         } finally {
             chatLoading = false
@@ -378,12 +407,12 @@ class AppState(
     }
 
     suspend fun writeChronicle() {
-        val node = tree?.cursor ?: return
-        val context = chatContext() ?: return
-        if (chronicleLoading) return
+        val t = tree ?: return
+        val node = t.cursor
+        if (!canChat || chronicleLoading) return
         chronicleLoading = true
         try {
-            val story = chat.chronicle(context)
+            val story = chat.chronicle(chatContext(t, node))
             chronicles[node] = ChatBubble(ChatMessage(ChatRole.TWIN, story), offline = lastAnswerOffline)
         } finally {
             chronicleLoading = false
