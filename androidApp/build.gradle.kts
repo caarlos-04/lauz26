@@ -33,6 +33,11 @@ dependencies {
     debugImplementation(libs.compose.uiTooling)
 }
 
+// The APK files are named after the app: VTwin-debug.apk, VTwin-release.apk.
+base {
+    archivesName.set("VTwin")
+}
+
 android {
     namespace = "com.lauzhack.twin"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
