@@ -1,21 +1,17 @@
 package com.lauzhack.twin.engine
 
+import com.lauzhack.twin.model.Action
+import com.lauzhack.twin.model.ActionCatalog
 import com.lauzhack.twin.model.Assumptions
 import com.lauzhack.twin.model.Attribution
 import com.lauzhack.twin.model.AttributionItem
 import com.lauzhack.twin.model.BeatKind
-import com.lauzhack.twin.model.CaseType
-import com.lauzhack.twin.model.Event
-import com.lauzhack.twin.model.EventCatalog
-import com.lauzhack.twin.model.EventOption
+import com.lauzhack.twin.model.DecisionTree
 import com.lauzhack.twin.model.FinancialStatement
 import com.lauzhack.twin.model.FlowModel
 import com.lauzhack.twin.model.GameResult
 import com.lauzhack.twin.model.GameSession
 import com.lauzhack.twin.model.MacroFile
-import com.lauzhack.twin.model.OptionPreview
-import com.lauzhack.twin.model.ParallelKind
-import com.lauzhack.twin.model.ParallelLife
 import com.lauzhack.twin.model.Stats
 import com.lauzhack.twin.model.StoryBeat
 import com.lauzhack.twin.model.Turn
@@ -24,44 +20,35 @@ import kotlin.math.floor
 import kotlin.random.Random
 
 /**
- * The UI's [GameEngine] on top of the real engine ([TwinEngine], the port of tools/game.py) (#16).
+ * The UI's [GameEngine] on top of the real engine ([TwinEngine], the port of tools/game.py).
  *
- * Stateless: every call is a pure function of the [GameSession] (initial statement, seed, the turns played), so the
- * what-if tree can replay any path. The state at the start of a turn is the last `stateAfter` with its due life
- * changes applied ([TwinEngine.startTurn]); turn i uses the seeded luck of turn i, as in the golden games.
+ * Stateless: every call is a pure function of the [GameSession] (initial statement, seed, luck mode and the decisions
+ * taken), so the decision tree can rebuild any node. The state at the start of a turn is the last `stateAfter` with
+ * its due life changes applied ([TwinEngine.startTurn]).
  */
 class RealGameEngine(private val twin: TwinEngine) : GameEngine {
 
-    private val byId = twin.events.associateBy { it.id }
+    private val byId: Map<String, Action> = twin.actions.associateBy { it.id }
+    private val shocksById = twin.shocks.associateBy { it.id }
 
-    // ------------------------------------------------------------------------------------------ the turn
+    // ------------------------------------------------------------------------------------------ a decision
 
     private fun engineFor(session: GameSession): TwinEngine =
-        if (session.config == twin.config) twin else TwinEngine(twin.simulator, twin.events, session.config)
+        if (session.config == twin.config) twin else TwinEngine(twin.simulator, twin.actions, twin.shocks, session.config)
 
-    private fun current(session: GameSession): FinancialStatement = session.turns.lastOrNull()?.stateAfter ?: session.initial
-
-    private fun used(session: GameSession): Set<String> = session.turns.mapNotNull { it.eventId }.toSet()
+    private fun last(session: GameSession): FinancialStatement = session.turns.lastOrNull()?.stateAfter ?: session.initial
 
     /** The statement at the start of the next turn (due life changes applied) and the moments they create. */
-    private fun started(session: GameSession): Pair<FinancialStatement, List<StoryBeat>> = engineFor(session).startTurn(current(session))
+    private fun started(session: GameSession): Pair<FinancialStatement, List<StoryBeat>> = engineFor(session).startTurn(last(session))
 
-    override fun nextEvent(session: GameSession): Event? =
-        engineFor(session).nextEvent(started(session).first, session.turns.size, used(session), session.seed)
+    override fun actionsAt(session: GameSession): List<Action> =
+        engineFor(session).actionsAt(started(session).first, session.turns.size, session.usedActions)
 
-    override fun isEligible(session: GameSession, event: Event): Boolean =
-        com.lauzhack.twin.engine.isEligible(event, started(session).first, session.turns.size, used(session))
-
-    override fun preview(session: GameSession, event: Event): List<OptionPreview> = engineFor(session).preview(started(session).first, event)
-
-    override fun resolveLuck(session: GameSession, option: EventOption): Pair<Double, CaseType> {
-        val luck = PortableRandom.turnLuck(session.seed, session.turns.size)
-        return luck to caseFromLuck(option, luck)
-    }
-
-    override fun playTurn(session: GameSession, event: Event?, optionId: String?, case: CaseType?, luck: Double): Turn {
+    override fun decide(session: GameSession, actionId: String): Turn {
+        check(!session.isOver) { "The game is over: no more decisions" }
         val (s, lifeBeats) = started(session)
-        val outcome = engineFor(session).playTurn(s, session.turns.size, event, optionId, case, luck)
+        val outcome = engineFor(session).playTurn(s, session.turns.size, session.nodeId, actionId, session.usedActions,
+                                                  session.seed, session.luckMode)
         return outcome.turn.copy(beats = lifeBeats + outcome.turn.beats)
     }
 
@@ -83,17 +70,16 @@ class RealGameEngine(private val twin: TwinEngine) : GameEngine {
             stats = statsOf(path.monthly, session),
             attribution = path.attribution,
             beats = beats,
-            parallelLives = listOf(parallelLife(session, ParallelKind.OTHER_FIRST_CHOICE), parallelLife(session, ParallelKind.OPTIMAL_STRATEGY)),
             sensitivity = emptyList(),                // P10 (break-even analysis) is not implemented yet
         )
     }
 
-    /** Only the replay (no parallel lives): cheap enough to explain every node. */
+    /** Only the replay: cheap enough to explain every node. */
     override fun attribution(session: GameSession): Attribution = replay(session).attribution
 
     /**
-     * #12 option 2: p10 / p50 / p90 of cash per month, replaying the played choices and cases with the simulator's
-     * sampled monthly flows. Only "how much month-to-month noise moves your cash"; not the analysis.
+     * #12 option 2: p10 / p50 / p90 of cash per month, replaying the decisions (same cases and shocks) with the
+     * simulator's sampled monthly flows. Only "how much month-to-month noise moves your cash"; not the analysis.
      */
     override fun noiseBand(session: GameSession): CashBand = noiseBand(session, NOISE_PATHS)
 
@@ -106,9 +92,9 @@ class RealGameEngine(private val twin: TwinEngine) : GameEngine {
             var state = session.initial
             for (turn in session.turns) {
                 var s = engine.startTurn(state).first
-                val event = turn.eventId?.let { byId[it] }
-                val outcome = event?.options?.firstOrNull { it.id == turn.chosenOptionId }?.cases?.get(turn.resolvedCase)
-                if (event != null && outcome != null) s = applyEffects(s, outcome.effects, event.id)
+                engine.action(turn.actionId)?.let { s = applyEffects(s, resolve(it, turn.luck).effects, turn.actionId) }
+                val shock = turn.shockId?.let { shocksById[it] }
+                if (shock != null) s = applyEffects(s, shifted(resolve(shock, turn.shockLuck ?: 0.5).effects, turn.shockMonth ?: 0), turn.shockId)
                 val months = engine.simulator.run(s, session.config.monthsPerTurn, SimMode.SAMPLE, rng).drop(1)
                 months.forEach { out += it.cashChf }
                 state = months.lastOrNull() ?: s
@@ -124,16 +110,20 @@ class RealGameEngine(private val twin: TwinEngine) : GameEngine {
 
     private class Path(val monthly: List<FinancialStatement>, val beats: List<StoryBeat>, val attribution: Attribution)
 
-    /** The session's turns again, month by month (same events, options, cases and luck): statements, beats and attribution. */
+    /** The session's decisions again, month by month (pure: the same cases, luck and shocks): statements, beats and attribution. */
     private fun replay(session: GameSession): Path {
         val engine = engineFor(session)
         val monthly = mutableListOf(session.initial)
         val beats = mutableListOf<StoryBeat>()
         val items = linkedMapOf<String, Double>()
+        val used = mutableSetOf<String>()
+        var node = DecisionTree.ROOT
         var state = session.initial
         session.turns.forEachIndexed { i, turn ->
             val (s, life) = engine.startTurn(state)
-            val outcome = engine.playTurn(s, i, turn.eventId?.let { byId[it] }, turn.chosenOptionId, turn.resolvedCase, turn.luck)
+            val outcome = engine.playTurn(s, i, node, turn.actionId, used, session.seed, session.luckMode)
+            used += turn.actionId
+            node = DecisionTree.childId(node, turn.actionId)
             beats += life
             beats += outcome.turn.beats
             outcome.attribution.forEach { (k, v) -> items[k] = (items[k] ?: 0.0) + v }
@@ -144,49 +134,12 @@ class RealGameEngine(private val twin: TwinEngine) : GameEngine {
         return Path(monthly, beats, attribution)
     }
 
-    /**
-     * The same luck per turn, with the first decision flipped (OTHER_FIRST_CHOICE) or not, and a greedy strategy for
-     * every other decision (expected change of net worth minus the cushion penalty): a stand-in for the expectimax tree.
-     */
-    private fun parallelLife(session: GameSession, kind: ParallelKind): ParallelLife {
-        val engine = engineFor(session)
-        val firstDecision = session.turns.indexOfFirst { it.eventId != null }
-        var life = session.copy(turns = emptyList())
-        while (!life.isOver) {
-            val i = life.turns.size
-            val luck = session.turns.getOrNull(i)?.luck ?: PortableRandom.turnLuck(session.seed, i)
-            val event = nextEvent(life)
-            val played = session.turns.getOrNull(i)
-            val turn = if (event == null) {
-                playTurn(life, null, null, null, luck)
-            } else {
-                val optionId = if (kind == ParallelKind.OTHER_FIRST_CHOICE && i == firstDecision && played?.eventId == event.id)
-                    event.options.first { it.id != played.chosenOptionId }.id
-                else bestOption(life, event)
-                playTurn(life, event, optionId, caseFromLuck(event.options.first { it.id == optionId }, luck), luck)
-            }
-            life = life.copy(turns = life.turns + turn)
-        }
-        val path = replay(life)
-        return ParallelLife(kind, life.turns, path.monthly.last(), statsOf(path.monthly, life), path.attribution)
-    }
-
-    private fun bestOption(session: GameSession, event: Event): String {
-        val months = session.config.monthsPerTurn
-        val prefs = session.preferences
-        return preview(session, event).maxBy { p ->
-            p.perCase.values.sumOf { c ->
-                val penalty = if (c.minCash < prefs.minCashChf) prefs.penaltyChfPerMonthBelowMin * months else 0.0
-                c.prob * (c.deltaNetWorth - penalty)
-            }
-        }.optionId
-    }
-
     private fun statsOf(monthly: List<FinancialStatement>, session: GameSession): Stats {
         val low = monthly.minBy { it.cashChf }
         val end = monthly.last()
         val active = monthly.drop(1)
-        val reached = end.goals.filter { g -> monthly.any { goalState(g, it) == GoalState.REACHED } }.map { it.name }
+        // Reached = the target was hit by its deadline (hitting it after the deadline does not undo a missed goal).
+        val reached = end.goals.filter { g -> monthly.any { goalValue(g, it) >= g.targetChf && it.period.take(7) <= g.targetDate.take(7) } }.map { it.name }
         return Stats(
             finalNetWorth = end.netWorthChf(),
             minCash = low.cashChf,
@@ -203,10 +156,10 @@ class RealGameEngine(private val twin: TwinEngine) : GameEngine {
         const val NOISE_PATHS = 200
         private const val NOISE_SALT = 7919L
 
-        /** The engine from the packaged content (AppContent): flow model, macro trends, events and assumptions. */
-        fun from(flowModel: FlowModel, macro: MacroFile?, events: EventCatalog, assumptions: Assumptions): RealGameEngine {
+        /** The engine from the packaged content (AppContent): flow model, macro trends, actions and assumptions. */
+        fun from(flowModel: FlowModel, macro: MacroFile?, catalog: ActionCatalog, assumptions: Assumptions): RealGameEngine {
             val rules = EngineRules(financingRateAnnual = assumptions.financingRateAnnual, investmentReturnAnnual = assumptions.investmentReturnAnnual)
-            return RealGameEngine(TwinEngine(Simulator(flowModel, macro, rules), events.events))
+            return RealGameEngine(TwinEngine(Simulator(flowModel, macro, rules), catalog.actions, catalog.shocks))
         }
 
         private fun whole(x: Double): String = kotlin.math.round(x).toLong().toString()

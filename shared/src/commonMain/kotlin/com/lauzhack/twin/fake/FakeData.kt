@@ -1,20 +1,23 @@
 package com.lauzhack.twin.fake
 
+import com.lauzhack.twin.engine.EngineRules
+import com.lauzhack.twin.engine.RealGameEngine
+import com.lauzhack.twin.engine.Simulator
+import com.lauzhack.twin.engine.TwinEngine
+import com.lauzhack.twin.model.ActionCatalog
 import com.lauzhack.twin.model.Assumptions
-import com.lauzhack.twin.model.CaseOutcome
-import com.lauzhack.twin.model.CaseType
-import com.lauzhack.twin.model.Effect
 import com.lauzhack.twin.model.Employment
-import com.lauzhack.twin.model.Event
-import com.lauzhack.twin.model.EventOption
 import com.lauzhack.twin.model.ExpenseCategory
 import com.lauzhack.twin.model.FactCatalog
 import com.lauzhack.twin.model.FactKey
 import com.lauzhack.twin.model.FinancialStatement
+import com.lauzhack.twin.model.FlowModel
 import com.lauzhack.twin.model.Goal
 import com.lauzhack.twin.model.Household
+import com.lauzhack.twin.model.InputUnit
 import com.lauzhack.twin.model.InterviewOption
 import com.lauzhack.twin.model.InterviewQuestion
+import com.lauzhack.twin.model.NumberInput
 import com.lauzhack.twin.model.Lang
 import com.lauzhack.twin.model.LocalizedText
 import com.lauzhack.twin.model.Objective
@@ -22,7 +25,7 @@ import com.lauzhack.twin.model.Person
 import com.lauzhack.twin.model.Preferences
 import com.lauzhack.twin.model.Priority
 import com.lauzhack.twin.model.ProfileField
-import com.lauzhack.twin.model.Requirements
+import kotlinx.serialization.json.Json
 
 /**
  * Placeholder data so the UI runs before the engine and the full content exist.
@@ -51,7 +54,6 @@ object FakeData {
     val assumptions = Assumptions(
         investmentReturnAnnual = 0.04,
         financingRateAnnual = 0.085,
-        defaultCaseProbs = mapOf(CaseType.PESSIMISTIC to 0.2, CaseType.NEUTRAL to 0.6, CaseType.OPTIMISTIC to 0.2),
         objectivePenalties = mapOf(Objective.GROWTH to 0.0, Objective.BALANCED to 50.0, Objective.SAFE to 150.0),
         sensitivity = emptyList(),
         // Shown verbatim in the UI; Dev C will replace them with content/assumptions.json.
@@ -145,294 +147,94 @@ object FakeData {
         pendingChanges = emptyList(),
     )
 
-    // ---------- Event catalogue ----------
-
-    private fun outcome(prob: Double, en: String, es: String, vararg effects: Effect) =
-        CaseOutcome(prob, effects.toList(), t(en, es))
-
-    private fun cases(p: CaseOutcome, n: CaseOutcome, o: CaseOutcome) =
-        mapOf(CaseType.PESSIMISTIC to p, CaseType.NEUTRAL to n, CaseType.OPTIMISTIC to o)
+    // ---------- Action pool and a small flow model (the real engine on hand-written numbers) ----------
 
     private const val FAKE_SOURCE = "Fake data for the UI (illustrative, not calibrated)."
 
-    val events: List<Event> = listOf(
-        Event(
-            id = "E-studies",
-            category = "Education & skills",
-            title = t("After your bachelor", "Después del grado"),
-            description = t(
-                "You are about to finish your bachelor. Do you keep studying or start working?",
-                "Estás a punto de acabar el grado. ¿Sigues estudiando o empiezas a trabajar?",
-            ),
-            requires = Requirements(facts = mapOf(FactKey.EDUCATION to listOf("BACHELOR_IN_PROGRESS"))),
-            sources = listOf(FAKE_SOURCE),
-            options = listOf(
-                EventOption(
-                    "A", t("Do a master's degree", "Hacer un máster"),
-                    cases(
-                        outcome(0.2, "You need an extra semester and pay for books and fees.",
-                            "Necesitas un semestre extra y pagas libros y tasas.",
-                            Effect.ExpenseDelta(ExpenseCategory.TUITION, 150.0, months = 24),
-                            Effect.IncomeDelta(-300.0, months = 24),
-                            Effect.OneOff(1_500.0),
-                            Effect.SetFact(FactKey.EDUCATION, "MASTER_IN_PROGRESS"),
-                            Effect.SetFact(FactKey.EDUCATION, "MASTER", startOffsetMonths = 24),
-                            Effect.AddFlag("did_master", startOffsetMonths = 24)),
-                        outcome(0.6, "The master goes as planned; you work fewer hours.",
-                            "El máster va según lo previsto; trabajas menos horas.",
-                            Effect.ExpenseDelta(ExpenseCategory.TUITION, 150.0, months = 24),
-                            Effect.IncomeDelta(-300.0, months = 24),
-                            Effect.SetFact(FactKey.EDUCATION, "MASTER_IN_PROGRESS"),
-                            Effect.SetFact(FactKey.EDUCATION, "MASTER", startOffsetMonths = 24),
-                            Effect.AddFlag("did_master", startOffsetMonths = 24)),
-                        outcome(0.2, "You win a scholarship that covers part of your costs.",
-                            "Consigues una beca que cubre parte de tus gastos.",
-                            Effect.ExpenseDelta(ExpenseCategory.TUITION, 150.0, months = 24),
-                            Effect.IncomeDelta(500.0, months = 24),
-                            Effect.SetFact(FactKey.EDUCATION, "MASTER_IN_PROGRESS"),
-                            Effect.SetFact(FactKey.EDUCATION, "MASTER", startOffsetMonths = 24),
-                            Effect.AddFlag("did_master", startOffsetMonths = 24)),
-                    ),
-                ),
-                EventOption(
-                    "B", t("Start working now", "Empezar a trabajar ya"),
-                    cases(
-                        outcome(0.2, "Junior job with a modest salary of CHF 3,600 a month.",
-                            "Trabajo junior con un sueldo modesto de 3.600 CHF al mes.",
-                            *startWorking(3_600.0)),
-                        outcome(0.6, "You find a full-time job in Lausanne at CHF 4,400 a month.",
-                            "Encuentras un trabajo a tiempo completo en Lausana por 4.400 CHF al mes.",
-                            *startWorking(4_400.0)),
-                        outcome(0.2, "A start-up hires you at CHF 5,200 a month.",
-                            "Una start-up te contrata por 5.200 CHF al mes.",
-                            *startWorking(5_200.0)),
-                    ),
-                ),
-            ),
-        ),
-        Event(
-            id = "E-housing",
-            category = "Housing",
-            title = t("Where to live", "Dónde vivir"),
-            description = t(
-                "You want more independence. Do you move to a studio of your own?",
-                "Quieres más independencia. ¿Te mudas a un estudio para ti solo/a?",
-            ),
-            earliestTurn = 1,
-            requires = Requirements(facts = mapOf(FactKey.HOUSING to listOf("SHARED_FLAT"))),
-            sources = listOf(FAKE_SOURCE),
-            options = listOf(
-                EventOption(
-                    "A", t("Move to my own studio", "Mudarme a mi propio estudio"),
-                    cases(
-                        outcome(0.2, "Only an expensive studio is free; furniture costs more than expected.",
-                            "Solo queda un estudio caro; los muebles cuestan más de lo previsto.",
-                            Effect.SetHousehold(Household.SINGLE), Effect.MarketRent(0.75), Effect.OneOff(3_000.0),
-                            Effect.SetFact(FactKey.HOUSING, "RENTED_FLAT"), Effect.AddFlag("rented_own_flat")),
-                        outcome(0.6, "You rent a small studio near the lake.",
-                            "Alquilas un pequeño estudio cerca del lago.",
-                            Effect.SetHousehold(Household.SINGLE), Effect.MarketRent(0.5), Effect.OneOff(2_000.0),
-                            Effect.SetFact(FactKey.HOUSING, "RENTED_FLAT"), Effect.AddFlag("rented_own_flat")),
-                        outcome(0.2, "A friend sublets you a cheap studio, already furnished.",
-                            "Un amigo te subalquila un estudio barato y amueblado.",
-                            Effect.SetHousehold(Household.SINGLE), Effect.MarketRent(0.25), Effect.OneOff(500.0),
-                            Effect.SetFact(FactKey.HOUSING, "RENTED_FLAT"), Effect.AddFlag("rented_own_flat")),
-                    ),
-                ),
-                EventOption(
-                    "B", t("Stay in the shared flat", "Quedarme en el piso compartido"),
-                    cases(
-                        outcome(0.2, "A flatmate leaves and you cover their share for a year.",
-                            "Un compañero se va y pagas su parte durante un año.",
-                            Effect.ExpenseDelta(ExpenseCategory.RENT, 250.0, months = 12)),
-                        outcome(0.6, "Nothing changes; shared flat life goes on.",
-                            "Nada cambia; la vida en el piso compartido sigue."),
-                        outcome(0.2, "A new flatmate joins and the rent per person drops.",
-                            "Entra un compañero nuevo y el alquiler por persona baja.",
-                            Effect.ExpenseDelta(ExpenseCategory.RENT, -120.0)),
-                    ),
-                ),
-            ),
-        ),
-        Event(
-            id = "E-hours",
-            category = "Career & employment",
-            title = t("Fewer hours?", "¿Menos horas?"),
-            description = t(
-                "Your employer offers to cut your hours to 80 % of your salary. Do you take it?",
-                "Tu empresa te ofrece reducir tu jornada al 80 % del sueldo. ¿La aceptas?",
-            ),
-            earliestTurn = 2,
-            requires = Requirements(employment = listOf(Employment.EMPLOYED, Employment.PART_TIME)),
-            sources = listOf(FAKE_SOURCE),
-            options = listOf(
-                EventOption(
-                    "A", t("Work 80 %", "Trabajar al 80 %"),
-                    cases(
-                        outcome(0.2, "Your workload stays the same, for less pay.",
-                            "La carga de trabajo es la misma, por menos sueldo.",
-                            Effect.IncomeFactor(0.8), Effect.AddFlag("four_day_week")),
-                        outcome(0.6, "You earn less but have a free day every week.",
-                            "Ganas menos pero tienes un día libre cada semana.",
-                            Effect.IncomeFactor(0.8), Effect.AddFlag("four_day_week")),
-                        outcome(0.2, "You use the free day for a paid side project.",
-                            "Usas el día libre para un proyecto remunerado.",
-                            Effect.IncomeFactor(0.8), Effect.IncomeDelta(500.0), Effect.AddFlag("four_day_week")),
-                    ),
-                ),
-                EventOption(
-                    "B", t("Keep my hours", "Mantener mi jornada"),
-                    cases(
-                        outcome(0.2, "Nothing changes.", "Nada cambia."),
-                        outcome(0.6, "You get a small raise.", "Consigues un pequeño aumento.",
-                            Effect.IncomeDelta(200.0)),
-                        outcome(0.2, "You are promoted.", "Te ascienden.",
-                            Effect.IncomeDelta(600.0), Effect.SetFact(FactKey.OCCUPATION, "SENIOR"), Effect.AddFlag("promoted")),
-                    ),
-                ),
-            ),
-        ),
-        Event(
-            id = "E-car",
-            category = "Mobility",
-            title = t("Getting around", "Moverse"),
-            description = t(
-                "Commuting is becoming tiring. Do you buy a car on credit or stay with public transport?",
-                "Los trayectos se hacen pesados. ¿Compras un coche a crédito o sigues en transporte público?",
-            ),
-            earliestTurn = 3,
-            sources = listOf(FAKE_SOURCE),
-            options = listOf(
-                EventOption(
-                    "A", t("Buy a car with a loan", "Comprar un coche con un préstamo"),
-                    cases(
-                        outcome(0.2, "The used car needs a big repair in the first year.",
-                            "El coche de segunda mano necesita una gran reparación el primer año.",
-                            *carLoan(), Effect.ExpenseDelta(ExpenseCategory.OTHER, 250.0), Effect.OneOff(2_500.0)),
-                        outcome(0.6, "You buy a car on credit; insurance and fuel add up.",
-                            "Compras un coche a crédito; seguro y gasolina suman.",
-                            *carLoan(), Effect.ExpenseDelta(ExpenseCategory.OTHER, 250.0)),
-                        outcome(0.2, "The car lets you take a better-paid job outside the city.",
-                            "El coche te permite un trabajo mejor pagado fuera de la ciudad.",
-                            *carLoan(), Effect.ExpenseDelta(ExpenseCategory.OTHER, 250.0), Effect.IncomeDelta(400.0)),
-                    ),
-                ),
-                EventOption(
-                    "B", t("Yearly travelcard", "Abono anual de transporte"),
-                    cases(
-                        outcome(0.2, "Travelcard prices go up.", "Sube el precio del abono.",
-                            Effect.ExpenseDelta(ExpenseCategory.OTHER, 330.0)),
-                        outcome(0.6, "You buy a yearly travelcard.", "Compras un abono anual.",
-                            Effect.ExpenseDelta(ExpenseCategory.OTHER, 240.0)),
-                        outcome(0.2, "Your employer pays half of the travelcard.", "Tu empresa paga la mitad del abono.",
-                            Effect.ExpenseDelta(ExpenseCategory.OTHER, 120.0)),
-                    ),
-                ),
-            ),
-        ),
-        // Only makes sense if the player took a loan (milestone "took_loan").
-        Event(
-            id = "E-car-loan",
-            category = "Debt",
-            title = t("Your car loan", "Tu préstamo del coche"),
-            description = t(
-                "Interest rates went up and your car loan is getting more expensive. Do you refinance it?",
-                "Los tipos de interés han subido y el préstamo del coche sale más caro. ¿Lo refinancias?",
-            ),
-            requires = Requirements(flagsAll = listOf("took_loan")),
-            earliestTurn = 4,
-            priority = 5,
-            sources = listOf(FAKE_SOURCE),
-            options = listOf(
-                EventOption(
-                    "A", t("Refinance with another bank", "Refinanciar con otro banco"),
-                    cases(
-                        outcome(0.2, "The bank charges high fees to refinance.", "El banco cobra comisiones altas por refinanciar.",
-                            Effect.OneOff(1_200.0)),
-                        outcome(0.6, "You refinance and save a bit every month.", "Refinancias y ahorras un poco cada mes.",
-                            Effect.OneOff(400.0), Effect.ExpenseDelta(ExpenseCategory.OTHER, -60.0)),
-                        outcome(0.2, "You get a much better rate.", "Consigues un tipo mucho mejor.",
-                            Effect.OneOff(300.0), Effect.ExpenseDelta(ExpenseCategory.OTHER, -120.0)),
-                    ),
-                ),
-                EventOption(
-                    "B", t("Keep paying as it is", "Seguir pagando igual"),
-                    cases(
-                        outcome(0.2, "The rate keeps rising and the loan gets more expensive.",
-                            "El tipo sigue subiendo y el préstamo se encarece.",
-                            Effect.ExpenseDelta(ExpenseCategory.OTHER, 120.0)),
-                        outcome(0.6, "You keep paying; costs go up slightly.", "Sigues pagando; los costes suben un poco.",
-                            Effect.ExpenseDelta(ExpenseCategory.OTHER, 50.0)),
-                        outcome(0.2, "Rates fall back again.", "Los tipos vuelven a bajar."),
-                    ),
-                ),
-            ),
-        ),
-        Event(
-            id = "E-sabbatical",
-            category = "Life",
-            title = t("A break?", "¿Un descanso?"),
-            description = t(
-                "You dream of travelling for six months. Do you take a sabbatical?",
-                "Sueñas con viajar seis meses. ¿Te tomas un año sabático?",
-            ),
-            earliestTurn = 4,
-            sources = listOf(FAKE_SOURCE),
-            options = listOf(
-                EventOption(
-                    "A", t("Take a 6-month sabbatical", "Tomarme 6 meses sabáticos"),
-                    cases(
-                        outcome(0.2, "The trip costs more and finding work again takes time.",
-                            "El viaje cuesta más y volver a encontrar trabajo lleva tiempo.",
-                            Effect.OneOff(12_000.0), Effect.IncomeDelta(-2_000.0, months = 8)),
-                        outcome(0.6, "Six months travelling; you come back with stories and less money.",
-                            "Seis meses de viaje; vuelves con historias y menos dinero.",
-                            Effect.OneOff(9_000.0), Effect.IncomeDelta(-1_500.0, months = 6)),
-                        outcome(0.2, "You work remotely part of the trip.", "Trabajas en remoto parte del viaje.",
-                            Effect.OneOff(7_000.0), Effect.IncomeDelta(-500.0, months = 6)),
-                    ),
-                ),
-                EventOption(
-                    "B", t("Keep working and saving", "Seguir trabajando y ahorrando"),
-                    cases(
-                        outcome(0.2, "No bonus this time, but your job is stable.", "Esta vez no hay bonus, pero tu trabajo es estable."),
-                        outcome(0.6, "You keep working and get a small raise.", "Sigues trabajando y consigues un pequeño aumento.",
-                            Effect.IncomeDelta(300.0)),
-                        outcome(0.2, "You are promoted.", "Te ascienden.",
-                            Effect.IncomeDelta(700.0), Effect.SetFact(FactKey.OCCUPATION, "SENIOR"), Effect.AddFlag("promoted")),
-                    ),
-                ),
-            ),
-        ),
-    )
+    private val json = Json { ignoreUnknownKeys = true }
 
-    private fun startWorking(salary: Double): Array<Effect> = arrayOf(
-        Effect.SetEmployment(Employment.EMPLOYED),
-        Effect.SetIncome(salary),
-                Effect.ExpenseDelta(ExpenseCategory.TUITION, -120.0),
-        Effect.SetFact(FactKey.EDUCATION, "BACHELOR"),
-        Effect.SetFact(FactKey.OCCUPATION, "JUNIOR"),
-        Effect.AddFlag("started_working_early"),
-    )
+    private fun action(id: String, en: String, es: String, requires: String, effects: String, outcomeEn: String, outcomeEs: String,
+                       uncertain: String = "[]", repeatable: Boolean = false) = """
+        {"id": "$id", "category": "Fake", "title": {"EN": "$en", "ES": "$es"}, "description": {"EN": "$en.", "ES": "$es."},
+         "requires": $requires, "repeatable": $repeatable, "sources": ["$FAKE_SOURCE"], "effects": $effects,
+         "uncertain": $uncertain, "outcome": {"EN": "$outcomeEn", "ES": "$outcomeEs"}}"""
 
-    private fun carLoan(): Array<Effect> = arrayOf(
-        // The loan is paid out to cash and the car is bought with it (a one-off): the car is not an asset.
-        Effect.AddLiability(15_000.0, 0.06, termMonths = 60),
-        Effect.OneOff(15_000.0),
-        Effect.AddFlag("took_loan"),
-    )
+    /** A salary drawn at the luck of the decision: p25 4'500, median 6'000, p75 7'500 (illustrative). */
+    private fun salary(effect: Int) = """[{"name": "salary", "law": "LOGNORMAL", "median": 6000, "low": {"q": 0.25, "value": 4500},
+        "high": {"q": 0.75, "value": 7500}, "better": "HIGH", "step": 50, "format": "chf", "targets": [{"effect": $effect, "field": "monthlyChf"}]}]"""
+
+    /** A few actions with the shape of content/events.json (NOTHING, studies, work, a flat, a loan) and a job loss. */
+    val events: ActionCatalog = json.decodeFromString(
+        """{"version": 5, "actions": [
+        ${action("NOTHING", "Carry on as you are", "Seguir como estás", "null", "[]",
+                 "Two more years of the same life.", "Dos años más de la misma vida.", repeatable = true)},
+        ${action("A-master", "Do a master's", "Hacer un máster", """{"facts": {"EDUCATION": ["BACHELOR_IN_PROGRESS"]}}""",
+                 """[{"type": "expense_delta", "category": "TUITION", "deltaChf": 400, "months": 24},
+                    {"type": "set_fact", "key": "EDUCATION", "value": "MASTER_IN_PROGRESS"},
+                    {"type": "set_fact", "key": "EDUCATION", "value": "MASTER", "startOffsetMonths": 24},
+                    {"type": "set_employment", "employment": "EMPLOYED", "startOffsetMonths": 24},
+                    {"type": "set_income", "monthlyChf": 6000, "startOffsetMonths": 24},
+                    {"type": "add_flag", "flag": "did_master", "startOffsetMonths": 24}]""",
+                 "Two years of master's, then a job at CHF {salary}.", "Dos años de máster y después un trabajo de {salary} CHF.", salary(4))},
+        ${action("A-start-working", "Start working now", "Empezar a trabajar ya", """{"facts": {"EDUCATION": ["BACHELOR_IN_PROGRESS"]}}""",
+                 """[{"type": "set_fact", "key": "EDUCATION", "value": "BACHELOR"}, {"type": "set_employment", "employment": "EMPLOYED"},
+                    {"type": "set_fact", "key": "OCCUPATION", "value": "JUNIOR"}, {"type": "set_income", "monthlyChf": 5500},
+                    {"type": "add_flag", "flag": "started_working_early"}]""",
+                 "You start working at CHF {salary}.", "Empiezas a trabajar con {salary} CHF.", salary(3))},
+        ${action("A-shared-flat", "Move into a shared flat", "Irte a un piso compartido", """{"household": ["SINGLE"]}""",
+                 """[{"type": "set_household", "household": "SHARED_HOUSING"}, {"type": "set_fact", "key": "HOUSING", "value": "SHARED_FLAT"},
+                    {"type": "set_fact", "key": "FAMILY", "value": "SINGLE"}, {"type": "market_rent", "quantile": 0.5},
+                    {"type": "add_flag", "flag": "moved_to_shared_flat"}]""",
+                 "You share a flat.", "Compartes piso.")},
+        ${action("A-loan", "Take out a personal loan", "Pedir un préstamo personal", """{"maxCashChf": 0}""",
+                 """[{"type": "add_liability", "principalChf": 15000, "annualRate": 0.06, "termMonths": 60}, {"type": "add_flag", "flag": "took_loan"}]""",
+                 "The bank lends you money.", "El banco te presta dinero.")}],
+        "shocks": [{"id": "S-job-loss", "category": "Fake", "title": {"EN": "You lose your job", "ES": "Pierdes tu trabajo"},
+                    "description": {"EN": "Your company cuts jobs.", "ES": "Tu empresa recorta plantilla."},
+                    "requires": {"employment": ["EMPLOYED"]}, "probability": 0.04, "sources": ["$FAKE_SOURCE"],
+                    "effects": [{"type": "set_employment", "employment": "UNEMPLOYED"}, {"type": "income_factor", "factor": 0.1, "months": 6},
+                                {"type": "set_employment", "employment": "EMPLOYED", "startOffsetMonths": 6}, {"type": "add_flag", "flag": "lost_job"}],
+                    "outcome": {"EN": "Six months without a job.", "ES": "Seis meses sin trabajo."}}]}""")
+
+    private fun flow(key: String, direction: String, basis: String, category: String?, months: List<Int>, p: Double, a: Double,
+                     aFactors: String = "{}", pFactors: String = "{}") = """
+        {"key": "$key", "datasetCategory": "$key", "direction": "$direction", "basis": "$basis",
+         "expenseCategory": ${category?.let { "\"$it\"" } ?: "null"}, "months": $months,
+         "probability": {"base": $p, "factors": $pFactors},
+         "amount": {"base": $a, "factors": $aFactors, "residualDeciles": [0.5,0.6,0.7,0.8,0.9,1.0,1.1,1.2,1.3,1.4,1.5],
+                    "residualMeanSquare": 1.05, "personLevelSd": 0.0}, "nProfiles": 1, "nOccurrences": 1}"""
+
+    private val ALL_MONTHS = (1..12).toList()
+
+    /** Salary, rent, living costs (cheaper for students), tuition while studying and a December bonus. */
+    val flowModel: FlowModel = json.decodeFromString(
+        """{"meta": {"generator": "FakeData", "version": 1, "calibratedRange": "fake", "features": [], "numericFeatures": {}, "bandEdges": {}},
+            "cityCanton": {"Lausanne": "VD", "Geneva": "GE", "Zurich": "ZH", "Bern": "BE", "Fribourg": "FR"},
+            "rentModel": {"base": 1500.0, "factors": {"household": {"SINGLE": 1.0, "SHARED_HOUSING": 0.68}},
+                          "residualDeciles": [0.5,0.6,0.7,0.8,0.9,1.0,1.1,1.2,1.3,1.4,1.5], "nProfiles": 1},
+            "flows": [${flow("salary", "IN", "INCOME", null, ALL_MONTHS, 1.0, 1.0)},
+                      ${flow("rent", "OUT", "RENT", "RENT", ALL_MONTHS, 1.0, 1.0)},
+                      ${flow("groceries", "OUT", "CHF", "LIVING", ALL_MONTHS, 1.0, 1300.0, aFactors = """{"studying": {"NO": 1.0, "YES": 0.8}}""")},
+                      ${flow("tuition", "OUT", "CHF", "TUITION", listOf(2, 9), 1.0, 800.0, pFactors = """{"studying": {"NO": 0.0, "YES": 1.0}}""")},
+                      ${flow("bonus", "IN", "INCOME", null, listOf(12), 1.0, 0.5, pFactors = """{"employment": {"EMPLOYED": 1.0}}""")}]}""")
+
+    /** The real engine on [flowModel] and [events], without macro trends: for previews and UI tests. */
+    fun engine(): RealGameEngine = RealGameEngine(
+        TwinEngine(Simulator(flowModel, null, EngineRules(assumptions.financingRateAnnual, assumptions.investmentReturnAnnual)),
+                   events.actions, events.shocks))
 
     // ---------- Interview (P1) ----------
 
     private fun q(id: String, vararg options: Pair<String, Map<ProfileField, String>>) =
         InterviewQuestion(id, "q_${id}", options.map { (optId, sets) -> InterviewOption(optId, "q_${id}_$optId", sets) })
 
+    /** A typed number (with "I don't know" when [dontKnow]). */
+    private fun n(id: String, field: ProfileField, min: Double, max: Double, step: Double, unit: InputUnit, typical: Double, dontKnow: Boolean = true) =
+        InterviewQuestion(id, "q_$id", if (dontKnow) listOf(InterviewOption("dk", "q_${id}_dk", emptyMap())) else emptyList(),
+                          NumberInput(field, min, max, step, unit, typical))
+
     val interview: List<InterviewQuestion> = listOf(
-        q("age",
-            "a1" to mapOf(ProfileField.AGE to "20"),
-            "a2" to mapOf(ProfileField.AGE to "27"),
-            "a3" to mapOf(ProfileField.AGE to "38"),
-            "a4" to mapOf(ProfileField.AGE to "55")),
+        n("age", ProfileField.AGE, 18.0, 76.0, 1.0, InputUnit.YEARS, 46.0, dontKnow = false),
         q("city",
             "lausanne" to mapOf(ProfileField.CITY to "Lausanne"),
             "geneva" to mapOf(ProfileField.CITY to "Geneva"),
@@ -456,21 +258,11 @@ object FakeData {
             "couple" to mapOf(ProfileField.HOUSEHOLD to "COUPLE"),
             "family" to mapOf(ProfileField.HOUSEHOLD to "FAMILY"),
             "shared" to mapOf(ProfileField.HOUSEHOLD to "SHARED_HOUSING")),
-        q("income",
-            "i1" to mapOf(ProfileField.MONTHLY_INCOME to "1200"),
-            "i2" to mapOf(ProfileField.MONTHLY_INCOME to "3000"),
-            "i3" to mapOf(ProfileField.MONTHLY_INCOME to "5500"),
-            "i4" to mapOf(ProfileField.MONTHLY_INCOME to "9000")),
-        q("rent",
-            "r1" to mapOf(ProfileField.MONTHLY_RENT to "700"),
-            "r2" to mapOf(ProfileField.MONTHLY_RENT to "1300"),
-            "r3" to mapOf(ProfileField.MONTHLY_RENT to "2000"),
-            "r4" to mapOf(ProfileField.MONTHLY_RENT to "3000")),
-        q("cash",
-            "c1" to mapOf(ProfileField.OPENING_CASH to "2000"),
-            "c2" to mapOf(ProfileField.OPENING_CASH to "8000"),
-            "c3" to mapOf(ProfileField.OPENING_CASH to "25000"),
-            "c4" to mapOf(ProfileField.OPENING_CASH to "80000")),
+        n("income", ProfileField.MONTHLY_INCOME, 0.0, 12_300.0, 50.0, InputUnit.CHF_MONTH, 5_550.0),
+        n("rent", ProfileField.MONTHLY_RENT, 0.0, 3_950.0, 50.0, InputUnit.CHF_MONTH, 1_950.0),
+        n("cash", ProfileField.OPENING_CASH, 0.0, 150_000.0, 500.0, InputUnit.CHF, 53_000.0),
+        n("investments", ProfileField.INVESTMENTS, 0.0, 163_500.0, 500.0, InputUnit.CHF, 32_000.0),
+        n("debt", ProfileField.DEBT, 0.0, 65_000.0, 500.0, InputUnit.CHF, 0.0),
         q("goal",
             "emergency" to mapOf(ProfileField.GOAL_TYPE to "EMERGENCY"),
             "home" to mapOf(ProfileField.GOAL_TYPE to "HOME"),
@@ -480,10 +272,6 @@ object FakeData {
             "growth" to mapOf(ProfileField.OBJECTIVE to "GROWTH"),
             "balanced" to mapOf(ProfileField.OBJECTIVE to "BALANCED"),
             "safe" to mapOf(ProfileField.OBJECTIVE to "SAFE")),
-        q("mincash",
-            "m1" to mapOf(ProfileField.MIN_CASH to "1000"),
-            "m2" to mapOf(ProfileField.MIN_CASH to "3000"),
-            "m3" to mapOf(ProfileField.MIN_CASH to "6000"),
-            "m4" to mapOf(ProfileField.MIN_CASH to "12000")),
+        n("mincash", ProfileField.MIN_CASH, 0.0, 42_000.0, 500.0, InputUnit.CHF, 3_500.0, dontKnow = false),
     )
 }

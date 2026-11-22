@@ -16,7 +16,7 @@ import com.lauzhack.twin.engine.isOver
 import com.lauzhack.twin.model.Assumptions
 import com.lauzhack.twin.model.ChatMessage
 import com.lauzhack.twin.model.ChatRole
-import com.lauzhack.twin.model.Event
+import com.lauzhack.twin.model.Action
 import com.lauzhack.twin.model.FactCatalog
 import com.lauzhack.twin.model.GameConfig
 import com.lauzhack.twin.model.GameResult
@@ -24,6 +24,7 @@ import com.lauzhack.twin.model.GameSession
 import com.lauzhack.twin.model.InterviewAnswer
 import com.lauzhack.twin.model.InterviewQuestion
 import com.lauzhack.twin.model.Lang
+import com.lauzhack.twin.model.LuckMode
 import com.lauzhack.twin.model.Persona
 import com.lauzhack.twin.model.Turn
 import kotlinx.coroutines.Dispatchers
@@ -47,7 +48,7 @@ class AppState(
     private val chat: FutureSelfChat,
     val assumptions: Assumptions,
     val facts: FactCatalog,
-    private val catalog: List<Event>,
+    val catalog: Catalog,
     val interview: List<InterviewQuestion>,
     initialLang: Lang = Lang.EN,
 ) {
@@ -61,8 +62,11 @@ class AppState(
     /** The node the user is at: the turns played on the current branch. */
     val session: GameSession? get() = tree?.current
 
-    /** The question waiting at the current node (live play, or after switching branch in the tree). */
-    var currentEvent by mutableStateOf<Event?>(null); private set
+    /** The actions the user can take at the current node (the dilemma screen); empty when the life is complete. */
+    var available by mutableStateOf<List<Action>>(emptyList()); private set
+
+    /** How luck is drawn in the next game, chosen on the welcome screen (docs/decision-tree.md). */
+    var luckMode by mutableStateOf(LuckMode.SAME_LEVEL)
 
     /** The last turn of the current node (what the resolution screen shows). */
     val lastTurn: Turn? get() = session?.turns?.lastOrNull()
@@ -122,9 +126,6 @@ class AppState(
         return band
     }
 
-    /** True once every possible life of the game is in the tree (see [prepareMap]). */
-    var mapReady by mutableStateOf(false); private set
-
     /** Screen to go back to when the map is closed. */
     private var beforeMap = Screen.WELCOME
 
@@ -155,9 +156,15 @@ class AppState(
         screen = Screen.INTERVIEW
     }
 
-    fun answer(questionId: String, optionId: String) {
-        answers.removeAll { it.questionId == questionId }
-        answers += InterviewAnswer(questionId, optionId)
+    /** A choice (or "I don't know") for the current question. */
+    fun answer(questionId: String, optionId: String) = record(InterviewAnswer(questionId, optionId = optionId))
+
+    /** A typed number for the current question (the screen checks it is within the question's range). */
+    fun answerNumber(questionId: String, value: Double) = record(InterviewAnswer(questionId, value = value))
+
+    private fun record(a: InterviewAnswer) {
+        answers.removeAll { it.questionId == a.questionId }
+        answers += a
         if (answers.size == interview.size) {
             startGame(twins.fromInterview(interview, answers.toList()), Random.nextLong())
         }
@@ -172,38 +179,34 @@ class AppState(
 
     private fun startGame(game: NewGame, seed: Long) {
         clearGame()
-        tree = LifeTree.start(GameSession(game.opening, seed, game.preferences, emptyList(), config))
+        tree = LifeTree.start(GameSession(game.opening, seed, game.preferences, emptyList(), config, luckMode))
         nextTurn()
     }
 
-    fun previews(event: Event) = session?.let { engine.preview(it, event) }.orEmpty()
-
-    /** Live play: the user picks an option of the current question; the turn's fixed luck draws the case. */
-    fun choose(optionId: String) {
+    /** Live play: the user takes one of the actions available now; the luck of the new node draws its case. */
+    fun choose(actionId: String) {
         val t = tree ?: return
-        tree = engine.choose(t, optionId)
-        currentEvent = null
+        tree = engine.choose(t, actionId)
+        available = emptyList()
         screen = Screen.RESOLUTION
     }
 
-    /** Next turn: a dilemma, or a quiet period shown directly as its resolution, or the results. */
+    /** After a decision: the next dilemma (every action available at this node), or the results of a complete life. */
     fun nextTurn() {
         val t = tree ?: return
         if (t.current.isOver) {
             if (playedKey == null) playedKey = t.cursor
-            currentEvent = null
+            available = emptyList()
             screen = Screen.RESULTS
             return
         }
-        val event = engine.questionAt(t)
-        currentEvent = event
-        if (event == null) {
-            tree = engine.playQuiet(t)
-            screen = Screen.RESOLUTION
-        } else {
-            screen = Screen.DILEMMA
-        }
+        available = engine.actionsAt(t)
+        screen = Screen.DILEMMA
     }
+
+    /** Actions already taken at the current node (their child exists): the dilemma marks them as explored. */
+    val explored: Set<String>
+        get() = tree?.let { t -> t.children(t.cursor).map { it.substringAfterLast('/') }.toSet() }.orEmpty()
 
     val isLastTurn: Boolean get() = session?.isOver ?: true
 
@@ -213,43 +216,33 @@ class AppState(
     val isEdited: Boolean
         get() = playedKey != null && tree?.cursor != playedKey
 
-    /**
-     * Goes to any node of the tree, explored or not (it is computed if needed: the luck is fixed, so it is the same
-     * life you would get by playing those choices). Shows that moment: the dilemma at the start, what happened in the
-     * node's last turn, or the results of a complete life.
-     */
+    /** Goes to a node of the tree (every node is a decision the user took) and shows that moment. */
     fun open(key: NodeKey) {
         val t = tree ?: return
-        tree = reach(t, key).goTo(key)
+        if (key !in t.nodes) return
+        tree = t.goTo(key)
         showCurrent(resolution = key.isNotEmpty())
     }
 
-    /** [t] with every node from the start down to [key] computed (existing nodes are reused as they are). */
-    private fun reach(t: LifeTree, key: NodeKey): LifeTree {
-        var out = t
-        for (i in key.indices) {
-            val c = key[i]
-            out = engine.withChild(out, key.take(i), if (c == QUIET) null else c.toString()).first
-        }
-        return out
-    }
-
-    /** "What if I had chosen the other option in the turn I just played?": that same turn, the other option. */
-    fun openOther() {
+    /** "Go back and decide something else": the dilemma of the moment before the current node. */
+    fun decideAgain() {
         val key = tree?.cursor ?: return
-        if (key.isEmpty() || key.last() == QUIET) return
-        open(siblingOf(key))
+        decideAgainAt(parentOf(key) ?: return)
     }
 
-    /**
-     * Takes the other option at turn [index] of the current branch and continues that life as far as it was already
-     * explored; then the next unanswered question, or the results. The case of every turn is fixed by its luck.
-     */
+    /** Back to the dilemma at node [key] (an ancestor or any node of the tree), to take another action there. */
+    fun decideAgainAt(key: NodeKey) {
+        val t = tree ?: return
+        if (key !in t.nodes || t.nodes.getValue(key).isOver) return
+        tree = t.goTo(key)
+        nextTurn()
+    }
+
+    /** Back to the decision of turn [index] of the current life (0 = the first one). */
     fun switchAt(index: Int) {
         val t = tree ?: return
-        if (t.cursor.getOrNull(index)?.let { it == QUIET } != false) return
-        tree = engine.switchAt(t, index)
-        showCurrent(resolution = false)
+        if (index >= depthOf(t.cursor)) return
+        decideAgainAt(ancestorAt(t.cursor, index))
     }
 
     fun resetToPlayed() {
@@ -262,11 +255,11 @@ class AppState(
         when {
             t.current.isOver -> {
                 if (playedKey == null) playedKey = t.cursor
-                currentEvent = null
+                available = emptyList()
                 screen = Screen.RESULTS
             }
             resolution && t.current.turns.isNotEmpty() -> {
-                currentEvent = null
+                available = emptyList()
                 screen = Screen.RESOLUTION
             }
             else -> nextTurn()
@@ -303,29 +296,17 @@ class AppState(
         screen = beforeMap
     }
 
-    /** Computes every possible life of the game (off the UI thread) so the map can show the whole tree. */
-    suspend fun prepareMap() {
-        val t = tree ?: return
-        if (mapReady) return
-        val all = withContext(Dispatchers.Default) { engine.expandAll(LifeTree.start(t.root)) }
-        val now = tree ?: return
-        if (now.root != t.root) return                  // a new game started meanwhile
-        tree = now.copy(nodes = all.nodes + now.nodes)
-        mapReady = true
-    }
-
     // ---------- Chat with your self of a moment ----------
 
     /** The chat needs at least one turn: the self of a moment is you right after a decision (or a quiet period). */
     val canChat: Boolean get() = tree?.cursor?.isNotEmpty() == true
 
-    /** True when the current node is a complete life: the self is ten years older and the parallel self exists. */
+    /** True when the current node is a complete life: the self is ten years older. */
     val isCompleteLife: Boolean get() = session?.isOver == true
 
     /** Opens the chat with your self of the current moment. */
     fun openChat() {
         if (!canChat || screen == Screen.CHAT) return
-        if (!isCompleteLife) persona = Persona.FUTURE_SELF
         beforeChat = screen
         screen = Screen.CHAT
     }
@@ -334,8 +315,9 @@ class AppState(
     fun chatAt(key: NodeKey) {
         val t = tree ?: return
         if (key.isEmpty()) return
+        if (key !in t.nodes) return
         if (key != t.cursor) {
-            tree = reach(t, key).goTo(key)
+            tree = t.goTo(key)
             showCurrent(resolution = true)
         }
         openChat()
@@ -354,8 +336,7 @@ class AppState(
     private fun clearGame() {
         tree = null
         playedKey = null
-        currentEvent = null
-        mapReady = false
+        available = emptyList()
         resultCache.clear()
         traceCache.clear()
         bandCache.clear()
@@ -364,25 +345,23 @@ class AppState(
         persona = Persona.FUTURE_SELF
     }
 
-    fun eventById(id: String): Event? = catalog.firstOrNull { it.id == id }
 
     // ---------- Chat and chronicle (P11-P12) ----------
 
     /**
-     * What the self of the current moment may know: the life up to this node. Before the end of the game the other
-     * lives and the noise band are left out (they describe years this self has not lived).
+     * What the self of the current moment may know: the life up to this node. Before the end of the game the noise
+     * band is left out (it describes years this self has not lived).
      */
     private suspend fun chatContext(t: LifeTree, key: NodeKey): ChatContext {
         val r = resultFor(t, key)
         return if (t.nodes.getValue(key).isOver) ChatContext(r, facts, assumptions, lang, whatIfTurns(r.session), bandFor(t, key))
-        else ChatContext(r.copy(parallelLives = emptyList(), sensitivity = emptyList()), facts, assumptions, lang, whatIfTurns(r.session), null)
+        else ChatContext(r.copy(sensitivity = emptyList()), facts, assumptions, lang, whatIfTurns(r.session), null)
     }
 
     private val lastAnswerOffline: Boolean get() = (chat as? ReportsOffline)?.lastAnswerOffline == true
 
-    /** Each persona has its own conversation at each node (the other self has another life). */
+    /** Each persona has its own conversation at each node. */
     fun choosePersona(p: Persona) {
-        if (p == Persona.PARALLEL_SELF && !isCompleteLife) return
         persona = p
     }
 
@@ -419,13 +398,13 @@ class AppState(
         }
     }
 
-    /** Turns whose event, option or case differ from the life first played. */
+    /** Turns whose decision or case differ from the life first played. */
     private fun whatIfTurns(s: GameSession): Set<Int> {
         val played = playedSession?.turns ?: return emptySet()
         return s.turns.indices.filterTo(mutableSetOf()) { i ->
             val p = played.getOrNull(i)
             val t = s.turns[i]
-            p == null || p.eventId != t.eventId || p.chosenOptionId != t.chosenOptionId || p.resolvedCase != t.resolvedCase
+            p == null || p.actionId != t.actionId || p.values != t.values || p.shockId != t.shockId
         }
     }
 

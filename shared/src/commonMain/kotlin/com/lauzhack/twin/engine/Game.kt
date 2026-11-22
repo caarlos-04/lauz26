@@ -1,32 +1,35 @@
 package com.lauzhack.twin.engine
 
+import com.lauzhack.twin.model.Action
+import com.lauzhack.twin.model.ActionCatalog
 import com.lauzhack.twin.model.Attribution
 import com.lauzhack.twin.model.AttributionItem
 import com.lauzhack.twin.model.BeatKind
-import com.lauzhack.twin.model.CasePreview
-import com.lauzhack.twin.model.CaseType
-import com.lauzhack.twin.model.Event
-import com.lauzhack.twin.model.EventCatalog
+import com.lauzhack.twin.model.DecisionTree
 import com.lauzhack.twin.model.FinancialStatement
 import com.lauzhack.twin.model.FlowModel
 import com.lauzhack.twin.model.GameConfig
 import com.lauzhack.twin.model.Lang
+import com.lauzhack.twin.model.LuckMode
 import com.lauzhack.twin.model.MacroFile
-import com.lauzhack.twin.model.OptionPreview
+import com.lauzhack.twin.model.NOTHING
+import com.lauzhack.twin.model.Shock
 import com.lauzhack.twin.model.StoryBeat
 import com.lauzhack.twin.model.Turn
 import com.lauzhack.twin.model.netWorthChf
 import kotlinx.serialization.json.Json
 import kotlin.math.round
 
-// The game loop on statements: events change fields, the simulator moves time. Python reference: tools/game.py.
-// TwinEngine is the real engine; the UI talks to the GameEngine interface (engine/GameEngine.kt on the UI side),
-// which an adapter implements on top of TwinEngine.
+// The game on statements: the player picks an action at each node of the decision tree, the simulator moves time
+// (docs/decision-tree.md). Python reference: tools/game.py.
+// TwinEngine is the real engine; the UI talks to the GameEngine interface (engine/GameEngine.kt), implemented on top
+// of it by RealGameEngine.
 
 /** Everything the engine needs, loaded once (flow-model.json, macro.json, content/events.json). */
 class TwinEngine(
     val simulator: Simulator,
-    val events: List<Event>,
+    val actions: List<Action>,
+    val shocks: List<Shock> = emptyList(),
     val config: GameConfig = GameConfig(),
 ) {
     companion object {
@@ -35,92 +38,93 @@ class TwinEngine(
         /** The engine from the texts of flow-model.json, macro.json and content/events.json (however the platform
          *  loads them). `macroJson = null` runs without trends (no growth of wages, rents or prices). */
         fun fromJson(flowModelJson: String, macroJson: String?, eventsJson: String,
-                     rules: EngineRules = EngineRules(), config: GameConfig = GameConfig()): TwinEngine =
-            TwinEngine(
-                Simulator(json.decodeFromString<FlowModel>(flowModelJson),
-                          macroJson?.let { json.decodeFromString<MacroFile>(it) }, rules),
-                json.decodeFromString<EventCatalog>(eventsJson).events,
-                config,
+                     rules: EngineRules = EngineRules(), config: GameConfig = GameConfig()): TwinEngine {
+            val catalog = json.decodeFromString<ActionCatalog>(eventsJson)
+            return TwinEngine(
+                Simulator(json.decodeFromString<FlowModel>(flowModelJson), macroJson?.let { json.decodeFromString<MacroFile>(it) }, rules),
+                catalog.actions, catalog.shocks, config,
             )
+        }
+
+        /** Used only if the catalog forgets it: carrying on is always possible. */
+        val DEFAULT_NOTHING = Action(
+            id = NOTHING, category = "Everyday life",
+            title = mapOf(Lang.EN to "Carry on as you are", Lang.ES to "Seguir como estás"),
+            description = mapOf(Lang.EN to "No new decision for two years.", Lang.ES to "Ninguna decisión nueva durante dos años."),
+            repeatable = true, sources = emptyList(),
+            outcome = mapOf(Lang.EN to "Two more years of the life you already have.", Lang.ES to "Dos años más de la vida que ya tienes."),
+        )
     }
 
-    /** Event of this turn for the statement at its start, or null for a quiet turn. Deterministic: a function of
-     *  (statement, turn, events already used, seed). Apply [startTurn] to the statement first. */
-    fun nextEvent(s: FinancialStatement, turn: Int, used: Set<String>, seed: Long): Event? =
-        if (turn >= config.maxTurns) null else pickEvent(events, s, turn, used, seed)
+    private val pool: List<Action> = if (actions.any { it.id == NOTHING }) actions else listOf(DEFAULT_NOTHING) + actions
+    private val byId: Map<String, Action> = pool.associateBy { it.id }
 
-    /** Life changes due at the start of the turn (they count for picking the event) and their story beats. */
+    fun action(id: String): Action? = byId[id]
+
+    /** Life changes due at the start of the turn (they count for the actions available) and their story beats. */
     fun startTurn(s: FinancialStatement): Pair<FinancialStatement, List<StoryBeat>> {
         val next = applyDueLifeChanges(s)
         return next to beatsBetween(s, next)
     }
 
-    /** Before choosing: every option x case, advanced one turn. */
-    fun preview(s: FinancialStatement, event: Event): List<OptionPreview> = event.options.map { option ->
-        OptionPreview(optionId = option.id, perCase = option.cases.mapValues { (_, case) ->
-            val withEffects = applyEffects(s, case.effects, event.id)
-            val months = simulator.run(withEffects, config.monthsPerTurn)
-            CasePreview(prob = case.prob, stateAfter = months.last(),
-                        deltaNetWorth = months.last().netWorthChf() - s.netWorthChf(),
-                        minCash = months.minOf { it.cashChf },
-                        pendingChanges = withEffects.pendingChanges - s.pendingChanges.toSet(),
-                        narrative = case.narrative)
-        })
-    }
+    /** The actions the player can take at the start of [turn] ([startTurn] applied), NOTHING first. Empty at the end. */
+    fun actionsAt(s: FinancialStatement, turn: Int, used: Set<String>): List<Action> =
+        if (turn >= config.maxTurns) emptyList() else actionsAt(pool, s, turn, used)
 
-    /** The turn's case from the seeded luck (the same luck is used by the parallel lives). */
-    fun drawCase(event: Event, optionId: String, seed: Long, turn: Int): Pair<CaseType, Double> {
-        val luck = PortableRandom.turnLuck(seed, turn)
-        return caseFromLuck(event.options.first { it.id == optionId }, luck) to luck
-    }
-
-    /** One turn from the statement at its start (after [startTurn]): the chosen option with the drawn case, then
-     *  `monthsPerTurn` months; also the other option for each case (the counterfactual). */
-    fun playTurn(s: FinancialStatement, turn: Int, event: Event?, optionId: String?, case: CaseType?, luck: Double,
-                 lang: Lang = Lang.EN): TurnOutcome {
+    /**
+     * One decision: from [s] (the statement at the start of [turn], after [startTurn]) at node [parentId], take
+     * [actionId]. Its uncertain numbers are drawn at the node's luck ([LuckMode]); a shock may happen; then
+     * `monthsPerTurn` months.
+     */
+    fun playTurn(s: FinancialStatement, turn: Int, parentId: String, actionId: String, used: Set<String>, seed: Long,
+                 mode: LuckMode, lang: Lang = Lang.EN): TurnOutcome {
+        val action = actionsAt(s, turn, used).firstOrNull { it.id == actionId }
+            ?: throw IllegalArgumentException("turn $turn: action $actionId is not available here")
+        val nodeId = DecisionTree.childId(parentId, actionId)
+        val luck = PortableRandom.nodeLuck(seed, mode, nodeId, turn)
+        val outcome = resolve(action, luck)
         val beats = mutableListOf<StoryBeat>()
-        var state = s
-        val counterfactual = mutableMapOf<CaseType, FinancialStatement>()
-        if (event == null || optionId == null || case == null) {
-            beats += beat(s, BeatKind.QUIET_PERIOD)
+        if (actionId == NOTHING) {
+            beats += beat(s, BeatKind.QUIET_PERIOD, NOTHING)
         } else {
-            val option = event.options.first { it.id == optionId }
-            val outcome = option.cases.getValue(case)
-            beats += beat(s, BeatKind.DECISION, event.id, "option" to optionId, "label" to option.label.getValue(lang))
-            beats += beat(s, BeatKind.CASE_RESOLVED, event.id, "case" to case.name, "luck" to format2(luck),
-                          "narrative" to outcome.narrative.getValue(lang))
-            state = applyEffects(s, outcome.effects, event.id)
-            event.options.firstOrNull { it.id != optionId }?.let { other ->
-                for ((c, otherCase) in other.cases) {
-                    counterfactual[c] = simulator.run(applyEffects(s, otherCase.effects, event.id), config.monthsPerTurn).last()
-                }
-            }
+            beats += beat(s, BeatKind.DECISION, actionId, "label" to action.title.getValue(lang))
+            beats += beat(s, BeatKind.OUTCOME, actionId, "luck" to format2(luck),
+                          *outcome.values.map { (k, v) -> k to numberText(v) }.toTypedArray())
+        }
+        var state = applyEffects(s, outcome.effects, actionId)
+        val shock = drawShock(shocks, applyDueLifeChanges(state), turn, PortableRandom.nodeSeed(seed, mode, nodeId), config.monthsPerTurn)
+        var shockValues = emptyMap<String, Double>()
+        if (shock != null) {
+            val sr = resolve(shock.shock, shock.luck)
+            shockValues = sr.values
+            beats += beat(s, BeatKind.SHOCK, shock.shock.id, "luck" to format2(shock.luck), "inMonths" to shock.month.toString(),
+                          *sr.values.map { (k, v) -> k to numberText(v) }.toTypedArray())
+            state = applyEffects(state, shifted(sr.effects, shock.month), shock.shock.id)
         }
         val months = advance(state, config.monthsPerTurn, beats)
-        val turnRecord = Turn(index = turn, eventId = event?.id, chosenOptionId = optionId, luck = luck,
-                              resolvedCase = case, stateAfter = months.statements.last(),
-                              counterfactual = counterfactual, beats = beats)
+        val turnRecord = Turn(index = turn, actionId = actionId, luck = luck, values = outcome.values,
+                              shockId = shock?.shock?.id, shockLuck = shock?.luck, shockValues = shockValues, shockMonth = shock?.month,
+                              stateAfter = months.statements.last(), beats = beats)
         return TurnOutcome(turnRecord, months.statements, months.attribution)
     }
 
-    /** A whole game with fixed choices per turn ("A"/"B"): the reference flow used by the golden tests. */
-    fun play(s0: FinancialStatement, choices: List<String>, seed: Long, lang: Lang = Lang.EN): GameRecord {
+    /** A whole life along [path] (one action id per turn; missing = NOTHING): the reference flow of the golden tests. */
+    fun play(s0: FinancialStatement, path: List<String>, seed: Long, mode: LuckMode = LuckMode.SAME_LEVEL,
+             lang: Lang = Lang.EN): GameRecord {
         val used = mutableSetOf<String>()
         val beats = mutableListOf(beat(s0, BeatKind.START, null, "cash" to roundToString(s0.cashChf)))
         val turns = mutableListOf<Turn>()
         val monthly = mutableListOf(s0)
         val attribution = linkedMapOf<String, Double>()
         var s = s0
+        var node = DecisionTree.ROOT
         for (turn in 0 until config.maxTurns) {
             val (started, lifeBeats) = startTurn(s)
             beats += lifeBeats
-            s = started
-            val event = nextEvent(s, turn, used, seed)
-            val luck = PortableRandom.turnLuck(seed, turn)
-            val optionId = event?.let { choices.getOrElse(turn) { "A" } }
-            val case = event?.let { caseFromLuck(it.options.first { o -> o.id == optionId }, luck) }
-            event?.let { used += it.id }
-            val outcome = playTurn(s, turn, event, optionId, case, luck, lang)
+            val actionId = path.getOrElse(turn) { NOTHING }
+            val outcome = playTurn(started, turn, node, actionId, used, seed, mode, lang)
+            used += actionId
+            node = DecisionTree.childId(node, actionId)
             beats += outcome.turn.beats
             outcome.attribution.forEach { (k, v) -> attribution[k] = (attribution[k] ?: 0.0) + v }
             monthly += outcome.months
@@ -158,7 +162,7 @@ class TurnOutcome(val turn: Turn, val months: List<FinancialStatement>, val attr
 class GameRecord(val turns: List<Turn>, val monthly: List<FinancialStatement>, val beats: List<StoryBeat>,
                  val attribution: Attribution) {
     val statements: List<FinancialStatement> get() = listOf(monthly.first()) + turns.map { it.stateAfter }
-    val decisions: List<String> get() = turns.mapNotNull { it.eventId }
+    val decisions: List<String> get() = turns.map { it.actionId }
 }
 
 // ---------------------------------------------------------------------------------------------- story and money

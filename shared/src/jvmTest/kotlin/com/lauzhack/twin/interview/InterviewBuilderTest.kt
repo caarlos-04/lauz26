@@ -5,7 +5,12 @@ import com.lauzhack.twin.model.Assumptions
 import com.lauzhack.twin.model.FactCatalog
 import com.lauzhack.twin.model.FactKey
 import com.lauzhack.twin.model.Household
+import com.lauzhack.twin.engine.annuityPayment
+import com.lauzhack.twin.engine.round2
 import com.lauzhack.twin.model.InterviewAnswer
+import com.lauzhack.twin.model.netWorthChf
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import com.lauzhack.twin.model.Objective
 import com.lauzhack.twin.model.Priority
 import com.lauzhack.twin.model.ProfileField
@@ -30,23 +35,31 @@ class InterviewBuilderTest {
     private val penalties = json.decodeFromString<Assumptions>(content("assumptions.json")).objectivePenalties
 
     // Same case as tools/test_interview.py (OpeningStatementTest): a student, everything not answered taken from the data.
-    private val student = listOf(
-        "age" to "a1", "city" to "lausanne", "household" to "single", "employment" to "not_working",
-        "education" to "bachelor_in_progress", "income" to "idk", "rent" to "rdk", "cash" to "c2",
-        "goal" to "emergency_savings", "objective" to "balanced", "mincash" to "m3",
+    // A choice is the option id; a typed number is a Double.
+    private val student = listOf<Pair<String, Any>>(
+        "age" to 21.0, "city" to "lausanne", "household" to "single", "employment" to "not_working",
+        "education" to "bachelor_in_progress", "income" to "dk", "rent" to "dk", "cash" to 9000.0,
+        "investments" to 0.0, "debt" to 0.0, "goal" to "emergency_savings", "objective" to "balanced", "mincash" to 3500.0,
     )
 
-    private fun answers(vararg overrides: Pair<String, String>): List<InterviewAnswer> {
+    private fun answers(vararg overrides: Pair<String, Any>): List<InterviewAnswer> {
         val map = student.toMap() + overrides
-        return catalog.questions.map { InterviewAnswer(it.id, map.getValue(it.id)) }
+        return catalog.questions.map { q ->
+            when (val a = map.getValue(q.id)) {
+                is Double -> InterviewAnswer(q.id, value = a)
+                else -> InterviewAnswer(q.id, optionId = a as String)
+            }
+        }
     }
 
     @Test
     fun everyProfileFieldIsAskedAndEveryOptionIsValid() {
-        val asked = catalog.questions.flatMap { q -> q.options.flatMap { it.sets.keys } }.toSet()
+        val asked = catalog.questions.flatMap { q -> q.options.flatMap { it.sets.keys } + listOfNotNull(q.input?.field) }.toSet()
         assertEquals(ProfileField.entries.toSet(), asked)
         for (q in catalog.questions) {
-            assertTrue(q.options.size >= 2, q.id)
+            val spec = q.input
+            if (spec == null) assertTrue(q.options.size >= 2, q.id)
+            else assertTrue(spec.min <= spec.typical && spec.typical <= spec.max && spec.step > 0, q.id)
             assertEquals(q.options.size, q.options.map { it.id }.toSet().size, "${q.id}: duplicate option ids")
             for (o in q.options) for ((field, value) in o.sets) {
                 val where = "${q.id}/${o.id}"
@@ -65,7 +78,7 @@ class InterviewBuilderTest {
 
     @Test
     fun numericQuestionsOfferIDontKnow() {
-        for (id in listOf("income", "rent", "cash")) {
+        for (id in listOf("income", "rent", "cash", "investments", "debt")) {
             assertTrue(catalog.questions.first { it.id == id }.options.any { it.sets.isEmpty() }, id)
         }
     }
@@ -88,7 +101,7 @@ class InterviewBuilderTest {
         assertEquals(1590.0, s.monthlyRentChf)      // default: median rent, Lausanne x SINGLE
         assertEquals(9000.0, s.cashChf)
         assertEquals(0.0, s.investmentsChf)
-        assertEquals(null, s.loan)
+        assertEquals(null, s.loan)                  // typed 0
         assertEquals(0, s.month)
         assertEquals("2025-01-01", s.period)
         val goal = s.goals.single()
@@ -103,9 +116,30 @@ class InterviewBuilderTest {
 
     @Test
     fun answersOverrideDefaults() {
-        val s = InterviewBuilder.build(catalog, answers("income" to "i4", "rent" to "r4"), facts, defaults, penalties).statement
+        val s = InterviewBuilder.build(catalog, answers("income" to 8750.0, "rent" to 2250.0), facts, defaults, penalties).statement
         assertEquals(8750.0, s.monthlyIncomeChf)
         assertEquals(2250.0, s.monthlyRentChf)
+    }
+
+    @Test
+    fun investmentsAndDebt() {
+        val s = InterviewBuilder.build(catalog, answers("investments" to 20000.0, "debt" to 12000.0), facts, defaults, penalties).statement
+        assertEquals(20000.0, s.investmentsChf)
+        val loan = assertNotNull(s.loan)
+        assertEquals(12000.0, loan.principalChf)
+        assertEquals(defaults.loan.annualRate, loan.annualRate)
+        assertEquals(round2(annuityPayment(12000.0, defaults.loan.annualRate, defaults.loan.termMonths)), loan.monthlyPaymentChf)
+        assertEquals(20000.0 + 9000.0 - 12000.0, s.netWorthChf())
+        val dk = InterviewBuilder.build(catalog, answers("investments" to "dk", "debt" to "dk"), facts, defaults, penalties).statement
+        assertEquals(defaults.investmentsByAgeBand[0].chf, dk.investmentsChf)       // 18-24
+        assertNull(dk.loan)                                                         // most people owe nothing
+    }
+
+    @Test
+    fun aTypedNumberMustBeInRange() {
+        assertFailsWith<IllegalArgumentException> { InterviewBuilder.build(catalog, answers("income" to 999_999.0), facts, defaults, penalties) }
+        assertEquals("1500", numberText(1500.0))
+        assertEquals("12.5", numberText(12.5))
     }
 
     @Test
@@ -122,9 +156,9 @@ class InterviewBuilderTest {
 
     @Test
     fun goalIsSizedFromIncomeWithinTheDatasetRange() {
-        val high = InterviewBuilder.build(catalog, answers("income" to "i5", "goal" to "long_term_financial_resilience"), facts, defaults, penalties)
+        val high = InterviewBuilder.build(catalog, answers("income" to 10750.0, "goal" to "long_term_financial_resilience"), facts, defaults, penalties)
         assertEquals(226800.0, high.statement.goals.single().targetChf)
-        val low = InterviewBuilder.build(catalog, answers("income" to "i1"), facts, defaults, penalties)
+        val low = InterviewBuilder.build(catalog, answers("income" to 950.0), facts, defaults, penalties)
         assertEquals(10000.0, low.statement.goals.single().targetChf)    // 8.7 x 950 is below the smallest goal in the dataset
     }
 
@@ -137,11 +171,14 @@ class InterviewBuilderTest {
     }
 
     @Test
-    fun everyOptionBuildsAValidPerson() {
-        for (q in catalog.questions) for (o in q.options) {
-            val s = InterviewBuilder.build(catalog, answers(q.id to o.id), facts, defaults, penalties).statement
-            assertTrue(s.cashChf >= 0 && s.monthlyIncomeChf >= 0 && s.monthlyRentChf > 0, "${q.id}/${o.id}")
-            assertEquals(FactKey.entries.toSet(), s.person.facts.keys, "${q.id}/${o.id}")
+    fun everyOptionAndBoundBuildsAValidPerson() {
+        for (q in catalog.questions) {
+            val tries: List<Any> = q.options.map { it.id } + listOfNotNull(q.input?.min, q.input?.max)
+            for (x in tries) {
+                val s = InterviewBuilder.build(catalog, answers(q.id to x), facts, defaults, penalties).statement
+                assertTrue(s.cashChf >= 0 && s.monthlyIncomeChf >= 0 && s.monthlyRentChf >= 0, "${q.id}=$x")
+                assertEquals(FactKey.entries.toSet(), s.person.facts.keys, "${q.id}=$x")
+            }
         }
     }
 

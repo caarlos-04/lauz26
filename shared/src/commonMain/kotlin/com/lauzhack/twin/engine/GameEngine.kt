@@ -1,26 +1,23 @@
 package com.lauzhack.twin.engine
 
+import com.lauzhack.twin.model.Action
 import com.lauzhack.twin.model.Attribution
-import com.lauzhack.twin.model.CaseType
-import com.lauzhack.twin.model.Event
-import com.lauzhack.twin.model.EventOption
 import com.lauzhack.twin.model.FinancialStatement
 import com.lauzhack.twin.model.GameResult
 import com.lauzhack.twin.model.GameSession
 import com.lauzhack.twin.model.InterviewAnswer
 import com.lauzhack.twin.model.InterviewQuestion
-import com.lauzhack.twin.model.OptionPreview
 import com.lauzhack.twin.model.Preferences
 import com.lauzhack.twin.model.Turn
 
 /*
- * Contract between the UI (Dev B) and the engine / game controller (Dev A), docs section 6 (P2-P10).
- * PROPOSAL from the front branch: the UI only talks to these two interfaces, and runs on
- * FakeTwinFactory / FakeGameEngine until the real ones exist. Plugging the real engine in is a one-line
- * change in createDefaultAppState() (ui/App.kt).
+ * Contract between the UI and the engine (docs/decision-tree.md). The UI only talks to these two interfaces; the
+ * real ones are RealGameEngine and ContentTwinFactory (wired in ui/App.kt).
  *
- * Every function is pure: same inputs (including the seed) => same outputs. The what-if decision tree
- * replays and re-plays paths, so this is required, not a nice-to-have.
+ * The game is a tree of decisions. A [GameSession] is the life from the start to one node of that tree (its turns);
+ * the UI keeps the tree (ui/LifeTree.kt) and asks the engine what can be done at a node and what a decision gives.
+ * Every function is pure: same inputs (including the seed and the luck mode) => same outputs, so any node can be
+ * rebuilt and taking the same action at the same node always gives the same child.
  */
 
 /** Everything needed to start a game (P2 output). */
@@ -40,29 +37,21 @@ interface TwinFactory {
 
 interface GameEngine {
     /**
-     * P3: event for the next turn, or null for a quiet turn (no event fits).
-     * MUST be deterministic: a pure function of the session (seed + turns so far); ties broken with the seed,
-     * never with a global RNG.
+     * P3: the actions the player can take at the node [session] reaches (their requirements match the statement,
+     * not taken yet on this path unless repeatable). "Carry on as you are" (NOTHING) is always first. Empty when the
+     * game is over.
      */
-    fun nextEvent(session: GameSession): Event?
-
-    /** True if [event] fits the current state of [session] (its `requires`, `earliestTurn`, `repeatable`). */
-    fun isEligible(session: GameSession, event: Event): Boolean
-
-    /** P4: deterministic preview of both options x 3 cases, advancing `monthsPerTurn` months. */
-    fun preview(session: GameSession, event: Event): List<OptionPreview>
-
-    /** P6: luck of the current turn (rng(seed, turnIndex)) and the case it selects for [option]. */
-    fun resolveLuck(session: GameSession, option: EventOption): Pair<Double, CaseType>
+    fun actionsAt(session: GameSession): List<Action>
 
     /**
-     * P7: applies the case, advances the turn's months, applies life changes, detects moments and computes the
-     * counterfactual of the other option. [event] == null plays a quiet turn (then optionId and case are null).
-     * The UI always passes the case [luck] selects (the life tree never changes the luck of a turn).
+     * P5-P7: takes [actionId] at the node [session] reaches. The luck of the new node (seed + luck mode) is the
+     * percentile its uncertain numbers are drawn at; an involuntary shock may happen; `monthsPerTurn` months pass.
+     * Nothing about the outcome is shown before this call (no preview of balances). Returns the new turn (with its story
+     * moments, including the life changes due at the start of the turn).
      */
-    fun playTurn(session: GameSession, event: Event?, optionId: String?, case: CaseType?, luck: Double): Turn
+    fun decide(session: GameSession, actionId: String): Turn
 
-    /** P8-P10 at the end of the game: stats, attribution, moments, parallel lives and sensitivity. */
+    /** P8-P10 for the life [session]: stats, attribution and moments. */
     fun finish(session: GameSession): GameResult
 
     /**
@@ -72,9 +61,9 @@ interface GameEngine {
     fun attribution(session: GameSession): Attribution = finish(session).attribution
 
     /**
-     * Optional (#12, option 2): cash percentiles per month (0..horizon) replaying the played choices with the
-     * simulator's sampled monthly flows. Shown as "how much month-to-month noise moves your cash", NOT as the
-     * analysis (that is the decision tree and the parallel lives). null = the engine does not provide it.
+     * Optional (#12, option 2): cash percentiles per month (0..horizon) replaying the decisions with the simulator's
+     * sampled monthly flows. Shown as "how much month-to-month noise moves your cash", NOT as the analysis (that is
+     * the tree of decisions). null = the engine does not provide it.
      */
     fun noiseBand(session: GameSession): CashBand? = null
 }
@@ -86,5 +75,11 @@ data class CashBand(
     val p90: List<Double>,
 )
 
-/** The game ends after `maxTurns` turns (quiet turns count). */
+/** The game ends after `maxTurns` decisions. */
 val GameSession.isOver: Boolean get() = turns.size >= config.maxTurns
+
+/** The id of the node this life reaches in the tree: its action ids from the start ("" = start). */
+val GameSession.nodeId: String get() = turns.joinToString("/") { it.actionId }
+
+/** The actions taken on this life (an action that is not repeatable is taken once per life). */
+val GameSession.usedActions: Set<String> get() = turns.mapTo(mutableSetOf()) { it.actionId }

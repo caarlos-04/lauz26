@@ -3,6 +3,7 @@
 > Owner: Dev A (`polma7`). Summary in `docs/README.md` section 7. Python reference: `tools/flow_model.py`,
 > `tools/macro.py`, `tools/simulate.py` (monthly step), `tools/game.py` (events and turns); tests in `tools/test_*.py`.
 > Kotlin input classes: `shared/src/commonMain/kotlin/com/lauzhack/twin/model/Simulation.kt`.
+> How the model is learned, explained step by step with real numbers: [`how-the-simulator-learns.md`](how-the-simulator-learns.md).
 
 ## 1. Idea
 
@@ -189,13 +190,13 @@ growth comes from public macro data and explicit assumptions.
 |---|---|---|
 | `Basics.kt` | Portable seeded randomness (splitmix64, the same numbers as Python), rounding, periods, goal state | `statement.py`, `game.py` |
 | `Simulator.kt` | Features of the statement, learned flows, market rent, monthly trends and career, `step` / `run` | `simulate.py`, `flow_model.py` |
-| `Events.kt` | Effects -> `pendingChanges`, requirements, event choice, luck -> case | `game.py` |
-| `Game.kt` | `TwinEngine` (the real engine; the UI's `GameEngine` interface will be implemented on top of it): next event, preview, draw the case, play a turn (with the counterfactual of the other option), a whole game, story beats, attribution; `TwinEngine.fromJson(...)` | `game.py` |
+| `Events.kt` | Effects -> `pendingChanges`, requirements, the pool of actions, luck -> case, shocks | `game.py` |
+| `Game.kt` | `TwinEngine` (the real engine; `RealGameEngine` implements the UI's `GameEngine` on top of it): the actions available, preview, one decision (luck of the node, shock, 24 months), a whole life along a path, story beats, attribution; `TwinEngine.fromJson(...)` | `game.py` |
 
 Tests: `commonTest/.../engine/EngineTest.kt` (rules on a small hand-written model) and
-`jvmTest/.../engine/GoldenGameTest.kt`: the 13 games of `tools/golden.py` (every event at least once) are reproduced
+`jvmTest/.../engine/GoldenGameTest.kt`: the 16 lives of `tools/golden.py` (every action, both luck modes, job losses) are reproduced
 month by month; today the largest difference with Python is **0.00 CHF**. Randomness is portable on purpose: the luck
-of a turn and the choice between equally urgent events depend only on (seed, turn), on every platform.
+of a decision depends only on (seed, depth) or (seed, node path) by luck mode, on every platform (`docs/decision-tree.md`).
 
 Inputs: `flow-model.json`, `macro.json` (`model/Simulation.kt`) and `content/events.json`, decoded with
 `Json { ignoreUnknownKeys = true }`. How the app ships them as resources: issue #14.

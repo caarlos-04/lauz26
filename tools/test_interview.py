@@ -17,13 +17,25 @@ class InterviewContentTest(unittest.TestCase):
         # the Kotlin enum is the contract (EDUCATION was missing before it was added there)
         fields = iv.kotlin_enum("ProfileField")
         self.assertIn("EDUCATION", fields)
-        asked = {f for q in self.interview["questions"] for o in q["options"] for f in o["sets"]}
+        asked = {f for q in self.interview["questions"] for o in q["options"] for f in o["sets"]} | \
+                {q["input"]["field"] for q in self.interview["questions"] if q.get("input")}
         self.assertEqual(set(fields), asked)
 
-    def test_numeric_questions_offer_i_dont_know(self):
-        for qid in ("income", "rent", "cash"):
+    def test_numbers_are_typed_within_the_data_range(self):
+        for qid in ("age", "income", "rent", "cash", "investments", "debt", "mincash"):
+            spec = next(x for x in self.interview["questions"] if x["id"] == qid)["input"]
+            self.assertTrue(spec["min"] <= spec["typical"] <= spec["max"], qid)
+        lim = self.defaults["limits"]
+        income = next(x for x in self.interview["questions"] if x["id"] == "income")["input"]
+        self.assertGreaterEqual(income["max"], lim["incomeChf"][1])             # the whole dataset fits
+        self.assertLess(income["max"], lim["incomeChf"][1] + income["step"])    # ... and no more
+
+    def test_numbers_offer_i_dont_know_except_age_and_cushion(self):
+        for qid in ("income", "rent", "cash", "investments", "debt"):
             q = next(x for x in self.interview["questions"] if x["id"] == qid)
             self.assertTrue(any(o["sets"] == {} for o in q["options"]), qid)
+        for qid in ("age", "mincash"):
+            self.assertEqual([], next(x for x in self.interview["questions"] if x["id"] == qid)["options"])
 
     def test_cities_are_the_dataset_cities(self):
         q = next(x for x in self.interview["questions"] if x["id"] == "city")
@@ -45,9 +57,9 @@ class InterviewContentTest(unittest.TestCase):
 
 class OpeningStatementTest(unittest.TestCase):
     # Same case as InterviewBuilderTest.kt: keep both in sync.
-    ANSWERS = [("age", "a1"), ("city", "lausanne"), ("household", "single"), ("employment", "not_working"),
-               ("education", "bachelor_in_progress"), ("income", "idk"), ("rent", "rdk"), ("cash", "c2"),
-               ("goal", "emergency_savings"), ("objective", "balanced"), ("mincash", "m3")]
+    ANSWERS = [("age", 21), ("city", "lausanne"), ("household", "single"), ("employment", "not_working"),
+               ("education", "bachelor_in_progress"), ("income", "dk"), ("rent", "dk"), ("cash", 9000),
+               ("investments", 0), ("debt", 0), ("goal", "emergency_savings"), ("objective", "balanced"), ("mincash", 3500)]
 
     @classmethod
     def setUpClass(cls):
@@ -71,10 +83,27 @@ class OpeningStatementTest(unittest.TestCase):
         self.assertEqual((0.0, None, 0, "2025-01-01"), (s["investmentsChf"], s["loan"], s["month"], s["period"]))
 
     def test_answers_override_defaults(self):
-        answers = [(q, "i4" if q == "income" else "r4" if q == "rent" else o) for q, o in self.ANSWERS]
+        answers = [(q, 8750 if q == "income" else 2250 if q == "rent" else o) for q, o in self.ANSWERS]
         s, _ = self.build(answers)
         self.assertEqual(8750.0, s["monthlyIncomeChf"])
         self.assertEqual(2250.0, s["monthlyRentChf"])
+
+    def test_investments_and_debt(self):
+        s, _ = self.build([(q, 20000 if q == "investments" else 12000 if q == "debt" else o) for q, o in self.ANSWERS])
+        self.assertEqual(20000.0, s["investmentsChf"])
+        rate = self.defaults["loan"]["annualRate"]
+        self.assertEqual(12000.0, s["loan"]["principalChf"])
+        self.assertEqual(rate, s["loan"]["annualRate"])
+        self.assertAlmostEqual(iv.annuity_payment(12000, rate, 60), s["loan"]["monthlyPaymentChf"], places=2)
+
+    def test_i_dont_know_takes_the_dataset_medians(self):
+        s, _ = self.build([(q, "dk" if q in ("investments", "debt") else o) for q, o in self.ANSWERS])
+        self.assertEqual(float(self.defaults["investmentsByAgeBand"][0]["chf"]), s["investmentsChf"])   # 18-24
+        self.assertIsNone(s["loan"])                                                                    # most people owe nothing
+
+    def test_a_typed_number_must_be_in_range(self):
+        with self.assertRaises(ValueError):
+            self.build([(q, 999999 if q == "income" else o) for q, o in self.ANSWERS])
 
     def test_working_student_keeps_both(self):
         answers = [(q, "part_time" if q == "employment" else "master_in_progress" if q == "education" else o) for q, o in self.ANSWERS]
@@ -94,30 +123,18 @@ class OpeningStatementTest(unittest.TestCase):
             self.build([a for a in self.ANSWERS if a[0] != "city"])
 
     def test_goal_is_clamped_to_the_dataset_range(self):
-        answers = [(q, "i5" if q == "income" else "long_term_financial_resilience" if q == "goal" else o) for q, o in self.ANSWERS]
+        answers = [(q, 10750 if q == "income" else "long_term_financial_resilience" if q == "goal" else o) for q, o in self.ANSWERS]
         s, _ = self.build(answers)     # 21.1 x 10,750 = 226,800: inside the range
         self.assertEqual(226800.0, s["goals"][0]["targetChf"])
-        low = [(q, "i1" if q == "income" else o) for q, o in self.ANSWERS]
+        low = [(q, 950 if q == "income" else o) for q, o in self.ANSWERS]
         s, _ = self.build(low)         # 8.7 x 950 = 8,265 -> raised to the smallest goal in the dataset
         self.assertEqual(10000.0, s["goals"][0]["targetChf"])
 
 
 class HelpersTest(unittest.TestCase):
-    def test_representative_uses_the_median_only_with_enough_people(self):
-        enough = [100.0] * iv.MIN_PEOPLE
-        self.assertEqual((100, iv.MIN_PEOPLE), iv.representative(enough, 0, 500, 50, 0))
-        self.assertEqual(250, iv.representative([100.0], 0, 500, 50, 0)[0])        # middle of the band
-        self.assertEqual(1250, iv.representative([], 1000, None, 50, 0)[0])        # open top: 1.25 x lower edge
-        self.assertEqual(1000, iv.representative([], None, 2000, 50, 0)[0])        # open bottom: half the edge
-
-    def test_money_labels(self):
-        self.assertEqual("CHF 2’500 – 5’000", iv.money_label(2500, 5000)["EN"])
-        self.assertEqual("Más de CHF 10’000", iv.money_label(10000, None)["ES"])
-        self.assertEqual("Less than CHF 1’200", iv.money_label(None, 1200)["EN"])
-
-    def test_age_bands(self):
-        self.assertEqual("18–24", iv.age_label(18, 25)["EN"])
-        self.assertEqual("65 or older", iv.age_label(65, None)["EN"])
+    def test_number_text(self):
+        self.assertEqual("1500", iv.number_text(1500.0))
+        self.assertEqual("12.5", iv.number_text(12.5))
 
 
 if __name__ == "__main__":

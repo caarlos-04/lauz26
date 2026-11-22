@@ -6,11 +6,6 @@
   },
   "investmentReturnAnnual": 0.0,
   "financingRateAnnual": 0.085,
-  "defaultCaseProbs": {
-    "PESSIMISTIC": 0.2,
-    "NEUTRAL": 0.6,
-    "OPTIMISTIC": 0.2
-  },
   "objectivePenalties": {
     "GROWTH": 0.0,
     "BALANCED": 500.0,
@@ -138,7 +133,6 @@
   "sourceNotes": [
     "financingRateAnnual 0.085: interest on negative cash = the highest loan rate in synthetic-liabilities.csv (0.0848), so going negative is never cheaper than a loan.",
     "investmentReturnAnnual 0: the dataset has portfolio values but no returns; equity returns were not downloaded (FRED failed). Conservative reference: 10-year Confederation bonds averaged 0.124 % over the last 10 years.",
-    "defaultCaseProbs 0.2 / 0.6 / 0.2: our convention for events whose cases have no data (content/README.md rule 4).",
     "objectivePenalties CHF 0 / 500 / 3000 per month below the minimum cushion for GROWTH / BALANCED / SAFE: value judgements, shown to the user (docs/README.md section 9).",
     "sensitivity: low/high are the data spread when there is data (see each parameter's source); ASSUMED otherwise."
   ]

@@ -10,10 +10,6 @@ enum class Employment { NOT_WORKING, EMPLOYED, PART_TIME, SELF_EMPLOYED, UNEMPLO
 @Serializable
 enum class Household { SINGLE, COUPLE, FAMILY, SHARED_HOUSING }
 
-// Order matters: the turn's luck is resolved in this order.
-@Serializable
-enum class CaseType { PESSIMISTIC, NEUTRAL, OPTIMISTIC }
-
 @Serializable
 enum class ExpenseCategory { RENT, LIVING, TUITION, INSURANCE, TRAVEL, OTHER }
 
@@ -32,12 +28,15 @@ enum class Objective { GROWTH, BALANCED, SAFE }
 
 @Serializable
 enum class BeatKind {
-    START, DECISION, CASE_RESOLVED, LIFE_CHANGE, QUIET_PERIOD,
+    START, DECISION, OUTCOME, SHOCK, LIFE_CHANGE, QUIET_PERIOD,
     CASH_NEGATIVE, CASH_RECOVERED, LOW_POINT, GOAL_REACHED, GOAL_MISSED, END
 }
 
+// How the luck of a decision is drawn, chosen before the game starts (docs/decision-tree.md):
+// SAME_LEVEL = every decision at the same age gets the same luck (fair comparison between branches);
+// FULL_RANDOM = each decision gets its own luck.
 @Serializable
-enum class ParallelKind { OTHER_FIRST_CHOICE, OPTIMAL_STRATEGY }
+enum class LuckMode { SAME_LEVEL, FULL_RANDOM }
 
 @Serializable
 enum class Lang { ES, EN }
@@ -46,12 +45,14 @@ enum class Lang { ES, EN }
 enum class ChatRole { USER, TWIN }
 
 @Serializable
-enum class Persona { FUTURE_SELF, PARALLEL_SELF }
+enum class Persona { FUTURE_SELF }
 
 @Serializable
 // EDUCATION takes a FactKey.EDUCATION code (e.g. "BACHELOR_IN_PROGRESS" = studying), independent from EMPLOYMENT.
+// INVESTMENTS = invested money (CHF); DEBT = what is still owed on loans (CHF), a loan at the dataset median rate.
 enum class ProfileField {
-    AGE, CITY, EMPLOYMENT, EDUCATION, HOUSEHOLD, OPENING_CASH, MONTHLY_INCOME, MONTHLY_RENT, GOAL_TYPE, OBJECTIVE, MIN_CASH
+    AGE, CITY, EMPLOYMENT, EDUCATION, HOUSEHOLD, OPENING_CASH, INVESTMENTS, DEBT, MONTHLY_INCOME, MONTHLY_RENT, GOAL_TYPE,
+    OBJECTIVE, MIN_CASH
 }
 
 // Content texts are written inline in both languages: {"ES": "...", "EN": "..."}.

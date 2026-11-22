@@ -14,7 +14,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.lauzhack.twin.model.CaseType
 import com.lauzhack.twin.model.FinancialStatement
 import com.lauzhack.twin.model.Goal
 import com.lauzhack.twin.resources.Res
@@ -96,25 +95,5 @@ fun GoalStageChip(s: GoalStatus) {
             Icon(if (s.stage == GoalStage.REACHED) TwinIcons.Check else TwinIcons.Info, null, tint = color, modifier = Modifier.size(16.dp))
         }
         Text(goalStageText(s), style = MaterialTheme.typography.labelMedium, color = color)
-    }
-}
-
-/**
- * Before choosing: where each goal would be after the turn in each case (pessimistic / neutral / optimistic),
- * from the engine's preview. Progress now is shown first.
- */
-@Composable
-fun GoalPreview(goals: List<Goal>, now: FinancialStatement, perCase: Map<CaseType, FinancialStatement>, nowLabel: @Composable (String) -> String) {
-    goals.forEach { g ->
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Column(Modifier.weight(1f)) {
-                Text(goalLabel(g.name), style = MaterialTheme.typography.bodySmall)
-                Text(nowLabel(formatPercent(g.progress(now))), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            CaseType.entries.forEach { case ->
-                val after = perCase[case] ?: return@forEach
-                Text(formatPercent(g.progress(after)), style = MaterialTheme.typography.labelMedium.figures(), color = caseColor(case))
-            }
-        }
     }
 }

@@ -1,11 +1,15 @@
 package com.lauzhack.twin.engine
 
-import com.lauzhack.twin.model.CaseType
+import com.lauzhack.twin.model.Better
+import com.lauzhack.twin.model.Law
+import com.lauzhack.twin.model.Quantile
+import com.lauzhack.twin.model.Target
+import com.lauzhack.twin.model.Uncertain
 import com.lauzhack.twin.model.Effect
 import com.lauzhack.twin.model.Employment
-import com.lauzhack.twin.model.Event
-import com.lauzhack.twin.model.EventOption
-import com.lauzhack.twin.model.CaseOutcome
+import com.lauzhack.twin.model.Action
+import com.lauzhack.twin.model.LuckMode
+import com.lauzhack.twin.model.NOTHING
 import com.lauzhack.twin.model.ExpenseCategory
 import com.lauzhack.twin.model.FactKey
 import com.lauzhack.twin.model.FinancialStatement
@@ -101,14 +105,35 @@ class BasicsTest {
         assertClose(0.0, balance, 1e-6)
     }
 
-    @Test fun luckResolvesCasesInOrder() {
-        val opt = EventOption("A", mapOf(Lang.EN to "a", Lang.ES to "a"), mapOf(
-            CaseType.PESSIMISTIC to CaseOutcome(0.2, emptyList(), mapOf()),
-            CaseType.NEUTRAL to CaseOutcome(0.6, emptyList(), mapOf()),
-            CaseType.OPTIMISTIC to CaseOutcome(0.2, emptyList(), mapOf())))
-        assertEquals(CaseType.PESSIMISTIC, caseFromLuck(opt, 0.1))
-        assertEquals(CaseType.NEUTRAL, caseFromLuck(opt, 0.5))
-        assertEquals(CaseType.OPTIMISTIC, caseFromLuck(opt, 0.95))
+    @Test fun probitMatchesTheNormalQuantiles() {     // values of Python's statistics.NormalDist().inv_cdf
+        assertClose(-1.6448536269514729, probit(0.05), 1e-8)
+        assertClose(-0.6744897501960817, probit(0.25), 1e-8)
+        assertEquals(0.0, probit(0.5))
+        assertClose(1.2815515655446008, probit(0.9), 1e-8)
+    }
+
+    @Test fun luckIsAPercentileOfEachUncertainNumber() {
+        val salary = Uncertain("salary", Law.LOGNORMAL, 6100.0, Quantile(0.25, 4500.0), Quantile(0.75, 7500.0), Better.HIGH, 50.0, "chf",
+                               listOf(Target(0, "monthlyChf")))
+        assertEquals(listOf(4500.0, 6100.0, 7500.0), listOf(0.25, 0.5, 0.75).map { draw(salary, it) })   // through the data
+        assertEquals(draw(salary, 0.95), draw(salary, 0.999))                                           // no draws beyond p95
+        assertEquals(4500.0, draw(salary.copy(better = Better.LOW), 0.75))                               // a cost: good luck = low
+        val r = resolve(listOf(Effect.SetIncome(6100.0)), listOf(salary), 0.75)
+        assertEquals(Effect.SetIncome(7500.0), r.effects.single())
+        assertEquals(mapOf("salary" to 7500.0), r.values)
+        assertEquals("Start at CHF 7’500.", outcomeText(mapOf(Lang.EN to "Start at CHF {salary}.", Lang.ES to "x"), listOf(salary), r.values, Lang.EN))
+        assertEquals("+30 %", formatValue("change", 1.2995, Lang.EN))
+        assertEquals("5,8 %", formatValue("percent", 0.0582, Lang.ES))
+        assertEquals("a precio normal", formatValue("flat", 0.5, Lang.ES))
+    }
+
+    @Test fun portableHashAndNodeLuck() {          // values printed by tools/game.py
+        assertEquals(0xCBF29CE484222325uL, PortableRandom.fnv1a64(""))
+        assertEquals(0xAF63DC4C8601EC8CuL, PortableRandom.fnv1a64("a"))
+        val same = listOf("A-master", "A-start-working", NOTHING).map { PortableRandom.nodeLuck(7, LuckMode.SAME_LEVEL, it, 0) }
+        assertEquals(1, same.toSet().size)
+        val own = listOf("A-master", "A-start-working", NOTHING).map { PortableRandom.nodeLuck(7, LuckMode.FULL_RANDOM, it, 0) }
+        assertEquals(3, own.toSet().size)
     }
 
     @Test fun netWorthAndGoalsAreComputed() {
@@ -206,9 +231,9 @@ class EventEffectsTest {
     }
 
     @Test fun requirements() {
-        val ev = Event("E", "c", mapOf(), mapOf(), Requirements(maxCashChf = 0.0, household = listOf(Household.SINGLE),
-                                                                facts = mapOf(FactKey.EDUCATION to listOf("UNKNOWN"))),
-                       sources = listOf("s"), options = emptyList())
+        val ev = Action("E", "c", mapOf(), mapOf(), Requirements(maxCashChf = 0.0, household = listOf(Household.SINGLE),
+                                                                 facts = mapOf(FactKey.EDUCATION to listOf("UNKNOWN"))),
+                        sources = listOf("s"), outcome = mapOf())
         assertFalse(isEligible(ev, person(cash = 100.0), 0, emptySet()))
         assertTrue(isEligible(ev, person(cash = -100.0), 0, emptySet()))
         assertFalse(isEligible(ev, person(cash = -100.0), 0, setOf("E")))       // not repeatable

@@ -36,7 +36,6 @@ MACRO_JSON = Path(__file__).resolve().parent / "out" / "macro.json"
 ENUMS_KT = ROOT / "shared" / "src" / "commonMain" / "kotlin" / "com" / "lauzhack" / "twin" / "model" / "Enums.kt"
 
 # Value judgements and engine rules without data (docs/README.md 5.7 and content/README.md rule 4).
-DEFAULT_CASE_PROBS = {"PESSIMISTIC": 0.2, "NEUTRAL": 0.6, "OPTIMISTIC": 0.2}
 OBJECTIVE_PENALTIES = {"GROWTH": 0.0, "BALANCED": 500.0, "SAFE": 3000.0}   # CHF per month below the minimum cushion
 JOB_SEARCH_EXTRA_MONTHS = (0.0, 0.0, 6.0)                                   # base, low, high
 MACRO_PARAMS = {   # sensitivity id -> macro.json trend
@@ -127,7 +126,6 @@ def build(data_dir: Path, macro: dict) -> dict:
                          "rents is in macro.json; the sensitivity copies its base and range so the engine and the analysis agree."},
         "investmentReturnAnnual": 0.0,
         "financingRateAnnual": financing,
-        "defaultCaseProbs": DEFAULT_CASE_PROBS,
         "objectivePenalties": OBJECTIVE_PENALTIES,
         "sensitivity": sensitivity,
         "sourceNotes": [
@@ -135,7 +133,6 @@ def build(data_dir: Path, macro: dict) -> dict:
             f"({max(loans)}), so going negative is never cheaper than a loan.",
             "investmentReturnAnnual 0: the dataset has portfolio values but no returns; equity returns were not downloaded "
             f"(FRED failed). Conservative reference: 10-year Confederation bonds averaged {bond['mean10y']} % over the last 10 years.",
-            "defaultCaseProbs 0.2 / 0.6 / 0.2: our convention for events whose cases have no data (content/README.md rule 4).",
             "objectivePenalties CHF 0 / 500 / 3000 per month below the minimum cushion for GROWTH / BALANCED / SAFE: value "
             "judgements, shown to the user (docs/README.md section 9).",
             "sensitivity: low/high are the data spread when there is data (see each parameter's source); ASSUMED otherwise.",
@@ -145,15 +142,11 @@ def build(data_dir: Path, macro: dict) -> dict:
 
 def check(a: dict, macro: dict | None) -> list[str]:
     errors = []
-    for field in ("investmentReturnAnnual", "financingRateAnnual", "defaultCaseProbs", "objectivePenalties", "sensitivity", "sourceNotes"):
+    for field in ("investmentReturnAnnual", "financingRateAnnual", "objectivePenalties", "sensitivity", "sourceNotes"):
         if field not in a:
             errors.append(f"missing {field} (Assumptions in model/Content.kt)")
     if errors:
         return errors
-    if set(a["defaultCaseProbs"]) != set(kotlin_enum("CaseType")):
-        errors.append(f"defaultCaseProbs keys {sorted(a['defaultCaseProbs'])} != CaseType {kotlin_enum('CaseType')}")
-    if abs(sum(a["defaultCaseProbs"].values()) - 1) > 1e-9 or any(p < 0 for p in a["defaultCaseProbs"].values()):
-        errors.append("defaultCaseProbs must be >= 0 and add up to 1")
     if set(a["objectivePenalties"]) != set(kotlin_enum("Objective")):
         errors.append(f"objectivePenalties keys {sorted(a['objectivePenalties'])} != Objective {kotlin_enum('Objective')}")
     if any(v < 0 for v in a["objectivePenalties"].values()):

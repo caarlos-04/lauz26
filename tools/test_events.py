@@ -3,7 +3,8 @@ import copy
 import json
 import unittest
 
-from game import advance, apply_effects, case_from_luck, eligible, play
+from game import (FULL_RANDOM, NOTHING, SAME_LEVEL, actions_at, advance, apply_effects, child_id, draw,
+                  eligible, fnv1a64, node_luck, outcome_text, play, probit, resolve)
 from simulate import run
 from statement import check_statement, goal_state, net_worth
 from test_support import FACTS as CAT
@@ -27,22 +28,35 @@ def after(s0, months, model=MODEL, **kw):
 class ValidatorTests(unittest.TestCase):
     def setUp(self):
         self.doc = json.loads(DEFAULT_EVENTS.read_text(encoding="utf-8"))
-        self.case = self.doc["events"][0]["options"][0]["cases"]["NEUTRAL"]
+        self.master = next(a for a in self.doc["actions"] if a["id"] == "A-master")
+        self.case = self.master                      # the effects of an action are its median outcome
 
     def test_content_files_are_valid(self):
         self.assertEqual(validate(self.doc, CAT), [])
 
-    def test_probabilities_must_sum_to_one(self):
-        self.case["prob"] = 0.9
-        self.assertTrue(any("sum to" in e for e in validate(self.doc, CAT)))
+    def test_distributions_are_checked(self):
+        spec = self.master["uncertain"][1]
+        spec["low"]["value"] = 99999                                     # above the median
+        spec["targets"].append({"effect": 0, "field": "monthlyChf"})     # the tuition effect has no such field
+        errors = validate(self.doc, CAT)
+        self.assertTrue(any("low.value <= median" in e for e in errors), errors)
+        self.assertTrue(any("is not a field of an effect" in e for e in errors), errors)
 
-    def test_all_three_cases_required(self):
-        del self.doc["events"][0]["options"][1]["cases"]["OPTIMISTIC"]
-        self.assertTrue(any("cases must be" in e for e in validate(self.doc, CAT)))
+    def test_outcome_placeholders_must_be_uncertain_numbers(self):
+        self.master["outcome"]["EN"] += " {bonus}"
+        self.assertTrue(any("{bonus} is not an uncertain number" in e for e in validate(self.doc, CAT)))
 
-    def test_exactly_two_options(self):
-        self.doc["events"][0]["options"].append(copy.deepcopy(self.doc["events"][0]["options"][0]))
-        self.assertTrue(any("exactly 2 options" in e for e in validate(self.doc, CAT)))
+    def test_nothing_is_always_in_the_pool(self):
+        self.doc["actions"] = [a for a in self.doc["actions"] if a["id"] != NOTHING]
+        self.assertTrue(any("'NOTHING'" in e for e in validate(self.doc, CAT)))
+
+    def test_only_nothing_may_have_no_effects(self):
+        self.case["effects"] = []
+        self.assertTrue(any("action A-master: no effects" in e for e in validate(self.doc, CAT)))
+
+    def test_shock_needs_a_probability(self):
+        self.doc["shocks"][0]["probability"] = 1.5
+        self.assertTrue(any("probability must be in (0, 1)" in e for e in validate(self.doc, CAT)))
 
     def test_unknown_effect_and_fields_rejected(self):
         self.case["effects"] += [{"type": "win_lottery", "chf": 1}, {"type": "one_off", "chf": 1, "when": 3}]
@@ -53,7 +67,7 @@ class ValidatorTests(unittest.TestCase):
     def test_facts_and_flags_must_exist_in_catalog(self):
         self.case["effects"] += [{"type": "set_fact", "key": "EDUCATION", "value": "PHD"},
                                  {"type": "add_flag", "flag": "won_lottery"}]
-        self.doc["events"][0]["requires"]["flagsAll"] = ["unknown_flag"]
+        self.master["requires"]["flagsAll"] = ["unknown_flag"]
         errors = validate(self.doc, CAT)
         self.assertTrue(any("EDUCATION='PHD'" in e for e in errors))
         self.assertTrue(any("'won_lottery'" in e for e in errors))
@@ -71,7 +85,7 @@ class ValidatorTests(unittest.TestCase):
         self.assertTrue(any("quantile must be in [0, 1]" in e for e in errors))
 
     def test_both_languages_required(self):
-        self.doc["events"][0]["title"] = {"ES": "Solo español"}
+        self.master["title"] = {"ES": "Solo español"}
         self.assertTrue(any(".title" in e for e in validate(self.doc, CAT)))
 
 
@@ -185,11 +199,31 @@ class EngineRuleTests(unittest.TestCase):
         s["person"]["household"] = "SHARED_HOUSING"
         self.assertTrue(eligible(ev, s, 0, set()))
 
-    def test_luck_resolves_cases_in_order(self):
-        opt = {"cases": {"PESSIMISTIC": {"prob": 0.2}, "NEUTRAL": {"prob": 0.6}, "OPTIMISTIC": {"prob": 0.2}}}
-        self.assertEqual(case_from_luck(opt, 0.1), "PESSIMISTIC")
-        self.assertEqual(case_from_luck(opt, 0.5), "NEUTRAL")
-        self.assertEqual(case_from_luck(opt, 0.95), "OPTIMISTIC")
+    def test_probit(self):
+        import statistics as st
+        for p in (0.01, 0.05, 0.25, 0.5, 0.8, 0.95):
+            self.assertAlmostEqual(st.NormalDist().inv_cdf(p), probit(p), places=7)
+
+    def test_luck_is_a_percentile_of_each_uncertain_number(self):
+        salary = {"name": "salary", "law": "LOGNORMAL", "median": 6100, "low": {"q": 0.25, "value": 4500},
+                  "high": {"q": 0.75, "value": 7500}, "better": "HIGH", "step": 50, "format": "chf", "targets": []}
+        # the distribution goes through the three values of the data
+        self.assertEqual([4500, 6100, 7500], [draw(salary, x) for x in (0.25, 0.5, 0.75)])
+        self.assertEqual(draw(salary, 0.95), draw(salary, 0.999))      # no draws beyond p95
+        cost = dict(salary, better="LOW")                               # a cost: good luck = the low side
+        self.assertEqual(4500, draw(cost, 0.75))
+        rent = {"law": "QUANTILE", "median": 0.5, "low": {"q": 0.05, "value": 0.05}, "high": {"q": 0.95, "value": 0.95},
+                "better": "LOW", "step": 0.01}
+        self.assertAlmostEqual(0.2, draw(rent, 0.8))
+
+    def test_one_luck_sets_every_uncertain_number_and_the_story(self):
+        master = json.loads(DEFAULT_EVENTS.read_text(encoding="utf-8"))["actions"][1]
+        effects, values = resolve(master, 0.9)
+        self.assertEqual({"tuition": 115, "salary": 9050}, values)       # good luck: cheap tuition AND a high salary
+        self.assertEqual(115, effects[0]["deltaChf"])
+        self.assertEqual(9050, effects[6]["monthlyChf"])
+        self.assertEqual("Pagas 115 CHF al mes de matrícula durante dos años. Después empiezas a trabajar con 9’050 CHF al mes.",
+                         outcome_text(master, values, "ES"))
 
     def test_requirements(self):
         ev = {"id": "E", "requires": {"maxCashChf": 0, "flagsNone": ["took_loan"],
@@ -201,21 +235,26 @@ class EngineRuleTests(unittest.TestCase):
 
 class StoryTests(unittest.TestCase):
     def setUp(self):
-        events = json.loads(DEFAULT_EVENTS.read_text(encoding="utf-8"))["events"]
-        alexia_like = person(education="BACHELOR_IN_PROGRESS", employment="NOT_WORKING", cash=8000.0, income=1200.0,
-                             rent=900.0, city="Lausanne", goals=GOALS)
-        self.res = play(events, alexia_like, simple_model(living=1300.0, bonus_ratio=0.35), None, ["A", "B"],
-                        [0.5, 0.5], seed=1)
+        doc = json.loads(DEFAULT_EVENTS.read_text(encoding="utf-8"))
+        self.actions, self.shocks = doc["actions"], doc["shocks"]
+        self.alexia_like = person(education="BACHELOR_IN_PROGRESS", employment="NOT_WORKING", cash=8000.0,
+                                  income=1200.0, rent=900.0, city="Lausanne", goals=GOALS)
+        self.model = simple_model(living=1300.0, bonus_ratio=0.35)
+        self.res = self.play(["A-master", "A-loan"])
 
-    def test_master_then_financing_chain(self):
+    def play(self, path, seed=1, mode=SAME_LEVEL, shocks=None):
+        return play(self.actions, self.shocks if shocks is None else shocks, self.alexia_like, self.model, None, path,
+                    seed, mode)
+
+    def test_the_player_drives_the_life(self):
         decisions = [b["eventId"] for b in self.res["beats"] if b["kind"] == "DECISION"]
-        self.assertEqual(decisions[:2], ["E-master", "E-financing"])
-        self.assertEqual(len(decisions), 5)                            # no quiet turn: an event for every stage
-        self.assertEqual(len(set(decisions)), 5)                       # none repeated
+        self.assertEqual(decisions, ["A-master", "A-loan"])          # only what was chosen
+        quiet = [b for b in self.res["beats"] if b["kind"] == "QUIET_PERIOD"]
+        self.assertEqual(len(quiet), 3)                                # the missing turns are NOTHING
         self.assertIn("did_master", self.res["statements"][-1]["person"]["flags"])
         self.assertAlmostEqual(self.res["attributionGap"], 0.0, delta=0.5)
         flags = {b["data"]["flag"]: b["eventId"] for b in self.res["beats"] if "flag" in b["data"]}
-        self.assertEqual(flags["did_master"], "E-master")              # each milestone credited to its own event
+        self.assertEqual(flags["did_master"], "A-master")              # each milestone credited to its own action
 
     def test_one_consistent_statement_per_turn(self):
         sts, monthly = self.res["statements"], self.res["monthly"]
@@ -223,9 +262,51 @@ class StoryTests(unittest.TestCase):
         self.assertEqual(sts[2]["person"]["facts"]["EDUCATION"], "MASTER")
         self.assertEqual([e for prev, s in zip(monthly, monthly[1:]) for e in check_statement(s, prev)], [])
 
-    def test_cash_goal_uses_cash_basis(self):
-        s = self.res["statements"][-1]
-        self.assertEqual(goal_state(s["goals"][0], s), "REACHED")
+    def test_nothing_keeps_what_is_under_way(self):
+        """A master's started at turn 0 ends at month 24 although the player then does nothing."""
+        res = self.play(["A-master", NOTHING])
+        self.assertEqual(res["statements"][2]["person"]["facts"]["EDUCATION"], "MASTER")
+        self.assertEqual(res["statements"][2]["person"]["employment"], "EMPLOYED")
+
+    def test_pool_always_has_nothing_and_respects_requirements(self):
+        ids = [a["id"] for a in actions_at(self.actions, self.alexia_like, 0, set())]
+        self.assertEqual(ids[0], NOTHING)
+        self.assertIn("A-master", ids)
+        self.assertNotIn("A-loan", ids)                                 # cash is positive
+        self.assertNotIn("A-master", [a["id"] for a in actions_at(self.actions, self.alexia_like, 0, {"A-master"})])
+        with self.assertRaises(ValueError):
+            self.play(["A-loan"])                                       # not available at the start
+
+    def test_same_level_luck_is_shared_by_siblings_full_random_is_not(self):
+        same = {a: node_luck(7, SAME_LEVEL, child_id("", a), 0) for a in ("A-master", "A-start-working", NOTHING)}
+        self.assertEqual(len(set(same.values())), 1)
+        full = {a: node_luck(7, FULL_RANDOM, child_id("", a), 0) for a in ("A-master", "A-start-working", NOTHING)}
+        self.assertEqual(len(set(full.values())), 3)
+        self.assertEqual(child_id("A-master", NOTHING), "A-master/NOTHING")
+
+    def test_portable_hash(self):
+        self.assertEqual(fnv1a64(""), 0xCBF29CE484222325)
+        self.assertEqual(fnv1a64("a"), 0xAF63DC4C8601EC8C)
+
+    def test_a_shock_happens_whatever_you_choose_and_is_told(self):
+        sure = [dict(self.shocks[1], requires={"employment": ["EMPLOYED"]}, probability=0.999999)]
+        res = self.play(["A-start-working"], shocks=sure)
+        shock = [b for b in res["beats"] if b["kind"] == "SHOCK"]
+        self.assertEqual(shock[0]["eventId"], "S-job-loss")
+        lost = [b for b in res["beats"] if b["data"].get("employment") == "UNEMPLOYED"]
+        self.assertEqual(lost[0]["eventId"], "S-job-loss")
+        self.assertAlmostEqual(res["attributionGap"], 0.0, delta=0.5)
+        # a student who keeps studying cannot lose a job she does not have
+        self.assertFalse([b for b in self.play([NOTHING], shocks=sure)["beats"][:6] if b["kind"] == "SHOCK"])
+
+    def test_cash_goal_uses_cash_basis_and_its_deadline(self):
+        res = self.play(["A-start-working"])
+        reached = [b for b in res["beats"] if b["kind"] == "GOAL_REACHED"]
+        self.assertEqual("Emergency savings", reached[0]["data"]["goal"])         # measured on cash, before 2029-12
+        hit = next(m for m in res["monthly"] if m["cashChf"] >= GOALS[0]["targetChf"])
+        self.assertEqual(reached[0]["month"], hit["month"])
+        end = res["statements"][-1]
+        self.assertEqual("MISSED", goal_state(end["goals"][0], end))   # after its date a goal can no longer be reached
 
 
 if __name__ == "__main__":

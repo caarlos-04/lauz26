@@ -20,14 +20,7 @@ class OfflineChronicleTest {
 
     private fun result() = run {
         var s = GameSession(content.alexia.statement, 2026L, content.alexia.preferences, emptyList(), GameConfig())
-        while (!s.isOver) {
-            val event = engine.nextEvent(s)
-            val turn = if (event == null) engine.playTurn(s, null, null, null, PortableRandom.turnLuck(2026L, s.turns.size)) else {
-                val (luck, case) = engine.resolveLuck(s, event.options.first())
-                engine.playTurn(s, event, event.options.first().id, case, luck)
-            }
-            s = s.copy(turns = s.turns + turn)
-        }
+        for (id in listOf("A-master", "NOTHING", "NOTHING", "NOTHING", "NOTHING")) s = s.copy(turns = s.turns + engine.decide(s, id))
         engine.finish(s)
     }
 
@@ -37,7 +30,7 @@ class OfflineChronicleTest {
         val r = result()
         val es = chat.chronicle(ChatContext(r, content.facts, content.assumptions, Lang.ES))
         assertTrue(es.startsWith("Empiezas con 20 años, en 2025, con 8’000 CHF en tu cuenta."), es)
-        assertTrue("llegó una decisión" in es, es)
+        assertTrue("decidiste: Hacer un máster" in es, es)
         assertTrue(es.trimEnd().endsWith("no una predicción."), es)
         val en = chat.chronicle(ChatContext(r, content.facts, content.assumptions, Lang.EN))
         assertTrue(en.startsWith("You start at 20, in 2025, with CHF 8’000 in your account."), en)

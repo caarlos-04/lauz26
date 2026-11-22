@@ -3,7 +3,6 @@ package com.lauzhack.twin.ai
 import com.lauzhack.twin.engine.isOver
 import com.lauzhack.twin.fake.CannedFutureSelfChat
 import com.lauzhack.twin.fake.FakeData
-import com.lauzhack.twin.fake.FakeGameEngine
 import com.lauzhack.twin.fake.FakeTwinFactory
 import com.lauzhack.twin.model.ChatMessage
 import com.lauzhack.twin.model.ChatRole
@@ -19,25 +18,18 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class AgentFutureSelfChatTest {
-    private val engine = FakeGameEngine(FakeData.events, FakeData.assumptions)
+    private val engine = FakeData.engine()
     private val mapper = BriefingMapper(
-        eventById = { id -> FakeData.events.firstOrNull { it.id == id } },
+        catalog = FakeData.events,
         text = { key -> "<$key>" }, // no Compose resources in unit tests
     )
     private val canned = CannedFutureSelfChat(latencyMs = 0)
 
-    /** Plays Alexia always with option A and the engine's luck, then finishes the game. */
+    /** Alexia does a master's and then carries on; the engine's luck; then the game is finished. */
     private fun context(whatIfTurns: Set<Int> = emptySet()): ChatContext {
         val game = FakeTwinFactory().demo()
         var s = GameSession(game.opening, 11L, game.preferences, emptyList(), GameConfig())
-        while (!s.isOver) {
-            val event = engine.nextEvent(s)
-            s = if (event == null) s.copy(turns = s.turns + engine.playTurn(s, null, null, null, 0.5)) else {
-                val option = event.options.first()
-                val (luck, case) = engine.resolveLuck(s, option)
-                s.copy(turns = s.turns + engine.playTurn(s, event, option.id, case, luck))
-            }
-        }
+        for (id in listOf("A-master", "NOTHING", "NOTHING", "NOTHING", "NOTHING")) s = s.copy(turns = s.turns + engine.decide(s, id))
         return ChatContext(engine.finish(s), FakeData.facts, FakeData.assumptions, Lang.ES, whatIfTurns)
     }
 
@@ -46,9 +38,9 @@ class AgentFutureSelfChatTest {
         val ctx = context()
         val b = mapper.map(ctx)
         assertEquals(ctx.result.session.turns.size, b.turns.size)
-        assertEquals("Después del grado", b.turns.first().question)     // LocalizedText in the chat language
+        assertEquals("Hacer un máster", b.turns.first().decision)         // LocalizedText in the chat language
+        assertTrue(b.turns[1].quiet)
         assertEquals(ctx.result.stats.finalNetWorth, b.end.netWorthChf, 1e-6)
-        assertEquals(2, b.parallelLives.size)
         assertEquals(ctx.result.session.initial.goals.size, b.goals.size)
         assertEquals("<Emergency savings>", b.goals.first().name)
         assertTrue(b.lifeAtEnd.any { it == "Máster" })                   // fact label from the catalogue
@@ -77,10 +69,10 @@ class AgentFutureSelfChatTest {
             offlineHistory = { it === offlineMessage },
         )
         val history = listOf(ChatMessage(ChatRole.USER, "q1"), ChatMessage(ChatRole.TWIN, "a1"), offlineMessage)
-        val answer = chat.ask(context(), Persona.PARALLEL_SELF, history, "q2")
+        val answer = chat.ask(context(), Persona.FUTURE_SELF, history, "q2")
         assertEquals(ChatMessage(ChatRole.TWIN, "hola"), answer)
         assertFalse(chat.lastAnswerOffline)
-        assertContains(seenSystem, "parallel self")
+        assertContains(seenSystem, "future self")
         assertEquals(listOf(ChatTurn(true, "q1"), ChatTurn(false, "a1")), seenHistory)
     }
 

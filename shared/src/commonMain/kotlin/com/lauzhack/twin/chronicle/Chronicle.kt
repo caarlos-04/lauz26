@@ -2,7 +2,8 @@ package com.lauzhack.twin.chronicle
 
 import com.lauzhack.twin.model.BeatKind
 import com.lauzhack.twin.model.Employment
-import com.lauzhack.twin.model.EventCatalog
+import com.lauzhack.twin.engine.outcomeText
+import com.lauzhack.twin.model.ActionCatalog
 import com.lauzhack.twin.model.FactCatalog
 import com.lauzhack.twin.model.FactKey
 import com.lauzhack.twin.model.Household
@@ -54,17 +55,17 @@ object Chronicle {
         beats: List<StoryBeat>,
         lang: Lang,
         templates: ChronicleTemplates,
-        events: EventCatalog,
+        events: ActionCatalog,
         facts: FactCatalog,
         startYear: Int = START_YEAR,
     ): List<ChronicleLine> {
-        val byId = events.events.associateBy { it.id }
-        val chosen = mutableMapOf<String, String>()     // eventId -> option of its DECISION beat
-        var current: String? = null                     // event of the decision being told
+        val titles = events.actions.associate { it.id to it.title } + events.shocks.associate { it.id to it.title }
+        val outcomes = events.actions.associate { it.id to (it.outcome to it.uncertain) } + events.shocks.associate { it.id to (it.outcome to it.uncertain) }
+        var current: String? = null                     // action of the decision being told
         val lines = mutableListOf<ChronicleLine>()
         for (b in beats) {
             val d = b.data
-            val ev = b.eventId?.let { byId[it] }
+            val ev = b.eventId?.takeIf { it in titles }
             val v = mutableMapOf(
                 "age" to b.age.toString(),
                 "year" to (startYear + b.month / 12).toString(),
@@ -74,15 +75,14 @@ object Chronicle {
             d["cash"]?.toDoubleOrNull()?.let { v["cashAbs"] = chf(abs(it), lang) }
             d["goal"]?.let { goal -> v["goal"] = templates.labels.goal[goal]?.get(lang) ?: goal }
 
-            if (b.kind == BeatKind.DECISION || b.kind == BeatKind.QUIET_PERIOD) current = ev?.id
-            if (b.kind == BeatKind.DECISION && ev != null) chosen[ev.id] = d["option"].orEmpty()
-            v["event"] = ev?.title?.get(lang).orEmpty()
+            if (b.kind == BeatKind.DECISION || b.kind == BeatKind.QUIET_PERIOD) current = ev
+            v["event"] = ev?.let { titles.getValue(it)[lang] }.orEmpty()
             // The cause is told only when it is not the decision of this paragraph (e.g. the job after the master's).
-            v["because"] = if (ev != null && ev.id != current) fill(templates.because.getValue(lang), v) else ""
-            val option = ev?.options?.firstOrNull { it.id == chosen[ev.id] }
-            if (option != null) {
-                v["option"] = option.label[lang].orEmpty()
-                d["case"]?.let { case -> option.cases.entries.firstOrNull { it.key.name == case }?.let { v["narrative"] = it.value.narrative[lang].orEmpty() } }
+            v["because"] = if (ev != null && ev != current) fill(templates.because.getValue(lang), v) else ""
+            if (ev != null && (b.kind == BeatKind.OUTCOME || b.kind == BeatKind.SHOCK)) {
+                val (outcome, uncertain) = outcomes.getValue(ev)
+                val drawn = uncertain.mapNotNull { u -> d[u.name]?.toDoubleOrNull()?.let { u.name to it } }.toMap()
+                v["narrative"] = outcomeText(outcome, uncertain, drawn, lang)
             }
 
             val template: String = if (b.kind == BeatKind.LIFE_CHANGE) {

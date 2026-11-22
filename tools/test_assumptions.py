@@ -31,10 +31,6 @@ class AssumptionsTest(unittest.TestCase):
         change(a)
         return asm.check(a, None)
 
-    def test_check_catches_bad_probabilities(self):
-        self.assertTrue(self.broken(lambda a: a["defaultCaseProbs"].update(NEUTRAL=0.7)))
-        self.assertTrue(self.broken(lambda a: a["defaultCaseProbs"].pop("OPTIMISTIC")))
-
     def test_check_catches_bad_ranges_and_missing_objectives(self):
         self.assertTrue(self.broken(lambda a: a["sensitivity"][0].update(low=2.0)))
         self.assertTrue(self.broken(lambda a: a["objectivePenalties"].pop("SAFE")))

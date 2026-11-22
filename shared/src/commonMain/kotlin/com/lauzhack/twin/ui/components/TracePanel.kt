@@ -29,7 +29,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.lauzhack.twin.model.Assumptions
 import com.lauzhack.twin.model.Effect
-import com.lauzhack.twin.model.Event
+import com.lauzhack.twin.ui.Catalog
+import com.lauzhack.twin.resources.trace_shock
 import com.lauzhack.twin.model.FactCatalog
 import com.lauzhack.twin.resources.Res
 import com.lauzhack.twin.resources.driver_debt
@@ -48,7 +49,11 @@ import com.lauzhack.twin.resources.eff_market_rent
 import com.lauzhack.twin.resources.eff_one_off
 import com.lauzhack.twin.resources.eff_set_income
 import com.lauzhack.twin.resources.origin_note_ASSUMPTION
-import com.lauzhack.twin.resources.trace_case
+import com.lauzhack.twin.resources.trace_luck
+import com.lauzhack.twin.engine.formatValue
+import com.lauzhack.twin.engine.resolve
+import com.lauzhack.twin.model.Uncertain
+import com.lauzhack.twin.ui.i18n.LocalLang
 import com.lauzhack.twin.resources.trace_check_off
 import com.lauzhack.twin.resources.trace_check_ok
 import com.lauzhack.twin.resources.trace_close
@@ -82,7 +87,7 @@ import kotlin.math.roundToInt
 @Composable
 fun TracePanel(
     trace: Trace,
-    eventById: (String) -> Event?,
+    catalog: Catalog,
     facts: FactCatalog,
     assumptions: Assumptions,
     initiallyOpen: Boolean = false,
@@ -94,12 +99,12 @@ fun TracePanel(
             Spacer(Modifier.width(6.dp))
             Text(stringResource(if (open) Res.string.trace_close else Res.string.trace_open))
         }
-        if (open) TraceBody(trace, eventById, facts, assumptions)
+        if (open) TraceBody(trace, catalog, facts, assumptions)
     }
 }
 
 @Composable
-private fun TraceBody(trace: Trace, eventById: (String) -> Event?, facts: FactCatalog, assumptions: Assumptions) {
+private fun TraceBody(trace: Trace, catalog: Catalog, facts: FactCatalog, assumptions: Assumptions) {
     SurfaceCard(container = MaterialTheme.colorScheme.surfaceContainerLow) {
         Overline(stringResource(Res.string.trace_period, trace.fromMonth, trace.toMonth))
 
@@ -124,18 +129,34 @@ private fun TraceBody(trace: Trace, eventById: (String) -> Event?, facts: FactCa
         // For one turn: what the decision set, and where its numbers come from.
         if (trace.turns.size == 1) {
             val turn = trace.turns.single()
-            val event = turn.eventId?.let(eventById)
-            val option = event?.options?.firstOrNull { it.id == turn.chosenOptionId }
-            val case = turn.resolvedCase
-            val outcome = case?.let { option?.cases?.get(it) }
-            if (event != null && option != null && case != null && outcome != null) {
+            val action = catalog.action(turn.actionId)
+            if (action != null && action.effects.isNotEmpty()) {
+                val outcome = resolve(action, turn.luck)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                Text(stringResource(Res.string.trace_decision, localized(event.title), localized(option.label)), style = MaterialTheme.typography.titleSmall)
-                Text(stringResource(Res.string.trace_case, caseName(case), formatPercent(outcome.prob)), style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(Res.string.trace_decision, localized(action.title)), style = MaterialTheme.typography.titleSmall)
+                if (action.uncertain.isNotEmpty()) {
+                    Text(stringResource(Res.string.trace_luck, kotlin.math.round(turn.luck * 100).toInt(), drawnText(action.uncertain, turn.values)),
+                         style = MaterialTheme.typography.bodySmall)
+                }
                 outcome.effects.mapNotNull { effectText(it, trace.fromMonth, facts) }.forEach { Bullet(it) }
-                if (event.sources.isNotEmpty()) {
+                if (action.sources.isNotEmpty()) {
                     Overline(stringResource(Res.string.trace_sources))
-                    event.sources.forEach { Bullet(it, small = true) }
+                    action.sources.forEach { Bullet(it, small = true) }
+                }
+            }
+            val shock = catalog.shock(turn.shockId)
+            if (shock != null) {
+                val outcome = resolve(shock, turn.shockLuck ?: 0.5)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Text(stringResource(Res.string.trace_shock, localized(shock.title)), style = MaterialTheme.typography.titleSmall)
+                if (shock.uncertain.isNotEmpty()) {
+                    Text(stringResource(Res.string.trace_luck, kotlin.math.round((turn.shockLuck ?: 0.5) * 100).toInt(), drawnText(shock.uncertain, turn.shockValues)),
+                         style = MaterialTheme.typography.bodySmall)
+                }
+                outcome.effects.mapNotNull { effectText(it, trace.fromMonth + (turn.shockMonth ?: 0), facts) }.forEach { Bullet(it) }
+                if (shock.sources.isNotEmpty()) {
+                    Overline(stringResource(Res.string.trace_sources))
+                    shock.sources.forEach { Bullet(it, small = true) }
                 }
             }
         }
@@ -229,4 +250,11 @@ private fun effectText(effect: Effect, turnStart: Int, facts: FactCatalog): Stri
 private fun rate(p: Double): String {
     val tenths = (p * 1000).roundToInt()
     return "${tenths / 10}.${abs(tenths % 10)} %"
+}
+
+/** "Monthly salary 6’850, Tuition per month 320": the values drawn for a decision, with the labels of the dilemma. */
+@Composable
+private fun drawnText(uncertain: List<Uncertain>, values: Map<String, Double>): String {
+    val lang = LocalLang.current
+    return uncertain.mapNotNull { u -> values[u.name]?.let { keyString("uncertain_${u.name}") + " " + formatValue(u.format, it, lang) } }.joinToString(", ")
 }

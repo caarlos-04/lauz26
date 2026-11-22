@@ -60,9 +60,6 @@ import com.lauzhack.twin.model.ChatRole
 import com.lauzhack.twin.resources.Res
 import com.lauzhack.twin.resources.chat_ai_badge
 import com.lauzhack.twin.resources.chat_edited_notice
-import com.lauzhack.twin.resources.chat_parallel_intro
-import com.lauzhack.twin.resources.persona_future
-import com.lauzhack.twin.resources.persona_parallel
 import com.lauzhack.twin.resources.chat_offline_badge
 import com.lauzhack.twin.resources.chat_offline_note
 import com.lauzhack.twin.resources.chat_future_self
@@ -89,7 +86,7 @@ data class ChatMoment(
     val age: Int,
     val year: Int,
     val after: String?,         // "Question → option" of the last turn, or the quiet-period label
-    val complete: Boolean,      // a complete life: the self ten years on, and the parallel self exists
+    val complete: Boolean,      // a complete life: the self ten years on
 )
 
 /** P12: chat with your self of a moment (or of the end of a life). */
@@ -147,26 +144,12 @@ fun ChatScreen(
                 moment?.after?.let { Text(stringResource(Res.string.chat_moment_after, it), style = MaterialTheme.typography.bodyMedium) }
                 Text(
                     stringResource(
-                        when {
-                            midLife -> Res.string.chat_moment_intro
-                            persona == Persona.PARALLEL_SELF -> Res.string.chat_parallel_intro
-                            else -> Res.string.chat_intro
-                        },
+                        if (midLife) Res.string.chat_moment_intro else Res.string.chat_intro,
                     ),
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             Pill(modelLabel, color = if (aiModel != null) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        // Persona (docs 5.8): the future self, or the parallel self who took the other first option.
-        if (!midLife) Row(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
-            Persona.entries.forEach { p ->
-                FilterChip(
-                    selected = p == persona,
-                    onClick = { onPersona(p) },
-                    label = { Text(stringResource(if (p == Persona.PARALLEL_SELF) Res.string.persona_parallel else Res.string.persona_future)) },
-                )
-            }
         }
         if (isEditedPath) {
             Text(stringResource(Res.string.chat_edited_notice), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary)
@@ -175,7 +158,6 @@ fun ChatScreen(
         // Conversation
         val futureSelf = when {
             moment != null && midLife -> stringResource(Res.string.chat_moment_name, moment.age)
-            persona == Persona.PARALLEL_SELF -> stringResource(Res.string.persona_parallel)
             else -> stringResource(Res.string.chat_future_self)
         }
         val conversation: @Composable ColumnScope.() -> Unit = {

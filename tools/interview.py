@@ -1,7 +1,10 @@
 """The interview shown when the app starts (P1) and the opening statement it produces (P2). Standard library only.
 
-The questions are not free text: every option fills fields of the person (`ProfileField`), and every number comes from
-the dataset, so the person the interview builds looks like the people the simulator was fitted on.
+Two kinds of questions. Choices (city, household, work, studies, goal, priority): every option fills fields of the person
+(`ProfileField`). Numbers (age, income, rent, cash, investments, debt, cushion): the person types the amount in a field
+bounded by the range of the dataset (`input`: min, max, step and the typical value of the data as a hint), and most of
+them also offer "I don't know" (the dataset median). So the person the interview builds stays inside what the
+simulator was fitted on.
 
     python tools/interview.py --build               # CSVs -> content/interview.json + content/interview-defaults.json
     python tools/interview.py --check               # validate the committed content against the Kotlin enums, facts.json and the data limits
@@ -13,7 +16,9 @@ What the simulator reads from a person (tools/flow_model.py FEATURES, tools/simu
 studying, city, household, age, income, rent and cash. The flow model keeps only employment, city and studying as drivers
 of the flows (the rest of the person's fields do not move them significantly), plus income and rent as bases of the amounts.
 
-Fields that have no `ProfileField` (investments, loan) start at 0: the interview cannot set them.
+Investments and debt: the amount invested (synthetic-assets.csv, everything but cash) and the debt still owed
+(synthetic-liabilities.csv: one personal loan per person at most). The debt becomes a loan at the dataset's median rate,
+repaid over 60 months (the dataset never pays its loans: the same assumption as statement.dataset_opening).
 """
 import argparse
 import csv
@@ -29,7 +34,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import default_data_dir, quantile, read_csv  # noqa: E402
-from statement import new_person  # noqa: E402
+from statement import annuity_payment, new_person  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTENT = ROOT / "content"
@@ -41,19 +46,16 @@ FACTS_JSON = CONTENT / "facts.json"
 # Band edges. Age and income are the ones tools/flow_model.py uses (FIXED_EDGES); rent and cash are readable edges chosen
 # from the quantiles of the dataset (rent p20/p40/p60/p80 = 1.4k/1.8k/2.1k/2.6k; cash p10/p20/p40 = 15k/26k/44k).
 AGE_EDGES = [18, 25, 35, 45, 55, 65]
-INCOME_EDGES = [2500, 5000, 7500, 10000]
-RENT_EDGES = [1200, 1600, 2000, 2600]
-CASH_EDGES = [5000, 15000, 40000, 80000]
-MIN_PEOPLE = 30             # a band's value is the dataset median only if at least this many people fall in it
-MIN_CASH_MONTHS = [0, 0.5, 1, 3, 6]   # cushion options, in months of the median monthly outflow
 START_PERIOD = "2025-01-01"          # the dataset's as_of_date: month 0 of every game
 ASSUMPTIONS_JSON = CONTENT / "assumptions.json"     # objectivePenalties: CHF per month below the cushion (single source)
 ALEXIA_JSON = CONTENT / "alexia.json"
 ALEXIA_ID, ALEXIA_PUBLIC_ID = "P00001", "DEMO-ALEXIA"  # the challenge's demo profile; row ids never leave the dataset
-ALEXIA_CUSHION_OPTION = "m3"                          # one month of expenses: the same cushion the interview offers
 
 REQUIRED_FIELDS = ["AGE", "CITY", "EMPLOYMENT", "EDUCATION", "HOUSEHOLD", "GOAL_TYPE", "OBJECTIVE", "MIN_CASH"]
-OPTIONAL_FIELDS = ["MONTHLY_INCOME", "MONTHLY_RENT", "OPENING_CASH"]    # "I don't know" -> default from the data
+OPTIONAL_FIELDS = ["MONTHLY_INCOME", "MONTHLY_RENT", "OPENING_CASH", "INVESTMENTS", "DEBT"]   # "I don't know" -> data default
+LOAN_TERM_MONTHS = 60                 # the dataset never pays its loans: the same assumption as statement.dataset_opening
+# Bounds of the numeric answers: the range of the dataset (what the simulator saw), rounded outwards to a round step.
+# Amounts start at 0 (nothing saved, no debt); the age range is the dataset's.
 
 
 # ------------------------------------------------------------------------------------------------ code contracts
@@ -83,40 +85,12 @@ def band_pairs(edges: list[float], low: float = 0) -> list[tuple]:
     return [(pts[i], pts[i + 1]) for i in range(len(pts) - 1)]
 
 
-def money_label(lo, hi) -> dict:
-    if lo is None:
-        return {"EN": f"Less than CHF {chf(hi)}", "ES": f"Menos de CHF {chf(hi)}"}
-    if hi is None:
-        return {"EN": f"More than CHF {chf(lo)}", "ES": f"Más de CHF {chf(lo)}"}
-    return {"EN": f"CHF {chf(lo)} – {chf(hi)}", "ES": f"CHF {chf(lo)} – {chf(hi)}"}
-
-
-def age_label(lo, hi) -> dict:
-    if hi is None:
-        return {"EN": f"{lo} or older", "ES": f"{lo} o más"}
-    return {"EN": f"{lo}–{hi - 1}", "ES": f"{lo}–{hi - 1}"}
-
-
 def band_label_key(value: float, edges: list[float]) -> int:
     return sum(1 for e in edges if value >= e)
 
 
 def round_to(x: float, step: int) -> int:
     return int(round(x / step) * step)
-
-
-def representative(values_in_band: list[float], lo, hi, step: int, floor: float) -> tuple[int, int]:
-    """The value an option stands for: the dataset median of the people in the band (if there are enough of them),
-    otherwise the middle of the band (open ends: half of the upper edge, or 1.25 times the lower edge)."""
-    if len(values_in_band) >= MIN_PEOPLE:
-        return max(round_to(st.median(values_in_band), step), int(floor)), len(values_in_band)
-    if lo is None:
-        mid = hi / 2
-    elif hi is None:
-        mid = lo * 1.25
-    else:
-        mid = (lo + hi) / 2
-    return max(round_to(mid, step), int(floor)), len(values_in_band)
 
 
 # ------------------------------------------------------------------------------------------------ data
@@ -157,6 +131,16 @@ def build(data_dir: Path) -> tuple[dict, dict]:
     rent = [float(r["reference_monthly_rent_chf"]) for r in profiles]
     cash = [float(r["opening_cash_chf"]) for r in profiles]
     income_by_pid = {r["profile_id"]: float(r["reference_monthly_net_income_chf"]) for r in profiles}
+    invested: dict[str, float] = defaultdict(float)
+    for a_ in read_csv(data_dir / "synthetic-assets.csv"):
+        if a_["asset_type"] != "cash":
+            invested[a_["profile_id"]] += float(a_["value_chf"])
+    loans = read_csv(data_dir / "synthetic-liabilities.csv")
+    owed: dict[str, float] = defaultdict(float)
+    for l_ in loans:
+        owed[l_["profile_id"]] += float(l_["opening_principal_chf"])
+    investments = [invested[r["profile_id"]] for r in profiles]
+    debts = [owed[r["profile_id"]] for r in profiles]
 
     # ---- defaults ("I don't know"): medians of the dataset
     emp_income: dict[str, list[float]] = defaultdict(list)
@@ -170,9 +154,11 @@ def build(data_dir: Path) -> tuple[dict, dict]:
         by_city[r["city"]].append(x)
         by_hh[hh].append(x)
     age_bands = band_pairs(AGE_EDGES)[1:]       # the first age band starts at 18: no "less than"
-    cash_by_age = defaultdict(list)
+    cash_by_age, inv_by_age = defaultdict(list), defaultdict(list)
     for r in profiles:
-        cash_by_age[band_label_key(int(r["age_at_start"]), AGE_EDGES) - 1].append(float(r["opening_cash_chf"]))
+        band = band_label_key(int(r["age_at_start"]), AGE_EDGES) - 1
+        cash_by_age[band].append(float(r["opening_cash_chf"]))
+        inv_by_age[band].append(invested[r["profile_id"]])
     goal_rows: dict[str, list[dict]] = defaultdict(list)
     for g in goals:
         goal_rows[g["goal_name"]].append(g)
@@ -191,6 +177,8 @@ def build(data_dir: Path) -> tuple[dict, dict]:
                  "note": "Medians of the dataset, used when the person answers 'I don't know' or to size the goal. n = people behind each value."},
         "limits": {"age": [min(ages), max(ages)], "incomeChf": [round(min(income)), round(max(income))],
                    "rentChf": [round(min(rent)), round(max(rent))], "cashChf": [round(min(cash)), round(max(cash))],
+                   "investmentsChf": [round(min(investments)), round(max(investments))],
+                   "debtChf": [round(min(debts)), round(max(debts))],
                    "goalTargetChf": [round(min(target_amounts)), round(max(target_amounts))]},
         "ageBands": [{"from": lo, "to": hi} for lo, hi in age_bands],
         "incomeByEmployment": {k: med(v) for k, v in sorted(emp_income.items())},
@@ -201,30 +189,31 @@ def build(data_dir: Path) -> tuple[dict, dict]:
         "rentOverall": med(rent),
         "cashByAgeBand": [med(cash_by_age[i]) for i in range(len(age_bands))],
         "cashOverall": med(cash),
+        "investmentsByAgeBand": [med(inv_by_age[i]) for i in range(len(age_bands))],
+        "investmentsOverall": med(investments),
+        "debtOverall": med(debts),
+        "loan": {"annualRate": round(st.median(float(l_["annual_interest_rate"]) for l_ in loans), 4),
+                 "termMonths": LOAN_TERM_MONTHS, "n": len(loans),
+                 "note": "median rate of synthetic-liabilities.csv; the term is an assumption (the dataset never pays its loans)"},
         "goals": goal_defaults,
         "monthlyOutflowChf": round_to(outflow, 10),
     }
 
     # ---- questions
-    def q(qid, text_en, text_es, options):
-        return {"id": qid, "textKey": f"q_{qid}", "text": {"EN": text_en, "ES": text_es},
-                "options": [{"id": oid, "labelKey": f"q_{qid}_{oid}", "label": label, "sets": sets} for oid, label, sets in options]}
+    def q(qid, text_en, text_es, options, number=None):
+        out = {"id": qid, "textKey": f"q_{qid}", "text": {"EN": text_en, "ES": text_es},
+               "options": [{"id": oid, "labelKey": f"q_{qid}_{oid}", "label": label, "sets": sets} for oid, label, sets in options]}
+        if number:
+            out["input"] = number
+        return out
 
     dont_know = {"EN": "I don’t know", "ES": "No lo sé"}
+    dk = [("dk", dont_know, {})]
 
-    def numeric_options(prefix, edges, values, field, step, floor):
-        opts = []
-        for i, (lo, hi) in enumerate(band_pairs(edges)):
-            in_band = [v for v in values if (lo is None or v >= lo) and (hi is None or v < hi)]
-            rep, n = representative(in_band, lo, hi, step, floor)
-            opts.append((f"{prefix}{i + 1}", money_label(lo, hi), {field: str(rep)}))
-        opts.append((f"{prefix}dk", dont_know, {}))
-        return opts
-
-    age_opts = []
-    for i, (lo, hi) in enumerate(age_bands):
-        in_band = [a for a in ages if a >= lo and (hi is None or a < hi)]
-        age_opts.append((f"a{i + 1}", age_label(lo, hi), {"AGE": str(round(st.median(in_band)))}))
+    def number(field, values, step, unit, low=0):
+        """A typed answer: from `low` to the dataset maximum rounded up to `step`; the hint is the dataset median."""
+        hi = int(-(-max(values) // step) * step)
+        return {"field": field, "min": low, "max": hi, "step": step, "unit": unit, "typical": round_to(st.median(values), step)}
 
     cities = sorted({r["city"] for r in profiles}, key=lambda c: facts["facts"]["CITY"][c]["EN"])
     city_opts = [(re.sub(r"\W+", "_", c.lower()), facts["facts"]["CITY"][c], {"CITY": c}) for c in cities]
@@ -249,19 +238,10 @@ def build(data_dir: Path) -> tuple[dict, dict]:
                         "BALANCED": ("A balance between growth and safety", "Un equilibrio entre crecer y estar seguro/a"),
                         "SAFE": ("Safety first: avoid running short of cash", "Seguridad ante todo: no quedarme sin liquidez")}
 
-    cushion = []
-    for i, months in enumerate(MIN_CASH_MONTHS):
-        amount = round_to(months * outflow, 500)
-        if months == 0:
-            label = {"EN": "No minimum", "ES": "Sin mínimo"}
-        else:
-            approx_en = f"about {months:g} month" + ("" if months == 1 else "s")
-            approx_es = f"unos {months:g} " + ("mes" if months == 1 else "meses")
-            label = {"EN": f"CHF {chf(amount)} ({approx_en} of expenses)", "ES": f"CHF {chf(amount)} ({approx_es} de gastos)"}
-        cushion.append((f"m{i + 1}", label, {"MIN_CASH": str(amount)}))
-
+    cushion_typical = round_to(outflow, 500)          # about one month of the median expenses
     questions = [
-        q("age", "How old are you?", "¿Cuántos años tienes?", age_opts),
+        q("age", "How old are you?", "¿Cuántos años tienes?", [],
+          {"field": "AGE", "min": min(ages), "max": max(ages), "step": 1, "unit": "YEARS", "typical": round(st.median(ages))}),
         q("city", "Where do you live?", "¿Dónde vives?", city_opts),
         q("household", "Who do you live with?", "¿Con quién vives?",
           [(h.lower().replace("_housing", ""), {"EN": e, "ES": s}, {"HOUSEHOLD": h}) for h, (e, s) in hh_labels.items()]),
@@ -269,36 +249,58 @@ def build(data_dir: Path) -> tuple[dict, dict]:
           [(k.lower(), {"EN": e, "ES": s}, {"EMPLOYMENT": k}) for k, (e, s) in emp_labels.items()]),
         q("education", "And your studies?", "¿Y tus estudios?",
           [(k.lower(), {"EN": e, "ES": s}, {"EDUCATION": k}) for k, (e, s) in edu_labels.items()]),
-        q("income", "What is your monthly net income?", "¿Cuál es tu ingreso neto mensual?",
-          numeric_options("i", INCOME_EDGES, income, "MONTHLY_INCOME", 50, 0)),
-        q("rent", "How much rent do you pay per month? (your share, if you share)", "¿Cuánto alquiler pagas al mes? (tu parte, si compartes)",
-          numeric_options("r", RENT_EDGES, rent, "MONTHLY_RENT", 50, 0)),
-        q("cash", "How much cash do you have saved?", "¿Cuánto dinero tienes ahorrado en efectivo?",
-          numeric_options("c", CASH_EDGES, cash, "OPENING_CASH", 500, 0)),
+        q("income", "What is your monthly net income?", "¿Cuál es tu ingreso neto mensual?", dk,
+          number("MONTHLY_INCOME", income, 50, "CHF_MONTH")),
+        q("rent", "How much rent do you pay per month? (your share, if you share)", "¿Cuánto alquiler pagas al mes? (tu parte, si compartes)", dk,
+          number("MONTHLY_RENT", rent, 50, "CHF_MONTH")),
+        q("cash", "How much cash do you have saved (current and savings accounts)?", "¿Cuánto dinero tienes ahorrado (cuentas corrientes y de ahorro)?", dk,
+          number("OPENING_CASH", cash, 500, "CHF")),
+        q("investments", "How much do you have invested (funds, shares, pension savings you can access)?",
+          "¿Cuánto tienes invertido (fondos, acciones, ahorro para la jubilación disponible)?", dk,
+          number("INVESTMENTS", investments, 500, "CHF")),
+        q("debt", "How much do you still owe on loans (personal loan, car, studies)?",
+          "¿Cuánto debes todavía en préstamos (personal, coche, estudios)?", dk,
+          number("DEBT", debts, 500, "CHF")),
         q("goal", "What is your main financial goal?", "¿Cuál es tu principal meta financiera?",
           [(re.sub(r"\W+", "_", n.lower()), {"EN": e, "ES": s}, {"GOAL_TYPE": n}) for n, (e, s) in goal_labels.items()]),
         q("objective", "What matters most to you?", "¿Qué es lo más importante para ti?",
           [(k.lower(), {"EN": e, "ES": s}, {"OBJECTIVE": k}) for k, (e, s) in objective_labels.items()]),
-        q("mincash", "What is the minimum cash cushion you want to keep?", "¿Qué colchón mínimo de efectivo quieres mantener?", cushion),
+        q("mincash", "What is the minimum cash cushion you want to keep? (one month of expenses is typical)",
+          "¿Qué colchón mínimo de efectivo quieres mantener? (lo habitual es un mes de gastos)", [],
+          {"field": "MIN_CASH", "min": 0, "max": round_to(6 * outflow, 500) * 2, "step": 500, "unit": "CHF", "typical": cushion_typical}),
     ]
     interview = {
         "version": 1,
         "meta": {"generator": "tools/interview.py --build",
                  "source": "Options and values come from the LauzHack 2026 synthetic dataset; texts are ours (ES/EN).",
-                 "note": "Each option fills fields of the person (ProfileField). Numbers are the dataset median of the people in the "
-                         "band (or its middle if fewer than %d people). 'dk' options fill nothing: the value comes from interview-defaults.json. "
-                         "textKey / labelKey are the keys of the UI strings (python tools/interview.py --strings DIR)." % MIN_PEOPLE},
+                 "note": "Each option fills fields of the person (ProfileField). A question with `input` is answered with a number "
+                         "typed by the person, between min and max (the dataset range); `typical` (the dataset median) is shown as a hint. "
+                         "'dk' options fill nothing: the value comes from interview-defaults.json. "
+                         "textKey / labelKey are the keys of the UI strings (python tools/interview.py --strings DIR)."},
         "questions": questions,
     }
     return interview, defaults
 
 
 # ------------------------------------------------------------------------------------------------ the person (P2)
-def fields_from_answers(interview: dict, answers: list[tuple[str, str]]) -> dict:
+def number_text(x: float) -> str:
+    """How a typed number is stored in a field: 1500.0 -> "1500", 12.5 -> "12.5" (the same in Kotlin)."""
+    return str(int(x)) if float(x).is_integer() else repr(float(x))
+
+
+def fields_from_answers(interview: dict, answers: list[tuple]) -> dict:
+    """(question id, option id) for a choice, (question id, number) for a typed answer. A typed number must be inside
+    the question's range."""
     fields: dict[str, str] = {}
-    for qid, oid in answers:
+    for qid, answer in answers:
         question = next(x for x in interview["questions"] if x["id"] == qid)
-        fields.update(next(o for o in question["options"] if o["id"] == oid)["sets"])
+        if isinstance(answer, (int, float)):
+            spec = question["input"]
+            if not spec["min"] <= answer <= spec["max"]:
+                raise ValueError(f"{qid}: {answer} outside [{spec['min']}, {spec['max']}]")
+            fields[spec["field"]] = number_text(answer)
+        else:
+            fields.update(next(o for o in question["options"] if o["id"] == answer)["sets"])
     return fields
 
 
@@ -324,18 +326,20 @@ def person_from_fields(fields: dict, defaults: dict, facts: dict, profile_id: st
     income = float(fields["MONTHLY_INCOME"]) if "MONTHLY_INCOME" in fields else float(
         defaults["incomeByEmployment"].get(employment, defaults["incomeOverall"])["chf"])
     rent = float(fields["MONTHLY_RENT"]) if "MONTHLY_RENT" in fields else float(default_rent(defaults, city, household))
-    if "OPENING_CASH" in fields:
-        cash = float(fields["OPENING_CASH"])
-    else:
-        bands = defaults["ageBands"]
-        i = max(i for i, b in enumerate(bands) if age >= b["from"])
-        cash = float(defaults["cashByAgeBand"][i]["chf"])
+    band = max(i for i, b in enumerate(defaults["ageBands"]) if age >= b["from"])
+    cash = float(fields["OPENING_CASH"]) if "OPENING_CASH" in fields else float(defaults["cashByAgeBand"][band]["chf"])
+    investments = float(fields["INVESTMENTS"]) if "INVESTMENTS" in fields else float(defaults["investmentsByAgeBand"][band]["chf"])
+    debt = float(fields["DEBT"]) if "DEBT" in fields else float(defaults["debtOverall"]["chf"])
+    rate, term = defaults["loan"]["annualRate"], defaults["loan"]["termMonths"]
+    loan = ({"principalChf": debt, "annualRate": rate, "monthlyPaymentChf": round(annuity_payment(debt, rate, term), 2)}
+            if debt > 0 else None)
     g = defaults["goals"][fields["GOAL_TYPE"]]
     lo, hi = defaults["limits"]["goalTargetChf"]
     target = min(max(round_to(g["incomeRatio"] * income, 100), lo), hi)
     goal = {"name": fields["GOAL_TYPE"], "targetChf": float(target), "targetDate": g["targetDate"], "priority": g["priority"]}
     s = new_person(profile_id=profile_id, display_name="", age=age, city=city, employment=employment, household=household,
-                   education=education, cash=cash, income=income, rent=rent, facts_catalog=facts, goals=[goal])
+                   education=education, cash=cash, income=income, rent=rent, facts_catalog=facts, goals=[goal],
+                   investments=investments, loan=loan)
     prefs = {"objective": fields["OBJECTIVE"], "minCashChf": float(fields["MIN_CASH"]),
              "penaltyChfPerMonthBelowMin": objective_penalties()[fields["OBJECTIVE"]]}
     return s, prefs
@@ -348,8 +352,8 @@ def build_alexia(data_dir: Path, interview: dict) -> dict:
     from statement import dataset_opening
     s = dataset_opening(load_dataset(data_dir), ALEXIA_ID, load_facts())
     s["profileId"] = ALEXIA_PUBLIC_ID
-    cushion = next(o for q in interview["questions"] if q["id"] == "mincash" for o in q["options"] if o["id"] == ALEXIA_CUSHION_OPTION)
-    prefs = {"objective": "BALANCED", "minCashChf": float(cushion["sets"]["MIN_CASH"]),
+    cushion = next(q for q in interview["questions"] if q["id"] == "mincash")["input"]["typical"]
+    prefs = {"objective": "BALANCED", "minCashChf": float(cushion),
              "penaltyChfPerMonthBelowMin": objective_penalties()["BALANCED"]}
     return {"meta": {"generator": "tools/interview.py --build",
                      "note": "Alexia, the challenge's demo profile (20, student in Lausanne, CHF 8,000): her opening statement in the "
@@ -358,29 +362,42 @@ def build_alexia(data_dir: Path, interview: dict) -> dict:
 
 
 # ------------------------------------------------------------------------------------------------ check
+UNITS = {"YEARS", "CHF", "CHF_MONTH"}           # InputUnit in Kotlin
+
+
 def check(interview: dict, defaults: dict, facts: dict) -> list[str]:
     errors: list[str] = []
     profile_fields = kotlin_enum("ProfileField")
     allowed = {"EMPLOYMENT": kotlin_enum("Employment"), "HOUSEHOLD": kotlin_enum("Household"),
                "OBJECTIVE": kotlin_enum("Objective"), "EDUCATION": list(facts["facts"]["EDUCATION"]),
                "CITY": [c for c in facts["facts"]["CITY"] if c != "ABROAD"], "GOAL_TYPE": list(defaults["goals"])}
-    lim = defaults["limits"]
-    numeric_range = {"AGE": lim["age"], "MONTHLY_INCOME": lim["incomeChf"], "MONTHLY_RENT": lim["rentChf"],
-                     "OPENING_CASH": [0, lim["cashChf"][1]], "MIN_CASH": [0, 10 ** 7]}
     setters: dict[str, set] = defaultdict(set)
     seen_q, seen_keys = set(), set()
     for qn in interview["questions"]:
         if qn["id"] in seen_q:
             errors.append(f"duplicate question id {qn['id']}")
         seen_q.add(qn["id"])
-        for key, text in ((qn["textKey"], qn["text"]),):
-            if key in seen_keys:
-                errors.append(f"duplicate key {key}")
-            seen_keys.add(key)
-            if not text.get("EN") or not text.get("ES"):
-                errors.append(f"{key}: missing EN or ES text")
+        if qn["textKey"] in seen_keys:
+            errors.append(f"duplicate key {qn['textKey']}")
+        seen_keys.add(qn["textKey"])
+        if not qn["text"].get("EN") or not qn["text"].get("ES"):
+            errors.append(f"{qn['textKey']}: missing EN or ES text")
         if len({o["id"] for o in qn["options"]}) != len(qn["options"]):
             errors.append(f"{qn['id']}: duplicate option ids")
+        spec = qn.get("input")
+        if spec:
+            field = spec["field"]
+            if field not in profile_fields:
+                errors.append(f"{qn['id']}: {field} is not a ProfileField in Enums.kt")
+            setters[field].add(qn["id"])
+            if spec["unit"] not in UNITS:
+                errors.append(f"{qn['id']}: unknown unit {spec['unit']}")
+            if not spec["min"] <= spec["typical"] <= spec["max"] or spec["step"] <= 0:
+                errors.append(f"{qn['id']}: needs min <= typical <= max and step > 0: {spec}")
+            if field in OPTIONAL_FIELDS and not any(not o["sets"] for o in qn["options"]):
+                errors.append(f"{qn['id']}: offer an \"I don't know\" option (empty sets) for {field}")
+        elif len(qn["options"]) < 2:
+            errors.append(f"{qn['id']}: a choice needs at least two options")
         for o in qn["options"]:
             if o["labelKey"] in seen_keys:
                 errors.append(f"duplicate key {o['labelKey']}")
@@ -395,40 +412,24 @@ def check(interview: dict, defaults: dict, facts: dict) -> list[str]:
                 setters[field].add(qn["id"])
                 if field in allowed and value not in allowed[field]:
                     errors.append(f"{where}: {field}={value!r} not in {allowed[field]}")
-                if field in numeric_range:
-                    try:
-                        x = float(value)
-                        if not numeric_range[field][0] <= x <= numeric_range[field][1] * 1.0001:
-                            errors.append(f"{where}: {field}={x} outside the data range {numeric_range[field]}")
-                    except ValueError:
-                        errors.append(f"{where}: {field}={value!r} is not a number")
-        ids = [o["id"] for o in qn["options"]]
-        if len(qn["options"]) < 2:
-            errors.append(f"{qn['id']}: needs at least two options")
-        # numeric options must be increasing so the bands make sense to the reader
-        for field in ("AGE", "MONTHLY_INCOME", "MONTHLY_RENT", "OPENING_CASH"):
-            vals = [float(o["sets"][field]) for o in qn["options"] if field in o["sets"]]
-            if vals and vals != sorted(vals):
-                errors.append(f"{qn['id']}: {field} options are not increasing: {vals}")
     for field in REQUIRED_FIELDS + OPTIONAL_FIELDS:
         if field not in setters:
             errors.append(f"no question fills {field}")
-    for qn in interview["questions"]:
-        for field in OPTIONAL_FIELDS:
-            if field in {f for o in qn["options"] for f in o["sets"]} and not any(not o["sets"] for o in qn["options"]):
-                errors.append(f"{qn['id']}: offer an \"I don't know\" option (empty sets) for {field}")
     unused = [f for f in profile_fields if f not in setters]
     if unused:
         errors.append(f"ProfileField values no question fills: {unused}")
-    # every option path must build a valid person
-    base = {q["id"]: q["options"][0]["id"] for q in interview["questions"]}
+    # every answer (every option, and the bounds and typical value of every number) must build a valid person
+    def base_answer(q):
+        return q["input"]["typical"] if q.get("input") else q["options"][0]["id"]
+    base = {q["id"]: base_answer(q) for q in interview["questions"]}
     for qn in interview["questions"]:
-        for o in qn["options"]:
-            answers = [(q, o["id"] if q == qn["id"] else base[q]) for q in base]
+        tries = [o["id"] for o in qn["options"]] + ([qn["input"]["min"], qn["input"]["max"]] if qn.get("input") else [])
+        for value in tries:
+            answers = [(q, value if q == qn["id"] else base[q]) for q in base]
             try:
                 person_from_fields(fields_from_answers(interview, answers), defaults, facts)
             except Exception as e:                      # noqa: BLE001
-                errors.append(f"{qn['id']}/{o['id']}: cannot build the person: {e}")
+                errors.append(f"{qn['id']}={value}: cannot build the person: {e}")
     return errors
 
 
@@ -512,12 +513,16 @@ def main() -> int:
     if a.demo:
         rng = random.Random(a.seed)
         for i in range(a.demo):
-            answers = [(q["id"], rng.choice(q["options"])["id"]) for q in interview["questions"]]
+            answers = [(q["id"], rng.choice(q["options"])["id"] if q["options"] and (not q.get("input") or rng.random() < 0.2)
+                        else round(rng.uniform(q["input"]["min"], q["input"]["max"]) / q["input"]["step"]) * q["input"]["step"])
+                       for q in interview["questions"]]
             s, prefs = person_from_fields(fields_from_answers(interview, answers), defaults, facts, f"USER-{i + 1}")
             p = s["person"]
             print(f"\n#{i + 1} answers: {' '.join(f'{q}={o}' for q, o in answers)}")
             print(f"   {p['age']} y, {p['employment']}, {p['household']}, facts {p['facts']}")
-            print(f"   income {s['monthlyIncomeChf']:,.0f}  rent {s['monthlyRentChf']:,.0f}  cash {s['cashChf']:,.0f}  goal {s['goals'][0]}")
+            debt = s["loan"]["principalChf"] if s["loan"] else 0
+            print(f"   income {s['monthlyIncomeChf']:,.0f}  rent {s['monthlyRentChf']:,.0f}  cash {s['cashChf']:,.0f}  "
+                  f"investments {s['investmentsChf']:,.0f}  debt {debt:,.0f}  goal {s['goals'][0]}")
             print(f"   preferences {prefs}")
     if a.strings:
         out = Path(a.strings)

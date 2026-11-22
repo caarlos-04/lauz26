@@ -6,7 +6,11 @@ import com.lauzhack.twin.model.FactKey
 import com.lauzhack.twin.model.FinancialStatement
 import com.lauzhack.twin.model.Goal
 import com.lauzhack.twin.model.Household
+import com.lauzhack.twin.engine.annuityPayment
+import com.lauzhack.twin.engine.round2
 import com.lauzhack.twin.model.InterviewAnswer
+import com.lauzhack.twin.model.InterviewQuestion
+import com.lauzhack.twin.model.Loan
 import com.lauzhack.twin.model.Objective
 import com.lauzhack.twin.model.Person
 import com.lauzhack.twin.model.Preferences
@@ -24,13 +28,14 @@ data class InterviewOutcome(
  * P2: turns the interview answers into the person the game starts with. Pure function. The same rules as
  * tools/interview.py `person_from_fields` (tests/test_interview.py and InterviewBuilderTest use the same case).
  *
- *  - every answered option fills fields (`sets`); a later answer overrides an earlier one for the same field;
- *  - income, rent and cash not answered ("I don't know") take the dataset median: income by employment, rent by city x household
- *    (then city, then household), cash by age band;
+ *  - every answered option fills fields (`sets`), a typed number fills the question's field; a later answer overrides an
+ *    earlier one for the same field;
+ *  - income, rent, cash, investments and debt not answered ("I don't know") take the dataset median: income by employment,
+ *    rent by city x household (then city, then household), cash and investments by age band, debt overall (0);
+ *  - a debt becomes a loan at the dataset's median rate, repaid as an annuity over `defaults.loan.termMonths`;
  *  - the goal is sized as a multiple of the monthly income, as the dataset does, within the dataset's range;
  *  - the facts (OCCUPATION, HOUSING, FAMILY...) come from the `initialFromProfile` rules of facts.json, the same ones the
  *    dataset profiles use; studying is the EDUCATION fact and is independent from EMPLOYMENT;
- *  - there are no `ProfileField`s for investments or loans: they start at 0 / none.
  */
 object InterviewBuilder {
     const val START_PERIOD = "2025-01-01"           // the dataset's as_of_date
@@ -40,17 +45,8 @@ object InterviewBuilder {
         ProfileField.GOAL_TYPE, ProfileField.OBJECTIVE, ProfileField.MIN_CASH,
     )
 
-    fun fieldsFrom(catalog: InterviewCatalog, answers: List<InterviewAnswer>): Map<ProfileField, String> {
-        val fields = mutableMapOf<ProfileField, String>()
-        for (answer in answers) {
-            val question = catalog.questions.firstOrNull { it.id == answer.questionId }
-                ?: throw IllegalArgumentException("unknown question ${answer.questionId}")
-            val option = question.options.firstOrNull { it.id == answer.optionId }
-                ?: throw IllegalArgumentException("unknown option ${answer.optionId} in ${answer.questionId}")
-            fields.putAll(option.sets)
-        }
-        return fields
-    }
+    fun fieldsFrom(catalog: InterviewCatalog, answers: List<InterviewAnswer>): Map<ProfileField, String> =
+        fieldsOf(catalog.questions, answers)
 
     fun build(
         catalog: InterviewCatalog,
@@ -82,7 +78,14 @@ object InterviewBuilder {
         val income = fields[ProfileField.MONTHLY_INCOME]?.toDouble()
             ?: (defaults.incomeByEmployment[employment] ?: defaults.incomeOverall).chf
         val rent = fields[ProfileField.MONTHLY_RENT]?.toDouble() ?: defaultRent(defaults, city, household)
-        val cash = fields[ProfileField.OPENING_CASH]?.toDouble() ?: defaultCash(defaults, age)
+        val band = defaults.ageBands.indexOfLast { age >= it.from }.coerceAtLeast(0)
+        val cash = fields[ProfileField.OPENING_CASH]?.toDouble() ?: (defaults.cashByAgeBand.getOrNull(band) ?: defaults.cashOverall).chf
+        val investments = fields[ProfileField.INVESTMENTS]?.toDouble()
+            ?: (defaults.investmentsByAgeBand.getOrNull(band) ?: defaults.investmentsOverall).chf
+        val debt = fields[ProfileField.DEBT]?.toDouble() ?: defaults.debtOverall.chf
+        val loan = if (debt > 0) Loan(principalChf = debt, annualRate = defaults.loan.annualRate,
+                                      monthlyPaymentChf = round2(annuityPayment(debt, defaults.loan.annualRate, defaults.loan.termMonths)))
+                   else null
 
         val goalName = fields.getValue(ProfileField.GOAL_TYPE)
         val goalDefault = defaults.goals[goalName] ?: throw IllegalArgumentException("no dataset goal named $goalName")
@@ -101,8 +104,8 @@ object InterviewBuilder {
             period = START_PERIOD,
             person = Person(displayName = "", age = age, employment = employment, household = household, facts = personFacts, flags = emptyList()),
             cashChf = cash,
-            investmentsChf = 0.0,
-            loan = null,
+            investmentsChf = investments,
+            loan = loan,
             monthlyIncomeChf = income,
             monthlyRentChf = rent,
             eventExpensesChf = emptyMap(),
@@ -120,15 +123,10 @@ object InterviewBuilder {
 
     /** Stable id of a person from the interview: the same answers always give the same id. */
     fun profileIdFor(answers: List<InterviewAnswer>): String =
-        "USER-" + answers.joinToString("|") { "${it.questionId}:${it.optionId}" }.hashCode().toUInt().toString(16)
+        "USER-" + answers.joinToString("|") { "${it.questionId}:${it.optionId ?: it.value}" }.hashCode().toUInt().toString(16)
 
     private fun defaultRent(d: InterviewDefaults, city: String, household: Household): Double =
         (d.rentByCityHousehold["$city|${household.name}"] ?: d.rentByCity[city] ?: d.rentByHousehold[household] ?: d.rentOverall).chf
-
-    private fun defaultCash(d: InterviewDefaults, age: Int): Double {
-        val band = d.ageBands.indexOfLast { age >= it.from }.coerceAtLeast(0)
-        return (d.cashByAgeBand.getOrNull(band) ?: d.cashOverall).chf
-    }
 
     /** The `initialFromProfile` rules of facts.json: the same facts a dataset profile gets from its row. */
     private fun initialFacts(datasetEmployment: String, household: String, city: String, catalog: FactCatalog): Map<FactKey, String> {
@@ -143,3 +141,29 @@ object InterviewBuilder {
         return result
     }
 }
+
+/**
+ * The person's fields from the answers: an option fills its `sets` ("I don't know" fills nothing), a typed number fills
+ * the question's field and must be inside its range. Same rule as tools/interview.py `fields_from_answers`.
+ */
+fun fieldsOf(questions: List<InterviewQuestion>, answers: List<InterviewAnswer>): Map<ProfileField, String> {
+    val fields = mutableMapOf<ProfileField, String>()
+    for (answer in answers) {
+        val question = questions.firstOrNull { it.id == answer.questionId }
+            ?: throw IllegalArgumentException("unknown question ${answer.questionId}")
+        val value = answer.value
+        if (value != null) {
+            val spec = question.input ?: throw IllegalArgumentException("${answer.questionId} is not a number")
+            require(value in spec.min..spec.max) { "${answer.questionId}: $value outside [${spec.min}, ${spec.max}]" }
+            fields[spec.field] = numberText(value)
+        } else {
+            val option = question.options.firstOrNull { it.id == answer.optionId }
+                ?: throw IllegalArgumentException("unknown option ${answer.optionId} in ${answer.questionId}")
+            fields.putAll(option.sets)
+        }
+    }
+    return fields
+}
+
+/** How a typed number is stored in a field: 1500.0 -> "1500", 12.5 -> "12.5" (tools/interview.py `number_text`). */
+fun numberText(x: Double): String = if (x == kotlin.math.floor(x) && kotlin.math.abs(x) < 1e15) x.toLong().toString() else x.toString()

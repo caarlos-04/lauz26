@@ -22,16 +22,15 @@ data class LifeBriefing(
     val risk: RiskLine,
     val outlook: OutlookLine? = null,
     val drivers: List<DriverLine> = emptyList(),
-    val parallelLives: List<ParallelLine> = emptyList(),
     val assumptionNotes: List<String> = emptyList(),
     /** True when the user changed decisions or luck in the tree: this is not the life they played. */
     val isWhatIf: Boolean = false,
     /**
-     * False for a moment in the middle of a life (a node of the tree before the end): "now" is [end], the years after
-     * it have not happened, and there are no other lives in the briefing.
+     * False for a moment in the middle of a life (a node of the tree before the end): "now" is [end] and the years
+     * after it have not happened.
      */
     val complete: Boolean = true,
-    /** Sources of the numbers of the decisions taken (Event.sources), one entry per event. */
+    /** Sources of the numbers of the decisions taken (Action.sources) and of the shocks, one entry each. */
     val decisionSources: List<SourceLine> = emptyList(),
 )
 
@@ -41,7 +40,7 @@ data class SourceLine(val question: String, val sources: List<String>)
 
 @Serializable enum class ChatLanguage { EN, ES }
 
-/** Luck drawn for a decision (pessimistic / neutral / optimistic case). */
+/** Luck of a decision: its percentile told in words (bad below p35, good above p65). */
 @Serializable enum class Luck { BAD, AVERAGE, GOOD }
 
 @Serializable
@@ -72,15 +71,15 @@ data class TurnLine(
     val turn: Int,              // 1-based
     val month: Int,             // month the turn started
     val quiet: Boolean,
-    val question: String? = null,
-    val chosen: String? = null,
-    val notChosen: String? = null,
+    val decision: String? = null,   // the action taken (its title)
+    val shock: String? = null,      // something that happened without being chosen (job loss), with its outcome
     val luck: Luck? = null,
+    val luckPercentile: Int? = null,   // the percentile the decision's uncertain numbers were drawn at
     val outcome: String? = null,
     val netWorthBeforeChf: Double,
     val netWorthAfterChf: Double,
     val cashAfterChf: Double,
-    /** Changed by the user in the what-if tree (option or luck differs from the played game). */
+    /** Different from the life first played (another decision, or another luck). */
     val editedInWhatIf: Boolean = false,
 )
 
@@ -123,13 +122,3 @@ data class DriverLine(
     val origin: String = "",
 )
 
-/** Another life computed by the engine with the same luck. */
-@Serializable
-data class ParallelLine(
-    val title: String,                 // "Other first choice", "Best strategy"
-    val choices: List<String>,         // "Question: chosen option" per decision
-    val finalNetWorthChf: Double,
-    val deltaVsThisPathChf: Double,    // this path minus that life
-    val goalsReached: Int,
-    val monthsNegativeCash: Int,
-)
