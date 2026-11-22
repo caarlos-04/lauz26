@@ -42,21 +42,23 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.lauzhack.twin.content.AppContent
+import com.lauzhack.twin.engine.RealGameEngine
 import com.lauzhack.twin.interview.ContentTwinFactory
 
 /**
- * Wires the dependencies: the ONLY place to change when the real engine (Dev A) and content (Dev C) arrive.
- * - twins + interview: the real ones (#15): ContentTwinFactory and content/interview.json, from [AppContent].
- * - engine / catalog / facts / assumptions: still FakeGameEngine + FakeData (the real engine is the next step, #16).
+ * Wires the dependencies: the ONLY place to change the implementations.
+ * - engine: RealGameEngine on TwinEngine (#16), with the packaged flow model, macro trends, events and assumptions.
+ * - twins + interview: ContentTwinFactory and content/interview.json (#15).
+ * - catalog / facts / assumptions: content/events.json, facts.json, assumptions.json ([AppContent]).
  * - chat: the Koog agent (ai/) when OPENAI_API_KEY or ANTHROPIC_API_KEY is set, otherwise canned answers.
  */
 fun createAppState(content: AppContent): AppState = AppState(
-    engine = FakeGameEngine(FakeData.events, FakeData.assumptions),
+    engine = RealGameEngine.from(content.flowModel, content.macro, content.events, content.assumptions),
     twins = ContentTwinFactory(content.facts, content.interviewDefaults, content.assumptions.objectivePenalties, content.alexia),
-    chat = createChat(FakeData.events),
-    assumptions = FakeData.assumptions,
-    facts = FakeData.facts,
-    catalog = FakeData.events,
+    chat = createChat(content.events.events),
+    assumptions = content.assumptions,
+    facts = content.facts,
+    catalog = content.events.events,
     interview = content.interview.questions,
 )
 
