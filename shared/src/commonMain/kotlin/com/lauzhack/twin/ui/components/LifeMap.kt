@@ -1,5 +1,7 @@
 package com.lauzhack.twin.ui.components
 
+import com.lauzhack.twin.ui.GoalStage
+import com.lauzhack.twin.ui.goalStatuses
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material3.Icon
 import com.lauzhack.twin.ui.theme.TwinIcons
@@ -142,7 +144,7 @@ fun LifeMap(
         Legend(pathColor, visitedColor, lineColor)
 
         BoxWithConstraints(Modifier.fillMaxWidth()) {
-            val labelWidth = 76.dp
+            val labelWidth = 92.dp
             val minColumn = 44.dp
             val width = maxOf(maxWidth, minColumn * maxDepth + labelWidth + 24.dp)
             val rowHeight = 22.dp
@@ -204,7 +206,10 @@ fun LifeMap(
                 // Leaf labels: final net worth of the lives you lived, "?" for the others.
                 points.values.filter { tree.nodes[it.key]?.isOver == true }.forEach { p ->
                     val s = tree.nodes.getValue(p.key)
-                    val text = if (p.key in tree.visited) formatChfShort(s.current.netWorth) else "?"
+                    val text = if (p.key in tree.visited) {
+                        val goals = s.goalStatuses()
+                        formatChfShort(s.current.netWorth) + if (goals.isEmpty()) "" else " · ${goals.count { it.stage == GoalStage.REACHED }}/${goals.size}"
+                    } else "?"
                     val style = if (onPath(p.key)) labelStyle.copy(color = pathColor) else labelStyle
                     val layout = measurer.measure(text, style)
                     val c = at(p)
@@ -293,16 +298,7 @@ private fun NodeDetail(
         if (visited) {
             LabeledValue(stringResource(Res.string.state_net_worth), formatChf(state.netWorth))
             LabeledValue(stringResource(Res.string.state_cash), formatChf(state.cash), if (state.cash < 0) signColor(-1.0) else Color.Unspecified)
-            state.goals.forEach { goal ->
-                val p = goal.progress(state)
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Row {
-                        Text(goalLabel(goal.name), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                        Text(formatPercent(p), style = MaterialTheme.typography.labelMedium)
-                    }
-                    ThinProgress(p.toFloat(), color = if (p >= 1.0) LocalTwinColors.current.positive else MaterialTheme.colorScheme.tertiary)
-                }
-            }
+            session.goalStatuses().forEach { GoalRow(it) }
         } else {
             Text(stringResource(Res.string.map_unexplored), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }

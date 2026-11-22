@@ -61,8 +61,11 @@ private val GOAL_BASIS_CASH = setOf("Emergency savings", "Housing deposit")
 
 enum class GoalState { IN_PROGRESS, REACHED, MISSED }
 
+/** True if [goal] is measured on cash (else on net worth). */
+fun goalOnCash(goal: Goal): Boolean = goal.name in GOAL_BASIS_CASH
+
 fun goalValue(goal: Goal, s: FinancialStatement): Double =
-    if (goal.name in GOAL_BASIS_CASH) s.cashChf else s.netWorthChf()
+    if (goalOnCash(goal)) s.cashChf else s.netWorthChf()
 
 fun goalState(goal: Goal, s: FinancialStatement): GoalState = when {
     goalValue(goal, s) >= goal.targetChf -> GoalState.REACHED

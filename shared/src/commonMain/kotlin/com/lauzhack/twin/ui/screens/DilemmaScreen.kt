@@ -1,5 +1,9 @@
 package com.lauzhack.twin.ui.screens
 
+import com.lauzhack.twin.resources.dilemma_goals_now
+import com.lauzhack.twin.resources.dilemma_goals_title
+import com.lauzhack.twin.ui.components.GoalPreview
+import com.lauzhack.twin.model.FinancialStatement
 import com.lauzhack.twin.ui.current
 import com.lauzhack.twin.ui.i18n.localized
 import androidx.compose.foundation.BorderStroke
@@ -93,7 +97,7 @@ fun DilemmaScreen(
             val cards: @Composable (Modifier) -> Unit = { mod ->
                 event.options.forEach { option ->
                     val preview = previews.firstOrNull { it.optionId == option.id } ?: return@forEach
-                    OptionCard(option.id, localized(option.label), preview, option.id in lived, { onChoose(option.id) }, mod)
+                    OptionCard(option.id, localized(option.label), preview, option.id in lived, state, session.config.monthsPerTurn, { onChoose(option.id) }, mod)
                 }
             }
             if (wide) Row(horizontalArrangement = Arrangement.spacedBy(Space.l)) { cards(Modifier.weight(1f)) }
@@ -103,7 +107,16 @@ fun DilemmaScreen(
 }
 
 @Composable
-private fun OptionCard(id: String, label: String, preview: OptionPreview, lived: Boolean, onChoose: () -> Unit, modifier: Modifier) {
+private fun OptionCard(
+    id: String,
+    label: String,
+    preview: OptionPreview,
+    lived: Boolean,
+    now: FinancialStatement,
+    monthsPerTurn: Int,
+    onChoose: () -> Unit,
+    modifier: Modifier,
+) {
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
     val accent = LocalTwinColors.current.chosen
@@ -135,6 +148,11 @@ private fun OptionCard(id: String, label: String, preview: OptionPreview, lived:
                     DeltaPill(p.deltaNetWorth)
                 }
                 LabeledValue(stringResource(Res.string.min_cash), formatChf(p.minCash), if (p.minCash < 0) signColor(p.minCash) else Color.Unspecified)
+            }
+            if (now.goals.isNotEmpty()) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Overline(stringResource(Res.string.dilemma_goals_title, monthsPerTurn))
+                GoalPreview(now.goals, now, preview.perCase.mapValues { it.value.stateAfter }) { stringResource(Res.string.dilemma_goals_now, it) }
             }
             Spacer(Modifier.height(Space.xs))
             Button(onClick = onChoose, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth().height(48.dp)) {

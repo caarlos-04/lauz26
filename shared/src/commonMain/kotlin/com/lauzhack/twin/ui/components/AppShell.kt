@@ -1,5 +1,6 @@
 package com.lauzhack.twin.ui.components
 
+import com.lauzhack.twin.ui.GoalStatus
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.foundation.layout.PaddingValues
 import com.lauzhack.twin.ui.cash
@@ -88,7 +89,7 @@ data class PanelData(
     val age: Int,
     val employment: Employment,
     val state: FinancialStatement,
-    val goals: List<Goal>,
+    val goals: List<GoalStatus>,          // where each goal stands at this moment (engine rules)
     val turnsDone: Int,
     val maxTurns: Int,
     val monthsPerTurn: Int,
@@ -259,20 +260,11 @@ private fun ProfilePanel(panel: PanelData, modifier: Modifier) {
                     LabeledValue(stringResource(Res.string.state_monthly_net), formatChf(state.monthlyNet, signed = true), signColor(state.monthlyNet))
                 }
 
-                // Goals progress (net worth vs target)
+                // Goals: progress now, deadline and whether reached (measured as the engine does)
                 if (panel.goals.isNotEmpty()) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Overline(stringResource(Res.string.goals_title))
-                    panel.goals.forEach { goal ->
-                        val fraction = (state.netWorth / goal.targetChf).coerceIn(0.0, 1.0)
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text(goalLabel(goal.name), style = MaterialTheme.typography.bodySmall)
-                                Text(formatPercent(fraction), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            ThinProgress(fraction.toFloat())
-                        }
-                    }
+                    panel.goals.forEach { GoalMini(it) }
                 }
 
                 // Turn timeline
@@ -322,9 +314,20 @@ private fun CompactPanel(panel: PanelData) {
             MiniKpi(stringResource(Res.string.state_cash), formatChf(panel.state.cash))
             MiniKpi(stringResource(Res.string.state_monthly_net), formatChf(panel.state.monthlyNet, signed = true))
         }
+        if (panel.goals.isNotEmpty()) {
+            val parts = panel.goals.map { goalLabelPlain(it) }
+            Text(
+                stringResource(Res.string.goals_title) + ": " + parts.joinToString(" · "),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         TurnTimeline(panel.turnsDone, panel.maxTurns)
     }
 }
+
+@Composable
+private fun goalLabelPlain(s: GoalStatus): String = goalLabel(s.goal.name) + " " + formatPercent(s.progress)
 
 @Composable
 private fun MiniKpi(label: String, value: String) {

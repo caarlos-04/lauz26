@@ -21,28 +21,28 @@ The numbers the game produces today are not credible. Goal: every figure on scre
 - [ ] Every assumption documented with unit (CHF, annual fraction) and source
 
 ## 2. Talk to your future self at any point
-- [ ] After **any** decision (A or B) you can open the chat with your future self **at that point** of the life
-- [ ] The future self is **you right after that decision**, with the context of that node only: the life up to that
+- [x] After **any** decision (A or B) you can open the chat with your future self **at that point** of the life
+- [x] The future self is **you right after that decision**, with the context of that node only: the life up to that
       point and the computed consequences of that decision (it does not know decisions not taken yet)
-- [ ] Clear in the UI at which moment (age, turn, branch) you are talking
-- [ ] Switching to another point or branch changes what the future self knows
+- [x] Clear in the UI at which moment (age, turn, branch) you are talking
+- [x] Switching to another point or branch changes what the future self knows
 - [x] Decided: each node keeps its own conversation during the session
-- [ ] Works offline (canned answers) with the same flow
+- [x] Works offline (canned answers) with the same flow
 
 ## 3. Explore the other path at any moment (up to 32 lives)
 Up to 5 decisions × 2 options = at most 2⁵ = **32 possible lives**. Each branch gets its own questions (events depend
 on the life), and a quiet turn does not split the branch, so a game can have fewer than 32.
-- [ ] At any turn you can go back and take the other decision, and keep playing from there
-- [ ] Every explored branch is kept: you never lose a life you already played
-- [ ] By the end you can visit every possible life (up to 32)
-- [ ] View of the full tree: which branches are explored, which are not, where you are now
+- [x] At any turn you can go back and take the other decision, and keep playing from there
+- [x] Every explored branch is kept: you never lose a life you already played
+- [x] By the end you can visit every possible life (up to 32)
+- [x] View of the full tree: which branches are explored, which are not, where you are now
 - [ ] Compare any two lives side by side (net worth, cash, life facts, key moments)
 - [x] Decided: the luck per turn is fixed and the same in every branch; the drawn case cannot be changed, you only
       switch between options
 - [x] Decided: each branch keeps its own events (option A of the plan): "up to 32" lives
-- [ ] Every node shows which question that branch got; comparisons show the question of each life, not just "turn N"
+- [x] Every node shows which question that branch got; comparisons show the question of each life, not just "turn N"
 - [ ] Performance: computing or precomputing the 32 lives is fast on Android
-- [ ] Chronicle and chat available for every branch (links to section 2)
+- [x] Chronicle and chat available for every branch (links to section 2)
 
 ## 4. Where the numbers come from (no black box)
 - [ ] Any number on screen (cash, net worth, income, expenses, deltas, goal %) can be opened to see how it was computed
@@ -55,14 +55,14 @@ on the life), and a quiet turn does not split the branch, so a game can have few
 - [ ] The future self can answer "where does this number come from?" with the same breakdown
 
 ## 5. The person's goals
-- [ ] The person's goals are visible from the start (what, how much in CHF, by when, priority)
-- [ ] Progress of each goal shown as % covered, at every point of the life
-- [ ] Clear when a goal is reached or missed, and at which age
-- [ ] See how each decision moves the goals before choosing (in the preview of the options)
-- [ ] Compare goal coverage between branches / parallel lives
+- [x] The person's goals are visible from the start (what, how much in CHF, by when, priority)
+- [x] Progress of each goal shown as % covered, at every point of the life
+- [x] Clear when a goal is reached or missed, and at which age
+- [x] See how each decision moves the goals before choosing (in the preview of the options)
+- [ ] Compare goal coverage between branches / parallel lives (partly: each life in the map shows goals reached, e.g. "451k · 2/2")
 - [ ] Decide: where do the goals come from (interview, dataset, both) and can the user edit them?
-- [ ] Decide: what a goal measures (cash or net worth) and say it in the UI
-- [ ] The future self and the chronicle talk about the goals with the computed %
+- [ ] Decide: what a goal measures (cash or net worth). Shown in the UI with today's engine rule: savings-type goals on cash, the rest on net worth
+- [x] The future self and the chronicle talk about the goals with the computed %
 
 ## 6. Analysis
 - [ ] "Your story would change if...": sensitivity of the decision to each assumption and the break-even point

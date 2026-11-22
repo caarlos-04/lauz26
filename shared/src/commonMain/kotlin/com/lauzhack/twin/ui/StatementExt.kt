@@ -29,11 +29,8 @@ val GameSession.current: FinancialStatement get() = turns.lastOrNull()?.stateAft
 
 // ---------- Goals (docs/financial-statement.md section 2) ----------
 
-/** Goals measured on cash; the rest on net worth (the doc's assumption, shown in the UI). */
-private val CASH_GOALS = setOf("Emergency savings", "Housing deposit")
-
-/** The value a goal is measured against: cash for savings-type goals, net worth for the rest. */
-fun Goal.basisChf(s: FinancialStatement): Double = if (name in CASH_GOALS) s.cashChf else s.netWorthChf()
+/** The value a goal is measured against, with the engine's rule (cash for savings-type goals, net worth for the rest). */
+fun Goal.basisChf(s: FinancialStatement): Double = com.lauzhack.twin.engine.goalValue(this, s)
 
 fun Goal.progress(s: FinancialStatement): Double = if (targetChf <= 0) 1.0 else (basisChf(s) / targetChf).coerceIn(0.0, 1.0)
 

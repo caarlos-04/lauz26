@@ -138,7 +138,7 @@ private fun panelData(state: AppState): PanelData? {
         age = s.current.person.age,         // already the age at the current month (the simulator ages the person)
         employment = s.current.employment,
         state = s.current,
-        goals = s.current.goals,
+        goals = s.goalStatuses(),
         turnsDone = s.turns.size,
         maxTurns = s.config.maxTurns,
         monthsPerTurn = s.config.monthsPerTurn,

@@ -1,5 +1,7 @@
 package com.lauzhack.twin.ui.screens
 
+import com.lauzhack.twin.ui.components.GoalRow
+import com.lauzhack.twin.ui.goalStatuses
 import com.lauzhack.twin.model.GameResult
 import com.lauzhack.twin.model.ParallelKind
 import com.lauzhack.twin.ui.ChatBubble
@@ -280,23 +282,7 @@ private fun Overview(
     ChronicleCard(chronicle, chronicleLoading, onWriteChronicle)
 
     SectionCard(stringResource(Res.string.goals_title), icon = TwinIcons.Target) {
-        final.goals.forEach { goal ->
-            val reached = goal.name in results.stats.goalsReached
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(goalLabel(goal.name), style = MaterialTheme.typography.titleSmall)
-                        Text(
-                            stringResource(Res.string.goal_target, formatChf(goal.targetChf), goal.targetMonth(session.initial)),
-                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    StatusChip(reached)
-                }
-                ThinProgress(goal.progress(final).toFloat(), color = if (reached) LocalTwinColors.current.positive else MaterialTheme.colorScheme.tertiary)
-                Spacer(Modifier.height(Space.xs))
-            }
-        }
+        session.goalStatuses().forEach { GoalRow(it) }
     }
 
     SectionCard(stringResource(Res.string.pl_title), icon = TwinIcons.Layers) {

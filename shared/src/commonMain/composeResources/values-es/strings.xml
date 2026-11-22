@@ -309,4 +309,16 @@
     <string name="chat_moment_after">Justo después de: %1$s</string>
     <string name="chat_moment_name">Tú a los %1$d</string>
     <string name="chat_suggestion_changed">¿Qué ha cambiado desde que empecé?</string>
+
+    <!-- Goals (F4) -->
+    <string name="goal_measure_cash">se mide sobre tu caja</string>
+    <string name="goal_measure_net_worth">se mide sobre tu patrimonio neto</string>
+    <string name="goal_deadline">%1$s antes de %2$s (año %3$d)</string>
+    <string name="goal_reached_at">Alcanzada a los %1$d</string>
+    <string name="goal_missed_at">No alcanzada (a los %1$d)</string>
+    <string name="goal_in_progress">En curso</string>
+    <string name="goal_priority_HIGH">prioridad alta</string>
+    <string name="goal_priority_MEDIUM">prioridad media</string>
+    <string name="dilemma_goals_title">Tus metas tras %1$d meses</string>
+    <string name="dilemma_goals_now">ahora %1$s</string>
 </resources>
