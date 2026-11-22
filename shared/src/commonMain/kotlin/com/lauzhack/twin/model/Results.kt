@@ -8,7 +8,7 @@ data class StoryBeat(
     val month: Int,
     val age: Int,
     val kind: BeatKind,
-    val eventId: String? = null,
+    val eventId: String? = null,           // the action or shock that caused it
     val data: Map<String, String> = emptyMap(),
 )
 
@@ -20,7 +20,7 @@ data class Attribution(
     val endNetWorth: Double,
 )
 
-// What each decision contributes comes from the parallel lives (same luck, the other choice), not from tags.
+// What each decision contributes comes from comparing branches of the tree (same luck in SAME_LEVEL), not from tags.
 @Serializable
 data class AttributionItem(
     val key: String,                        // "income:salary", "expense:rent", "expense:groceries", "loan_interest",
@@ -40,25 +40,6 @@ data class Stats(
 )
 
 @Serializable
-data class ParallelLife(
-    val kind: ParallelKind,
-    val turns: List<Turn>,
-    val final: FinancialStatement,
-    val stats: Stats,
-    val attribution: Attribution,
-)
-
-// Look-ahead for one option with the decision tree.
-@Serializable
-data class Outlook(
-    val expectedFinalNetWorth: Double,
-    val worstFinalNetWorth: Double,
-    val bestFinalNetWorth: Double,
-    val probNegativeCash: Double,
-    val expectedUtility: Double,
-)
-
-@Serializable
 data class SensitivityItem(
     val parameter: String,
     val lowValue: Double,
@@ -74,6 +55,5 @@ data class GameResult(
     val stats: Stats,
     val attribution: Attribution,
     val beats: List<StoryBeat>,
-    val parallelLives: List<ParallelLife>,
     val sensitivity: List<SensitivityItem>,
 )

@@ -3,28 +3,83 @@ package com.lauzhack.twin.model
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-// Root of content/events.json.
+// Root of content/events.json: the pool of actions the player chooses from, and the involuntary shocks
+// (docs/decision-tree.md).
 @Serializable
-data class EventCatalog(
+data class ActionCatalog(
     val version: Int,
-    val events: List<Event>,
+    val actions: List<Action>,
+    val shocks: List<Shock> = emptyList(),
 )
 
+/** "Carry on as you are": always in the pool, no requirements, no effects. What is under way carries on. */
+const val NOTHING = "NOTHING"
+
+// Something the player can decide at a node of the tree. Its uncertain numbers are drawn at the node's luck (a percentile).
 @Serializable
-data class Event(
+data class Action(
     val id: String,
     val category: String,
     val title: LocalizedText,
     val description: LocalizedText,
     val requires: Requirements? = null,
-    val priority: Int = 0,
-    val repeatable: Boolean = false,
+    val repeatable: Boolean = false,            // false = at most once per life (path of the tree)
     val earliestTurn: Int = 0,
     val sources: List<String>,
-    val options: List<EventOption>,         // exactly 2: "A" and "B"
+    val effects: List<Effect> = emptyList(),    // with the median of every uncertain number
+    val uncertain: List<Uncertain> = emptyList(),
+    val outcome: LocalizedText,                 // the story of the outcome; {name} = an uncertain number, as drawn
 )
 
-// All present fields must match at the start of the turn.
+// Something that happens to the person whatever they choose (job loss): drawn once per turn with its probability.
+@Serializable
+data class Shock(
+    val id: String,
+    val category: String,
+    val title: LocalizedText,
+    val description: LocalizedText,
+    val requires: Requirements? = null,
+    val probability: Double,                    // chance per turn of 24 months
+    val sources: List<String>,
+    val effects: List<Effect> = emptyList(),
+    val uncertain: List<Uncertain> = emptyList(),
+    val outcome: LocalizedText,
+)
+
+/**
+ * A number of an outcome that is not known in advance (a starting salary, a tuition, a pay factor, a rate, a duration):
+ * a two-piece normal (on the value, or on its logarithm) through three values of the data, [low], [median] and [high].
+ * The luck of the decision (0..1) is the percentile drawn; [better] says which side good luck gets.
+ */
+@Serializable
+data class Uncertain(
+    val name: String,                           // the placeholder in the outcome text
+    val law: Law,
+    val median: Double,
+    val low: Quantile,                          // e.g. p25 of the data
+    val high: Quantile,                         // e.g. p75
+    val better: Better,
+    val step: Double,                           // the drawn value is rounded to it
+    val format: String,                         // how the story tells it: chf, change, share, percent, months, flat
+    val targets: List<Target>,                  // the effect fields it sets
+    val min: Double? = null,
+    val max: Double? = null,
+    val source: String? = null,
+)
+
+@Serializable
+data class Quantile(val q: Double, val value: Double)
+
+@Serializable
+data class Target(val effect: Int, val field: String)
+
+@Serializable
+enum class Law { NORMAL, LOGNORMAL, QUANTILE }
+
+@Serializable
+enum class Better { HIGH, LOW }
+
+// All present fields must match at the start of the turn (for a shock: after the action's immediate changes).
 @Serializable
 data class Requirements(
     val employment: List<Employment>? = null,
@@ -36,20 +91,6 @@ data class Requirements(
     val flagsNone: List<String>? = null,
     val minCashChf: Double? = null,
     val maxCashChf: Double? = null,
-)
-
-@Serializable
-data class EventOption(
-    val id: String,
-    val label: LocalizedText,
-    val cases: Map<CaseType, CaseOutcome>,  // all 3 cases
-)
-
-@Serializable
-data class CaseOutcome(
-    val prob: Double,
-    val effects: List<Effect>,
-    val narrative: LocalizedText,
 )
 
 // JSON discriminator: "type". Offsets are months from the start of the turn.

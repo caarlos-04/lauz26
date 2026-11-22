@@ -14,12 +14,12 @@ class AppContentTest {
     @Test
     fun everyFileLoadsFromTheResources() = runBlocking {
         val c = AppContent.load()
-        assertTrue(c.events.events.isNotEmpty())
+        assertTrue(c.events.actions.isNotEmpty())
         assertTrue(c.facts.facts.isNotEmpty())
         assertTrue(c.assumptions.sensitivity.isNotEmpty())
         assertTrue(c.chronicle.beats.isNotEmpty())
         assertTrue(c.flowModel.flows.isNotEmpty())
-        assertEquals(11, c.interview.questions.size)
+        assertEquals(13, c.interview.questions.size)
         assertEquals("Alexia", c.alexia.statement.person.displayName)
         // the sensitivity range of inflation is the one of macro.json (tools/assumptions.py copies it)
         val inflation = c.macro.trends.priceInflationAnnual

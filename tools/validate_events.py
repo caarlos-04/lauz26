@@ -1,15 +1,16 @@
-"""Validate the game content, and play it with the simulator to balance it.
+"""Validate the game content (the pool of actions and the shocks), and play it with the simulator to balance it.
 
     python tools/validate_events.py                          # validate content/events.json + content/facts.json
-    python tools/validate_events.py --preview P00001         # each option x case of the events eligible at start
-    python tools/validate_events.py --play P00001 --choices A,A --luck 0.5,0.1
-                                                             # play a whole game and print the life line
+    python tools/validate_events.py --preview P00001         # each action available at the start, at luck p10 / p50 / p90
+    python tools/validate_events.py --play P00001 --path A-master,NOTHING --mode FULL_RANDOM
+                                                             # play a life along a path and print the life line
 
 --preview and --play use the game loop of tools/game.py and the monthly step of tools/simulate.py (learned flows +
 macro trends, docs/simulator.md). They need tools/out/flow-model.json and macro.json (flow_model.py, macro.py).
 """
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -19,14 +20,18 @@ DEFAULT_EVENTS = ROOT / "content" / "events.json"
 DEFAULT_FACTS = ROOT / "content" / "facts.json"
 
 LANGS = {"ES", "EN"}
-CASE_ORDER = ["PESSIMISTIC", "NEUTRAL", "OPTIMISTIC"]
+LAWS = {"NORMAL", "LOGNORMAL", "QUANTILE"}
+FORMATS = {"chf", "change", "share", "percent", "months", "flat", "number"}
 EMPLOYMENT = {"NOT_WORKING", "EMPLOYED", "PART_TIME", "SELF_EMPLOYED", "UNEMPLOYED", "RETIRED"}
 EXPENSE_CATEGORIES = {"RENT", "LIVING", "TUITION", "INSURANCE", "TRAVEL", "OTHER"}
 HOUSEHOLDS = {"SINGLE", "COUPLE", "FAMILY", "SHARED_HOUSING"}
 PROB_TOLERANCE = 1e-6
 
-EVENT_FIELDS = {"id", "category", "title", "description", "requires", "priority", "repeatable",
-                "earliestTurn", "sources", "options"}
+ACTION_FIELDS = {"id", "category", "title", "description", "requires", "repeatable", "earliestTurn", "sources", "effects",
+                 "uncertain", "outcome"}
+SHOCK_FIELDS = {"id", "category", "title", "description", "requires", "probability", "sources", "effects", "uncertain", "outcome"}
+UNCERTAIN_FIELDS = {"name", "law", "median", "low", "high", "better", "step", "format", "targets", "min", "max", "source"}
+NOTHING = "NOTHING"
 REQUIRE_FIELDS = {"employment", "household", "minAge", "maxAge", "facts", "flagsAll", "flagsNone", "minCashChf",
                   "maxCashChf"}
 # type -> (required fields, optional fields)
@@ -133,54 +138,98 @@ def _check_household_facts(where: str, effects: list, cat: dict) -> list[str]:
     return errors
 
 
+def _check_outcome(errors: list, w: str, item: dict, cat: dict, empty_ok: bool) -> None:
+    """The median effects, the uncertain numbers (their distribution and the effect fields they set) and the outcome text."""
+    effects = item.get("effects", [])
+    if not effects and not empty_ok:
+        errors.append(f"{w}: no effects")
+    for j, eff in enumerate(effects):
+        _check_effect(errors, f"{w}.effects[{j}]", eff, cat)
+    errors += _check_household_facts(w, effects, cat)
+    names = set()
+    for k, spec in enumerate(item.get("uncertain", [])):
+        uw = f"{w}.uncertain[{k}] {spec.get('name')}"
+        if extra := set(spec) - UNCERTAIN_FIELDS:
+            errors.append(f"{uw}: unknown fields {sorted(extra)}")
+        if spec.get("name") in names:
+            errors.append(f"{uw}: duplicated name")
+        names.add(spec.get("name"))
+        if spec.get("law") not in LAWS:
+            errors.append(f"{uw}: law must be one of {sorted(LAWS)}")
+        if spec.get("better") not in ("HIGH", "LOW"):
+            errors.append(f"{uw}: better must be HIGH or LOW")
+        if spec.get("format") not in FORMATS:
+            errors.append(f"{uw}: format must be one of {sorted(FORMATS)}")
+        lo, hi, med = spec.get("low", {}), spec.get("high", {}), spec.get("median")
+        try:
+            if not lo["q"] < 0.5 < hi["q"]:
+                errors.append(f"{uw}: needs low.q < 0.5 < high.q")
+            if not lo["value"] <= med <= hi["value"]:
+                errors.append(f"{uw}: needs low.value <= median <= high.value")
+            if spec.get("law") == "LOGNORMAL" and lo["value"] <= 0:
+                errors.append(f"{uw}: a lognormal number must be positive")
+        except (KeyError, TypeError):
+            errors.append(f"{uw}: needs median, low {{q, value}} and high {{q, value}}")
+        if not spec.get("step", 0) > 0:
+            errors.append(f"{uw}: step must be > 0")
+        if not spec.get("targets"):
+            errors.append(f"{uw}: sets no effect field (targets)")
+        for tgt in spec.get("targets", []):
+            e = tgt.get("effect")
+            if not isinstance(e, int) or not 0 <= e < len(effects) or tgt.get("field") not in effects[e]:
+                errors.append(f"{uw}: target {tgt} is not a field of an effect")
+    text = item.get("outcome")
+    if not _is_text(text):
+        errors.append(f"{w}.outcome: must have ES and EN")
+    else:
+        for lang, s in text.items():
+            for name in re.findall(r"\{(\w+)\}", s):
+                if name not in names:
+                    errors.append(f"{w}.outcome {lang}: {{{name}}} is not an uncertain number")
+
+
+def _check_common(errors: list, w: str, item: dict, fields: set, cat: dict) -> None:
+    if extra := set(item) - fields:
+        errors.append(f"{w}: unknown fields {sorted(extra)}")
+    for field in ("category", "title", "description", "effects", "outcome"):
+        if field not in item:
+            errors.append(f"{w}: missing {field}")
+    for field in ("title", "description"):
+        if not _is_text(item.get(field)):
+            errors.append(f"{w}.{field}: must be {{'ES': '...', 'EN': '...'}} with non-empty text")
+    _check_requires(errors, f"{w}.requires", item.get("requires") or {}, cat)
+    if not item.get("sources"):
+        errors.append(f"{w}: 'sources' is empty (every number needs a source or 'assumption')")
+
+
 def validate(doc: dict, cat: dict) -> list[str]:
     """Return a list of human-readable errors (empty = valid)."""
     errors = validate_facts(cat)
-    events = doc.get("events")
-    if not isinstance(events, list) or not events:
-        return errors + ["root: 'events' must be a non-empty list"]
+    actions, shocks = doc.get("actions"), doc.get("shocks", [])
+    if not isinstance(actions, list) or not actions:
+        return errors + ["root: 'actions' must be a non-empty list"]
+    if not isinstance(shocks, list):
+        errors.append("root: 'shocks' must be a list")
+        shocks = []
+    if extra := set(doc) - {"version", "actions", "shocks"}:
+        errors.append(f"root: unknown fields {sorted(extra)}")
     seen = set()
-    for i, ev in enumerate(events):
-        eid = ev.get("id", f"#{i}")
-        w = f"event {eid}"
-        if eid in seen:
-            errors.append(f"{w}: duplicated id")
-        seen.add(eid)
-        if extra := set(ev) - EVENT_FIELDS:
-            errors.append(f"{w}: unknown fields {sorted(extra)}")
-        for field in ("category", "title", "description", "options"):
-            if field not in ev:
-                errors.append(f"{w}: missing {field}")
-        for field in ("title", "description"):
-            if not _is_text(ev.get(field)):
-                errors.append(f"{w}.{field}: must be {{'ES': '...', 'EN': '...'}} with non-empty text")
-        _check_requires(errors, f"{w}.requires", ev.get("requires") or {}, cat)
-        if not ev.get("sources"):
-            errors.append(f"{w}: 'sources' is empty (every number needs a source or 'assumption')")
-        options = ev.get("options", [])
-        if [o.get("id") for o in options] != ["A", "B"]:
-            errors.append(f"{w}: must have exactly 2 options with ids 'A' and 'B'")
-        for opt in options:
-            ow = f"{w}.option {opt.get('id')}"
-            if not _is_text(opt.get("label")):
-                errors.append(f"{ow}.label: must have ES and EN")
-            cases = opt.get("cases", {})
-            if set(cases) != set(CASE_ORDER):
-                errors.append(f"{ow}: cases must be exactly {CASE_ORDER}")
-            total = sum(c.get("prob", 0) for c in cases.values())
-            if abs(total - 1.0) > PROB_TOLERANCE:
-                errors.append(f"{ow}: probabilities sum to {total:.4f}, expected 1.0")
-            for cname, case in cases.items():
-                cw = f"{ow}.{cname}"
-                if not 0 < case.get("prob", 0) < 1:
-                    errors.append(f"{cw}: prob must be in (0, 1)")
-                if not _is_text(case.get("narrative")):
-                    errors.append(f"{cw}.narrative: must have ES and EN")
-                if not case.get("effects"):
-                    errors.append(f"{cw}: no effects")
-                for j, eff in enumerate(case.get("effects", [])):
-                    _check_effect(errors, f"{cw}.effects[{j}]", eff, cat)
-                errors += _check_household_facts(cw, case.get("effects", []), cat)
+    for kind, items, fields in (("action", actions, ACTION_FIELDS), ("shock", shocks, SHOCK_FIELDS)):
+        for i, item in enumerate(items):
+            iid = item.get("id", f"#{i}")
+            w = f"{kind} {iid}"
+            if iid in seen:
+                errors.append(f"{w}: duplicated id")
+            seen.add(iid)
+            _check_common(errors, w, item, fields, cat)
+            _check_outcome(errors, w, item, cat, empty_ok=iid == NOTHING)
+            if kind == "shock" and not 0 < item.get("probability", 0) < 1:
+                errors.append(f"{w}: probability must be in (0, 1)")
+    nothing = next((a for a in actions if a.get("id") == NOTHING), None)
+    if nothing is None:
+        errors.append(f"actions: {NOTHING!r} (carry on as you are) is missing")
+    elif nothing.get("requires") or not nothing.get("repeatable") or nothing.get("effects") or nothing.get("uncertain"):
+        errors.append(f"action {NOTHING}: must have no requirements, be repeatable and have no effects")
     return errors
 
 
@@ -202,24 +251,18 @@ def load_context(profile_id: str, facts_catalog: dict) -> tuple[dict, dict, dict
     return dataset_opening(ds, profile_id, facts_catalog), model, macro
 
 
-def print_preview(rows: list[dict], events: list[dict], s0: dict) -> None:
+def print_preview(rows: list[dict], actions: list[dict], s0: dict) -> None:
     p = s0["person"]
     print(f"\nProfile {s0['profileId']} {p['displayName']}, age {p['age']}, {p['employment']}, {p['facts']['CITY']}, "
           f"cash {s0['cashChf']:,.0f} CHF")
-    titles = {e["id"]: e["title"]["EN"] for e in events}
-    expected = {}
     for r in rows:
-        label = "baseline (no event)" if r["eventId"] is None else f"{r['eventId']} {r['optionId']} {r['case']:<11}"
-        print(f"  {label:<36} p={r['prob']:.2f} | net worth {r['netWorth']:>11,.0f} | min cash {r['minCash']:>11,.0f}"
-              f" (m{r['monthOfMinCash']}) | months < 0: {r['monthsNegative']}")
-        if r["eventId"]:
-            expected[(r["eventId"], r["optionId"])] = expected.get((r["eventId"], r["optionId"]), 0) + r["prob"] * r["netWorth"]
-    for (ev, opt), nw in expected.items():
-        print(f"  {ev} {opt} expected net worth: {nw:,.0f}  [{titles[ev]}]")
-    eligible_ids = {r["eventId"] for r in rows}
-    for e in events:
-        if e["id"] not in eligible_ids:
-            print(f"  {e['id']}: not eligible at the start for this profile (requires {e.get('requires')})")
+        values = ", ".join(f"{k}={v}" for k, v in r["values"].items())
+        print(f"  {r['actionId']:<22} luck p{round(r['luck'] * 100):<3} | net worth {r['netWorth']:>11,.0f} | min cash "
+              f"{r['minCash']:>11,.0f} (m{r['monthOfMinCash']}) | months < 0: {r['monthsNegative']:>3} | {values}")
+    available = {r["actionId"] for r in rows}
+    for a in actions:
+        if a["id"] not in available:
+            print(f"  {a['id']}: not available at the start for this profile (requires {a.get('requires')})")
 
 
 def print_play(result: dict, cat: dict, lang: str = "EN") -> None:
@@ -250,8 +293,8 @@ def main() -> None:
     ap.add_argument("--facts", type=Path, default=DEFAULT_FACTS)
     ap.add_argument("--preview", metavar="PROFILE_ID", help="simulate each option x case on this profile")
     ap.add_argument("--play", metavar="PROFILE_ID", help="play a whole game on this profile")
-    ap.add_argument("--choices", default="", help="comma-separated options per turn, e.g. A,B (default A)")
-    ap.add_argument("--luck", default="", help="comma-separated luck values 0..1 per turn (default from --seed)")
+    ap.add_argument("--path", default="", help="comma-separated action ids per turn (default NOTHING)")
+    ap.add_argument("--mode", default="SAME_LEVEL", choices=["SAME_LEVEL", "FULL_RANDOM"], help="luck mode")
     ap.add_argument("--seed", type=int, default=2026)
     ap.add_argument("--lang", default="EN", choices=sorted(LANGS))
     ap.add_argument("--dump", type=Path, help="with --play: write the FinancialStatement of every turn to this JSON file")
@@ -265,18 +308,17 @@ def main() -> None:
         for e in errors:
             print(f"  - {e}")
         sys.exit(1)
-    print(f"OK: {len(doc['events'])} event(s) and the facts catalog are valid")
+    print(f"OK: {len(doc['actions'])} action(s), {len(doc.get('shocks', []))} shock(s) and the facts catalog are valid")
 
     from game import play, preview
     from statement import check_statement
     if args.preview:
         s0, model, macro = load_context(args.preview, cat)
-        print_preview(preview(doc["events"], s0, model, macro), doc["events"], s0)
+        print_preview(preview(doc["actions"], s0, model, macro), doc["actions"], s0)
     if args.play:
         s0, model, macro = load_context(args.play, cat)
-        choices = [c.strip() for c in args.choices.split(",") if c.strip()]
-        lucks = [float(x) for x in args.luck.split(",") if x.strip()]
-        result = play(doc["events"], s0, model, macro, choices, lucks, args.seed, args.lang)
+        path = [c.strip() for c in args.path.split(",") if c.strip()]
+        result = play(doc["actions"], doc.get("shocks", []), s0, model, macro, path, args.seed, args.mode, args.lang)
         print_play(result, cat, args.lang)
         monthly = result["monthly"]
         errs = [f"month {s['month']}: {e}" for prev, s in zip(monthly, monthly[1:]) for e in check_statement(s, prev)]

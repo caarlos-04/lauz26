@@ -1,5 +1,11 @@
 # Events — from the scenario catalogue to measurable events
 
+> Since `content/events.json` version 4 these 15 events are a **pool of actions** the player chooses from
+> ([`decision-tree.md`](decision-tree.md)): option A of each event became an action (`A-...`), the "stay as you are"
+> options became `NOTHING`, the master's became two actions, the promotions became "Go for a management job in
+> Zurich / Geneva", and the job loss became a shock (`S-job-loss`). The analysis below (what is measurable, the
+> requirements and the effects) still holds.
+
 > How the 120 scenarios of `scenario-catalog.csv` become game events (`content/events.json`): which ones we keep,
 > what each one changes in the `FinancialStatement` and which fields the person needs for it to appear.
 > Numbers: `tools/event_data.py` (`tools/out/event-data.json`), every one from the data with its source.

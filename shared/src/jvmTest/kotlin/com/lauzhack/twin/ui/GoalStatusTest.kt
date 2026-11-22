@@ -14,7 +14,7 @@ import kotlin.test.assertTrue
 class GoalStatusTest {
     private val content = runBlocking { AppContent.load() }
     private val engine = RealGameEngine.from(content.flowModel, content.macro, content.events, content.assumptions)
-    private val all = engine.expandAll(LifeTree.start(GameSession(content.alexia.statement, 2026L, content.alexia.preferences, emptyList(), GameConfig())))
+    private val all = engine.explore(LifeTree.start(GameSession(content.alexia.statement, 2026L, content.alexia.preferences, emptyList(), GameConfig())))
 
     @Test
     fun reachedGoalsAreTheEngines() {

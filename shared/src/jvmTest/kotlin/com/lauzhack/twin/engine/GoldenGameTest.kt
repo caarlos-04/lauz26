@@ -2,6 +2,7 @@ package com.lauzhack.twin.engine
 
 import com.lauzhack.twin.model.AttributionItem
 import com.lauzhack.twin.model.FinancialStatement
+import com.lauzhack.twin.model.LuckMode
 import com.lauzhack.twin.model.StoryBeat
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -11,7 +12,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-// The Kotlin engine must reproduce the games played by the Python reference (tools/golden.py), month by month.
+// The Kotlin engine must reproduce the lives played by the Python reference (tools/golden.py), month by month:
+// paths through the decision tree, in both luck modes, with shocks.
 // tools/out/ is git-ignored: generate it with
 //   python tools/flow_model.py && python tools/macro.py && python tools/golden.py
 // The test is skipped when the files are missing.
@@ -22,7 +24,7 @@ class GoldenGameTest {
 
     @Serializable
     private data class Golden(
-        val name: String, val seed: Long, val choices: List<String>, val opening: FinancialStatement,
+        val name: String, val seed: Long, val luckMode: LuckMode, val path: List<String>, val opening: FinancialStatement,
         val monthly: List<FinancialStatement>, val statements: List<FinancialStatement>, val beats: List<StoryBeat>,
         val attribution: List<AttributionItem>, val startNetWorth: Double, val endNetWorth: Double,
     )
@@ -44,7 +46,7 @@ class GoldenGameTest {
         if (games.isEmpty()) return
         var worstMoney = 0.0
         for (g in games) {
-            val rec = eng.play(g.opening, g.choices, g.seed)
+            val rec = eng.play(g.opening, g.path, g.seed, g.luckMode)
             assertEquals(g.monthly.size, rec.monthly.size, g.name)
             for ((exp, act) in g.monthly.zip(rec.monthly)) {
                 val where = "${g.name} month ${exp.month}"
@@ -76,7 +78,7 @@ class GoldenGameTest {
             val gap = rec.attribution.startNetWorth + rec.attribution.items.sumOf { it.chf } - rec.attribution.endNetWorth
             assertTrue(abs(gap) <= 0.5, "${g.name} attribution gap $gap")
         }
-        println("golden games: ${games.size}, largest money difference vs Python: $worstMoney CHF")
+        println("golden lives: ${games.size}, largest money difference vs Python: $worstMoney CHF")
     }
 
     private companion object {

@@ -11,7 +11,7 @@ class ResourcesTest(unittest.TestCase):
     def test_row_identifiers_are_detected(self):
         for text in ("P00001", "T-P00001-202501-0001", "A-P01200-CASH", "AS-P00001-INV"):
             self.assertTrue(sr.ROW_ID.search(text), text)
-        for text in ("salary_multiplier", "P1 Interview", "CHF 8’000", "E-master"):
+        for text in ("salary_multiplier", "P1 Interview", "CHF 8’000", "A-master", "S-job-loss"):
             self.assertIsNone(sr.ROW_ID.search(text), text)
 
 

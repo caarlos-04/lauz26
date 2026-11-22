@@ -17,14 +17,15 @@ class ContentContractTest {
         .first { File(it, "content").isDirectory }
 
     @Test
-    fun eventsDecode() {
-        val catalog = json.decodeFromString<EventCatalog>(File(repoRoot, "content/events.json").readText())
-        assertTrue(catalog.events.isNotEmpty())
-        for (event in catalog.events) {
-            assertEquals(listOf("A", "B"), event.options.map { it.id }, event.id)
-            for (option in event.options) {
-                assertEquals(CaseType.entries.toSet(), option.cases.keys, "${event.id}/${option.id}")
-                assertEquals(1.0, option.cases.values.sumOf { it.prob }, 1e-9, "${event.id}/${option.id}")
+    fun actionsDecode() {
+        val catalog = json.decodeFromString<ActionCatalog>(File(repoRoot, "content/events.json").readText())
+        assertTrue(catalog.actions.any { it.id == NOTHING }, "carry on as you are")
+        assertTrue(catalog.shocks.isNotEmpty())
+        for ((id, effects, uncertain) in catalog.actions.map { Triple(it.id, it.effects, it.uncertain) } +
+                                        catalog.shocks.map { Triple(it.id, it.effects, it.uncertain) }) {
+            for (u in uncertain) {
+                assertTrue(u.low.q < 0.5 && 0.5 < u.high.q && u.low.value <= u.median && u.median <= u.high.value, "$id ${u.name}")
+                u.targets.forEach { assertTrue(it.effect in effects.indices, "$id ${u.name}") }
             }
         }
     }

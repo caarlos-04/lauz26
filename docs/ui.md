@@ -24,33 +24,27 @@ From the repo root (JDK 17+; with IntelliJ's bundled JBR: `export JAVA_HOME=/opt
 Platform code: `jvmMain`, `androidMain`, `wasmJsMain` only contain the locale override (`LocalAppLocale`) and `readEnv`
 (API keys: desktop reads env vars; Android and Web read none and use the canned chat).
 
-## Plugging in the real engine and content
-Edit `createDefaultAppState()` in `ui/App.kt` (the only place that names the fakes):
-- `engine = FakeGameEngine(…)` → Dev A's `GameEngine`; `twins = FakeTwinFactory()` → Dev A's `TwinFactory`.
-- `catalog`, `facts`, `assumptions` → loaded from `content/*.json` (`data/`, Dev A).
-- `interview` stays in the UI (Dev B owns the questions; texts are i18n keys).
+## Engine and content
+`createAppState(content)` in `ui/App.kt` wires the real engine (`RealGameEngine` on `TwinEngine`) and the packaged
+content; `createDefaultAppState()` runs the same real engine on the small hand-written model of `fake/FakeData.kt`
+(previews and UI tests, no resources).
 
-What the UI expects from the engine (see the KDoc in `engine/GameEngine.kt`):
-- `nextEvent` and `resolveLuck` **deterministic** (seed + turn index): the tree replays paths.
-- `nextEvent` returns `null` for a **quiet turn**; the game ends after `maxTurns` turns (`GameSession.isOver`).
-- `isEligible` exposed (the tree checks if a later question still fits after an edit).
-- `playTurn` accepts a forced case (the tree lets the user change the luck).
-- `finish` returns the full `GameResult` (stats, attribution, beats, parallel lives, sensitivity, `cashBand` of size horizon+1).
+What the UI expects from the engine (KDoc in `engine/GameEngine.kt`, design in [`decision-tree.md`](decision-tree.md)):
+- `actionsAt(session)`: every action available at the node, "carry on as you are" (NOTHING) first; empty at the end.
+- `preview(session, action)`: its cases after 24 months; `decide(session, actionId)`: the new turn (luck of the node by
+  luck mode, maybe a shock). Pure: the same action at the same node always gives the same child.
+- `finish` / `attribution` / `noiseBand` for the life up to any node.
 
 ## Flow
-Welcome → Interview (P1) → Dilemma (P3–P5, previews) → Resolution (P6–P7; quiet turns are shown here too) → … →
-Results (P8–P11): KPIs, cash band, **your story** (chronicle), goals, **parallel lives**, what moved net worth (attribution),
-decision tree, assumptions → Chat (P12) with persona **future self / parallel self**.
+Welcome (luck mode) → Interview (P1) → Decision (every available action with its cases) → What happened (the case, a
+shock if any, "go back and decide something else") → … → Results (P8–P11): KPIs, goals, what moved net worth, life line,
+chronicle, noise band; the map of lives; assumptions → Chat (P12) with your self of the selected moment.
 
-## What-if decision tree
-After the last turn, `ResultsScreen` shows an editable tree (`ui/components/DecisionTree.kt`). Switching a turn's option or
-case re-resolves the rest of the path (`ui/PathReplay.kt`), then `finish()` recomputes everything and the chat and story are cleared:
-- A later question is **kept if still valid** (`isEligible`); otherwise a new one is picked with `nextEvent` (or the turn becomes quiet).
-- A question never answered becomes a **pending** node that the user must decide.
-- Explored branches are **remembered** (keyed by the path prefix), so switching back restores later decisions.
-
-Demo: buying the car with a loan sets the milestone `took_loan`, which triggers `E-car-loan`; switching to the travelcard in the
-tree replaces it with a pending `E-sabbatical`.
+## The tree of decisions (`ui/LifeTree.kt`)
+- One node per decision taken (`DecisionTree`), plus the life up to each node (`GameSession`) for the screens.
+- Going back to any node and deciding something else opens a new branch; nothing already lived is lost.
+- The map (`ui/components/LifeMap.kt`) shows only the explored nodes; each one can be opened, continued ("decide what
+  comes next") or re-decided ("decide something else here"). The chat and the story belong to the selected node.
 
 ## Design system ("Ink & cobalt")
 Editorial, Swiss-style look. Principles: paper and ink do the work, one accent; hairlines and spacing instead of nested

@@ -4,15 +4,15 @@ import com.lauzhack.twin.ui.originOf
 import com.lauzhack.twin.ui.Origin
 import com.lauzhack.twin.engine.isOver
 import com.lauzhack.twin.model.BeatKind
-import com.lauzhack.twin.model.CaseType
-import com.lauzhack.twin.model.Event
+import com.lauzhack.twin.engine.outcomeText
+import com.lauzhack.twin.model.ActionCatalog
+import com.lauzhack.twin.model.NOTHING
 import com.lauzhack.twin.model.FactCatalog
 import com.lauzhack.twin.model.FactKey
 import com.lauzhack.twin.model.FinancialStatement
 import com.lauzhack.twin.model.GameResult
 import com.lauzhack.twin.model.Lang
 import com.lauzhack.twin.model.LocalizedText
-import com.lauzhack.twin.model.ParallelKind
 import com.lauzhack.twin.model.StoryBeat
 import com.lauzhack.twin.model.Turn
 import com.lauzhack.twin.model.city
@@ -29,13 +29,16 @@ import kotlin.math.roundToInt
  * Turns a [ChatContext] (the branch selected in the tree, as a [GameResult]) into the [LifeBriefing] the agent
  * reads. Only copies numbers the engine already computed and resolves every label in the chat language.
  *
- * @param eventById catalogue lookup for the event of each turn.
+ * @param catalog the actions and shocks (titles, narratives and sources of each turn).
  * @param text resolves UI translation keys (goal names) in the current language.
  */
 class BriefingMapper(
-    private val eventById: (String) -> Event?,
+    private val catalog: ActionCatalog,
     private val text: suspend (String) -> String,
 ) {
+    private val actions = catalog.actions.associateBy { it.id }
+    private val shocks = catalog.shocks.associateBy { it.id }
+
     suspend fun map(ctx: ChatContext): LifeBriefing {
         val r = ctx.result
         val session = r.session
@@ -70,55 +73,36 @@ class BriefingMapper(
             drivers = r.attribution.items.sortedByDescending { abs(it.chf) }.take(6).map { item ->
                 DriverLine(driverLabel(item.key), item.chf, originLabel(originOf(item.key)))
             },
-            parallelLives = r.parallelLives.map { life ->
-                ParallelLine(
-                    title = when (life.kind) {
-                        ParallelKind.OTHER_FIRST_CHOICE -> "Other first choice"
-                        ParallelKind.OPTIMAL_STRATEGY -> "Turn-by-turn strategy (the best expected result at each turn; a heuristic, not an exact optimum)"
-                    },
-                    choices = life.turns.mapNotNull { t -> choiceLine(t, lang) },
-                    finalNetWorthChf = life.stats.finalNetWorth,
-                    deltaVsThisPathChf = r.stats.finalNetWorth - life.stats.finalNetWorth,
-                    goalsReached = life.stats.goalsReached.size,
-                    monthsNegativeCash = life.stats.monthsNegativeCash,
-                )
-            },
             assumptionNotes = ctx.assumptions.sourceNotes,
             isWhatIf = ctx.whatIfTurns.isNotEmpty(),
             complete = session.isOver,
-            decisionSources = session.turns.mapNotNull { it.eventId?.let(eventById) }.distinctBy { it.id }
-                .filter { it.sources.isNotEmpty() }
-                .map { SourceLine(it.title.of(lang), it.sources) },
+            decisionSources = session.turns.flatMap { t ->
+                listOfNotNull(actions[t.actionId]?.let { it.id to SourceLine(it.title.of(lang), it.sources) },
+                              t.shockId?.let { shocks[it] }?.let { it.id to SourceLine(it.title.of(lang), it.sources) })
+            }.distinctBy { it.first }.map { it.second }.filter { it.sources.isNotEmpty() },
         )
     }
 
     private fun turns(turns: List<Turn>, initial: FinancialStatement, lang: Lang, edited: Set<Int>): List<TurnLine> =
         turns.mapIndexed { i, turn ->
             val before = if (i == 0) initial else turns[i - 1].stateAfter
-            val event = turn.eventId?.let(eventById)
-            val chosen = event?.options?.firstOrNull { it.id == turn.chosenOptionId }
-            val other = event?.options?.firstOrNull { it.id != turn.chosenOptionId }
+            val action = actions[turn.actionId]
+            val shock = turn.shockId?.let { shocks[it] }
             TurnLine(
                 turn = i + 1,
                 month = before.month,
-                quiet = event == null,
-                question = event?.title?.of(lang),
-                chosen = chosen?.label?.of(lang),
-                notChosen = other?.label?.of(lang),
-                luck = turn.resolvedCase?.toLuck(),
-                outcome = turn.resolvedCase?.let { chosen?.cases?.get(it)?.narrative?.of(lang) },
+                quiet = turn.actionId == NOTHING,
+                decision = action?.title?.of(lang) ?: turn.actionId,
+                shock = shock?.let { s -> s.title.of(lang) + ": " + outcomeText(s.outcome, s.uncertain, turn.shockValues, lang) },
+                luck = turn.luck.takeIf { action?.uncertain?.isNotEmpty() == true }?.toLuck(),
+                luckPercentile = turn.luck.takeIf { action?.uncertain?.isNotEmpty() == true }?.let { kotlin.math.round(it * 100).toInt() },
+                outcome = action?.let { outcomeText(it.outcome, it.uncertain, turn.values, lang) },
                 netWorthBeforeChf = before.netWorth,
                 netWorthAfterChf = turn.stateAfter.netWorth,
                 cashAfterChf = turn.stateAfter.cash,
                 editedInWhatIf = i in edited,
             )
         }
-
-    private fun choiceLine(t: Turn, lang: Lang): String? {
-        val event = t.eventId?.let(eventById) ?: return null
-        val option = event.options.firstOrNull { it.id == t.chosenOptionId } ?: return null
-        return "${event.title.of(lang)}: ${option.label.of(lang)}"
-    }
 
     /** Short English line for a moment; the decision beats are already in TURNS. */
     private fun moment(beat: StoryBeat, facts: FactCatalog, lang: Lang, goalNames: Map<String, String>, complete: Boolean): MomentLine? {
@@ -140,7 +124,7 @@ class BriefingMapper(
             BeatKind.GOAL_REACHED -> "Goal reached: ${goalNames[d["goal"]] ?: d["goal"]}"
             BeatKind.GOAL_MISSED -> "Goal missed: ${goalNames[d["goal"]] ?: d["goal"]}"
             BeatKind.QUIET_PERIOD -> null
-            BeatKind.START, BeatKind.DECISION, BeatKind.CASE_RESOLVED, BeatKind.END -> null
+            BeatKind.START, BeatKind.DECISION, BeatKind.OUTCOME, BeatKind.SHOCK, BeatKind.END -> null
         } ?: return null
         return MomentLine(beat.month, text)
     }
@@ -175,11 +159,8 @@ class BriefingMapper(
         employment = person.employment.readable(),
     )
 
-    private fun CaseType.toLuck() = when (this) {
-        CaseType.PESSIMISTIC -> Luck.BAD
-        CaseType.NEUTRAL -> Luck.AVERAGE
-        CaseType.OPTIMISTIC -> Luck.GOOD
-    }
+    /** Bad below the 35th percentile, good above the 65th (the same words as the UI). */
+    private fun Double.toLuck() = if (this < 0.35) Luck.BAD else if (this > 0.65) Luck.GOOD else Luck.AVERAGE
 
     private fun Enum<*>.readable() = name.lowercase().replace('_', ' ')
 }

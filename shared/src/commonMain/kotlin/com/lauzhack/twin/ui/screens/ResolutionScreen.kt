@@ -36,15 +36,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.lauzhack.twin.model.Event
+import com.lauzhack.twin.model.NOTHING
+import com.lauzhack.twin.ui.Catalog
 import com.lauzhack.twin.model.FinancialStatement
 import com.lauzhack.twin.model.Turn
 import com.lauzhack.twin.resources.Res
 import com.lauzhack.twin.resources.resolution_after
 import com.lauzhack.twin.resources.resolution_before
-import com.lauzhack.twin.resources.resolution_case_drawn
-import com.lauzhack.twin.resources.resolution_counterfactual
-import com.lauzhack.twin.resources.resolution_see_other
+import com.lauzhack.twin.resources.resolution_luck
+import com.lauzhack.twin.resources.dilemma_certain
+import com.lauzhack.twin.ui.components.LuckBadge
+import com.lauzhack.twin.ui.i18n.LocalLang
+import com.lauzhack.twin.resources.resolution_shock
+import com.lauzhack.twin.resources.resolution_try_other
 import com.lauzhack.twin.resources.resolution_drawing
 import com.lauzhack.twin.resources.resolution_next_turn
 import com.lauzhack.twin.resources.resolution_see_results
@@ -54,14 +58,11 @@ import com.lauzhack.twin.resources.quiet_title
 import com.lauzhack.twin.resources.state_cash
 import com.lauzhack.twin.resources.state_net_worth
 import com.lauzhack.twin.ui.components.AppShell
-import com.lauzhack.twin.ui.components.CaseBadge
 import com.lauzhack.twin.ui.components.KpiTile
 import com.lauzhack.twin.ui.components.Overline
 import com.lauzhack.twin.ui.components.PanelData
 import com.lauzhack.twin.ui.components.SurfaceCard
 import com.lauzhack.twin.ui.components.TopBarActions
-import com.lauzhack.twin.ui.components.caseColor
-import com.lauzhack.twin.ui.components.caseName
 import com.lauzhack.twin.ui.i18n.formatChf
 import com.lauzhack.twin.ui.i18n.keyString
 import com.lauzhack.twin.ui.theme.Space
@@ -69,18 +70,20 @@ import com.lauzhack.twin.ui.theme.TwinIcons
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 
-/** P6 + P7: reveals the drawn case with a short animation and shows before/after. Quiet turns (no event) too. */
+/** P6 + P7: after the decision, reveals the luck of the moment and what it gave (the outcome with its drawn numbers),
+ *  a shock if one happened, and then the balances before/after. Nothing of this is shown before deciding.
+ *  "Carry on as you are" (NOTHING) is shown as a quiet period. */
 @Composable
 fun ResolutionScreen(
     actions: TopBarActions,
     panel: PanelData,
     turn: Turn,
     before: FinancialStatement,
-    event: Event?,
+    catalog: Catalog,
     monthsPerTurn: Int,
     isLastTurn: Boolean,
     onNext: () -> Unit,
-    onOther: (() -> Unit)? = null,
+    onOther: (() -> Unit)? = null,           // go back to the moment of this decision and decide something else
     onChat: (() -> Unit)? = null,
     explain: (@Composable () -> Unit)? = null,   // "where do these numbers come from?" for this turn
 ) {
@@ -89,13 +92,13 @@ fun ResolutionScreen(
         delay(900)
         revealed = true
     }
-    val option = event?.options?.firstOrNull { it.id == turn.chosenOptionId }
+    val action = catalog.action(turn.actionId).takeIf { turn.actionId != NOTHING }
+    val shock = catalog.shock(turn.shockId)
     AppShell(actions, panel = panel) {
         Column(verticalArrangement = Arrangement.spacedBy(Space.xs)) {
             Overline(stringResource(Res.string.resolution_title))
-            if (event == null) Text(stringResource(Res.string.quiet_title), style = MaterialTheme.typography.headlineLarge)
-            event?.let { Text(localized(it.title), style = MaterialTheme.typography.headlineLarge) }
-            option?.let { Text(localized(it.label), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            if (action == null) Text(stringResource(Res.string.quiet_title), style = MaterialTheme.typography.headlineLarge)
+            action?.let { Text(localized(it.title), style = MaterialTheme.typography.headlineLarge) }
         }
 
         if (!revealed) {
@@ -106,35 +109,46 @@ fun ResolutionScreen(
                 }
             }
         }
-        val resolved = turn.resolvedCase
-        if (resolved == null) {
+        val lang = LocalLang.current
+        if (action == null) {
             AnimatedVisibility(revealed, enter = fadeIn(tween(350))) {
                 SurfaceCard(padding = Space.xl) {
                     Text(stringResource(Res.string.quiet_desc, monthsPerTurn), style = MaterialTheme.typography.bodyLarge)
                 }
             }
         }
-        if (resolved != null) AnimatedVisibility(revealed, enter = fadeIn(tween(350)) + scaleIn(tween(350), initialScale = 0.94f)) {
-            val color = caseColor(resolved)
+        if (action != null) AnimatedVisibility(revealed, enter = fadeIn(tween(350)) + scaleIn(tween(350), initialScale = 0.94f)) {
             Card(
                 shape = MaterialTheme.shapes.large,
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             ) {
                 Column {
-                    // Colored band with the drawn case.
+                    // The luck of the moment: the percentile every uncertain number was drawn at.
                     Row(
                         Modifier.fillMaxWidth().padding(start = Space.xl, end = Space.xl, top = Space.xl),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(Space.m),
                     ) {
-                        CaseBadge(resolved)
-                        Text(stringResource(Res.string.resolution_case_drawn, caseName(resolved)), style = MaterialTheme.typography.headlineSmall)
+                        if (action.uncertain.isNotEmpty()) LuckBadge(turn.luck)
+                        Text(
+                            if (action.uncertain.isNotEmpty()) stringResource(Res.string.resolution_luck, kotlin.math.round(turn.luck * 100).toInt())
+                            else stringResource(Res.string.dilemma_certain),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
                     }
-                    option?.cases?.get(resolved)?.narrative?.let {
-                        Text(localized(it), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(start = Space.xl, end = Space.xl, top = Space.m, bottom = Space.xl))
-                    }
+                    Text(
+                        catalog.outcome(turn.actionId, turn.values, lang).orEmpty(),
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(start = Space.xl, end = Space.xl, top = Space.m, bottom = Space.xl),
+                    )
                 }
+            }
+        }
+        if (shock != null) AnimatedVisibility(revealed, enter = fadeIn(tween(350, delayMillis = 150))) {
+            SurfaceCard(padding = Space.xl) {
+                Text(stringResource(Res.string.resolution_shock, localized(shock.title)), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.tertiary)
+                Text(catalog.outcome(turn.shockId, turn.shockValues, lang).orEmpty(), style = MaterialTheme.typography.bodyMedium)
             }
         }
         AnimatedVisibility(revealed, enter = fadeIn(tween(400, delayMillis = 200)) + slideInVertically(tween(400, delayMillis = 200)) { it / 6 }) {
@@ -159,15 +173,9 @@ fun ResolutionScreen(
                     else Column(verticalArrangement = Arrangement.spacedBy(Space.m)) { tiles(Modifier.fillMaxWidth()) }
                 }
                 explain?.invoke()
-                resolved?.let { turn.counterfactual[it] }?.let {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.s)) {
-                        Icon(TwinIcons.Info, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
-                        Text(stringResource(Res.string.resolution_counterfactual, formatChf(it.netWorth)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-                        if (onOther != null) {
-                            OutlinedButton(onClick = onOther, shape = MaterialTheme.shapes.small) {
-                                Text(stringResource(Res.string.resolution_see_other))
-                            }
-                        }
+                if (onOther != null) {
+                    OutlinedButton(onClick = onOther, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth().height(48.dp)) {
+                        Text(stringResource(Res.string.resolution_try_other))
                     }
                 }
                 if (onChat != null) {

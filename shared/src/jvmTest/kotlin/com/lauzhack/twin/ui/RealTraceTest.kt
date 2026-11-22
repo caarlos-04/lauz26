@@ -13,12 +13,12 @@ import kotlin.test.assertTrue
 class RealTraceTest {
     private val content = runBlocking { AppContent.load() }
     private val engine = RealGameEngine.from(content.flowModel, content.macro, content.events, content.assumptions)
-    private val all = engine.expandAll(LifeTree.start(GameSession(content.alexia.statement, 2026L, content.alexia.preferences, emptyList(), GameConfig())))
+    private val all = engine.explore(LifeTree.start(GameSession(content.alexia.statement, 2026L, content.alexia.preferences, emptyList(), GameConfig())))
 
     @Test
     fun everyTurnAddsUp() {
         all.nodes.keys.filter { it.isNotEmpty() }.forEach { key ->
-            val t = engine.trace(all.nodes.getValue(key.dropLast(1)), all.nodes.getValue(key))
+            val t = engine.trace(all.nodes.getValue(parentOf(key)!!), all.nodes.getValue(key))
             assertTrue(abs(t.residual) < 0.01, "node $key: residual ${t.residual}")
             assertTrue(t.lines.isNotEmpty())
         }

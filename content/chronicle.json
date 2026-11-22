@@ -11,16 +11,15 @@
       "target": "data.target, as CHF",
       "netWorth": "data.netWorth, as CHF",
       "goal": "labels.goal[data.goal] (the dataset goal name if there is no label)",
-      "event": "events.json title of beat.eventId",
-      "option": "events.json label of the option chosen (data.option of the DECISION beat)",
-      "narrative": "events.json narrative of the case (data.case) of the option chosen for that event",
+      "event": "events.json title of beat.eventId (an action or a shock)",
+      "narrative": "events.json outcome sentence of that action or shock, with the values drawn for it (carried by the beat)",
       "employment": "labels.employment[data.employment]",
       "household": "labels.household[data.household]",
       "value": "facts.json label of data.fact = data.value",
       "flag": "facts.json label of the milestone data.flag",
       "because": "the 'because' text with the event title when the beat was caused by an event other than the decision being told (e.g. a job that starts two years after the master's), otherwise empty"
     },
-    "check": "python tools/chronicle.py --check; render a real game: python tools/chronicle.py --play <profile_id> --choices A,B --lang ES"
+    "check": "python tools/chronicle.py --check; render a real life: python tools/chronicle.py --play <profile_id> --path A-master,NOTHING --lang ES"
   },
   "beats": {
     "START": {
@@ -28,16 +27,16 @@
       "ES": "Empiezas con {age} años, en {year}, con {cash} en tu cuenta."
     },
     "DECISION": {
-      "EN": "At {age} ({year}) a decision came up, “{event}”, and you chose: {option}.",
-      "ES": "A los {age} años ({year}) llegó una decisión, «{event}», y elegiste: {option}."
+      "EN": "At {age} ({year}) you decided: {event}.",
+      "ES": "A los {age} años ({year}) decidiste: {event}."
     },
-    "CASE_RESOLVED": {
+    "OUTCOME": {
       "EN": "{narrative}",
       "ES": "{narrative}"
     },
     "QUIET_PERIOD": {
-      "EN": "At {age} two quiet years began, with no big decisions.",
-      "ES": "A los {age} años empezaron dos años tranquilos, sin grandes decisiones."
+      "EN": "At {age} you carried on as you were for two years, with no new decisions.",
+      "ES": "A los {age} años seguiste como estabas durante dos años, sin decisiones nuevas."
     },
     "CASH_NEGATIVE": {
       "EN": "At {age} your account went into the red ({cashAbs} below zero) and you started paying interest on it.",
@@ -62,6 +61,10 @@
     "END": {
       "EN": "{years} years later, at {age}, your net worth is {netWorth}, {cash} of it in cash.",
       "ES": "{years} años después, con {age} años, tu patrimonio es de {netWorth}, de los que {cash} están en efectivo."
+    },
+    "SHOCK": {
+      "EN": "In those two years something you did not choose happened: {event}. {narrative}",
+      "ES": "En esos dos años pasó algo que no elegiste: {event}. {narrative}"
     }
   },
   "lifeChange": {
@@ -106,26 +109,74 @@
   },
   "labels": {
     "employment": {
-      "NOT_WORKING": {"EN": "you stopped working", "ES": "dejaste de trabajar"},
-      "EMPLOYED": {"EN": "you started working full time", "ES": "empezaste a trabajar a tiempo completo"},
-      "PART_TIME": {"EN": "you started working part time", "ES": "empezaste a trabajar a tiempo parcial"},
-      "SELF_EMPLOYED": {"EN": "you started working for yourself", "ES": "empezaste a trabajar por tu cuenta"},
-      "UNEMPLOYED": {"EN": "you were left without a job", "ES": "te quedaste sin trabajo"},
-      "RETIRED": {"EN": "you retired", "ES": "te jubilaste"}
+      "NOT_WORKING": {
+        "EN": "you stopped working",
+        "ES": "dejaste de trabajar"
+      },
+      "EMPLOYED": {
+        "EN": "you started working full time",
+        "ES": "empezaste a trabajar a tiempo completo"
+      },
+      "PART_TIME": {
+        "EN": "you started working part time",
+        "ES": "empezaste a trabajar a tiempo parcial"
+      },
+      "SELF_EMPLOYED": {
+        "EN": "you started working for yourself",
+        "ES": "empezaste a trabajar por tu cuenta"
+      },
+      "UNEMPLOYED": {
+        "EN": "you were left without a job",
+        "ES": "te quedaste sin trabajo"
+      },
+      "RETIRED": {
+        "EN": "you retired",
+        "ES": "te jubilaste"
+      }
     },
     "household": {
-      "SINGLE": {"EN": "you started living on your own", "ES": "empezaste a vivir solo/a"},
-      "COUPLE": {"EN": "you moved in with your partner", "ES": "te fuiste a vivir con tu pareja"},
-      "FAMILY": {"EN": "you started a family with children", "ES": "formaste una familia con hijos"},
-      "SHARED_HOUSING": {"EN": "you moved into a shared flat", "ES": "te mudaste a un piso compartido"}
+      "SINGLE": {
+        "EN": "you started living on your own",
+        "ES": "empezaste a vivir solo/a"
+      },
+      "COUPLE": {
+        "EN": "you moved in with your partner",
+        "ES": "te fuiste a vivir con tu pareja"
+      },
+      "FAMILY": {
+        "EN": "you started a family with children",
+        "ES": "formaste una familia con hijos"
+      },
+      "SHARED_HOUSING": {
+        "EN": "you moved into a shared flat",
+        "ES": "te mudaste a un piso compartido"
+      }
     },
     "goal": {
-      "Emergency savings": {"EN": "an emergency fund", "ES": "un fondo de emergencia"},
-      "Long-term financial resilience": {"EN": "long-term financial security", "ES": "seguridad financiera a largo plazo"},
-      "Housing deposit": {"EN": "a deposit for a home", "ES": "la entrada para una vivienda"},
-      "Career transition": {"EN": "a career change", "ES": "un cambio de carrera"},
-      "Education flexibility": {"EN": "being able to study later", "ES": "poder estudiar más adelante"},
-      "Retirement reserve": {"EN": "a retirement reserve", "ES": "una reserva para la jubilación"}
+      "Emergency savings": {
+        "EN": "an emergency fund",
+        "ES": "un fondo de emergencia"
+      },
+      "Long-term financial resilience": {
+        "EN": "long-term financial security",
+        "ES": "seguridad financiera a largo plazo"
+      },
+      "Housing deposit": {
+        "EN": "a deposit for a home",
+        "ES": "la entrada para una vivienda"
+      },
+      "Career transition": {
+        "EN": "a career change",
+        "ES": "un cambio de carrera"
+      },
+      "Education flexibility": {
+        "EN": "being able to study later",
+        "ES": "poder estudiar más adelante"
+      },
+      "Retirement reserve": {
+        "EN": "a retirement reserve",
+        "ES": "una reserva para la jubilación"
+      }
     }
   }
 }

@@ -52,17 +52,6 @@ object Prompts {
         plain text, no tables, no markdown headings.
     """.trimIndent() + "\n\n" + RULES
 
-    /** Static part for the chat with the parallel self (the life with the other first choice). */
-    val PARALLEL_SELF_PROMPT: String = """
-        You are the user's parallel self, ten years from now: the person who took the OTHER option at the first
-        decision and then followed the life listed in the briefing as "Other first choice". The user lived the
-        main life of the briefing. Speak in the first person about YOUR life, and compare it with theirs only
-        with the numbers given (the delta is written from the user's point of view).
-
-        Tone: friendly and curious, like meeting a twin who chose differently. Short answers: at most 120 words,
-        plain text, no tables, no markdown headings.
-    """.trimIndent() + "\n\n" + RULES
-
     /** Static part for the chronicle of a moment in the middle of a life: the story so far. */
     val CHRONICLE_SO_FAR_PROMPT: String = """
         You are the user at the moment called "Now" in the briefing, in the middle of a possible life. Write the
@@ -77,17 +66,13 @@ object Prompts {
         You are the user's future self, ten years from now. Write the chronicle of these ten years, in the first
         person, as a short story addressed to your younger self: 3 to 5 short paragraphs, at most 250 words in
         total, plain text. Follow the order of the turns and moments; mention the key decisions, the luck, the
-        hardest moment and how the goals ended. End with one sentence about what the other lives show.
+        hardest moment and how the goals ended.
     """.trimIndent() + "\n\n" + RULES
 
     private const val LIFE_HEADER = "\n\n# YOUR LIFE (the only source of truth)\n\n"
 
     fun chatSystem(b: LifeBriefing, persona: Persona): String {
-        val role = when {
-            !b.complete -> MOMENT_SELF_PROMPT          // no parallel self in the middle of a life
-            persona == Persona.PARALLEL_SELF -> PARALLEL_SELF_PROMPT
-            else -> FUTURE_SELF_PROMPT
-        }
+        val role = if (b.complete) FUTURE_SELF_PROMPT else MOMENT_SELF_PROMPT
         return role + LIFE_HEADER + renderBriefing(b)
     }
 
@@ -110,7 +95,7 @@ object Prompts {
 
         appendLine("Answer language: ${if (b.language == ChatLanguage.ES) "Spanish" else "English"}")
         appendLine(
-            if (b.isWhatIf) "Path: WHAT-IF (the user changed some decisions or luck in the decision tree)"
+            if (b.isWhatIf) "Path: WHAT-IF (the user went back in the decision tree and decided differently)"
             else "Path: the life the user actually played"
         )
         appendLine()
@@ -135,14 +120,15 @@ object Prompts {
 
         appendLine("## TURNS (in order)")
         b.turns.forEach { t ->
+            val edited = if (t.editedInWhatIf) " [different from the life first played]" else ""
             if (t.quiet) {
-                appendLine("${t.turn}. ${whenAt(t.month)}: quiet period, no big decision. Net worth ${chf(t.netWorthBeforeChf)} -> ${chf(t.netWorthAfterChf)}, cash after ${chf(t.cashAfterChf)}")
-                return@forEach
+                appendLine("${t.turn}. ${whenAt(t.month)}: carried on as before, no new decision.$edited Net worth ${chf(t.netWorthBeforeChf)} -> ${chf(t.netWorthAfterChf)}, cash after ${chf(t.cashAfterChf)}")
+            } else {
+                appendLine("${t.turn}. ${whenAt(t.month)}: decided \"${t.decision}\"$edited")
+                appendLine("   - Luck: ${t.luck?.let { l -> luck(l) + (t.luckPercentile?.let { " (percentile $it of 100)" } ?: "") } ?: "no uncertainty"}. What happened: ${t.outcome.orEmpty()}")
             }
-            val edited = if (t.editedInWhatIf) " [changed in the what-if tree]" else ""
-            appendLine("${t.turn}. ${whenAt(t.month)}: \"${t.question}\"$edited")
-            appendLine("   - Chose: ${t.chosen}. Did not choose: ${t.notChosen}")
-            appendLine("   - Luck: ${t.luck?.let(::luck) ?: "-"}. What happened: ${t.outcome.orEmpty()}")
+            t.shock?.let { appendLine("   - Not chosen, it just happened: $it") }
+            if (t.quiet) return@forEach
             appendLine("   - Net worth ${chf(t.netWorthBeforeChf)} -> ${chf(t.netWorthAfterChf)} (${chf(t.netWorthAfterChf - t.netWorthBeforeChf, true)}), cash after ${chf(t.cashAfterChf)}")
         }
         appendLine()
@@ -180,15 +166,6 @@ object Prompts {
             appendLine()
         }
 
-        if (b.parallelLives.isNotEmpty()) {
-            appendLine("## OTHER LIVES (same luck, computed by the engine)")
-            b.parallelLives.forEach { l ->
-                appendLine("- ${l.title}: final net worth ${chf(l.finalNetWorthChf)}; this path compared with it: ${chf(l.deltaVsThisPathChf, true)}; goals reached ${l.goalsReached}; months with negative cash ${l.monthsNegativeCash}")
-                if (l.choices.isNotEmpty()) appendLine("  Choices: ${l.choices.joinToString("; ")}")
-            }
-            appendLine()
-        }
-
         appendLine("## WHERE THE NUMBERS COME FROM")
         appendLine("- Every month: cash = previous cash + income - expenses - loan payment - interest on negative cash. Net worth = cash + investments - debt.")
         appendLine("- Start net worth + the sum of every driver = net worth now (checked by the engine).")
@@ -209,9 +186,9 @@ object Prompts {
         "cash ${chf(m.cashChf)}, net worth ${chf(m.netWorthChf)}, monthly balance ${chf(m.monthlyNetChf, true)}, debt ${chf(m.debtChf)}, work: ${m.employment}"
 
     private fun luck(l: Luck) = when (l) {
-        Luck.BAD -> "bad luck (pessimistic case)"
-        Luck.AVERAGE -> "average luck (neutral case)"
-        Luck.GOOD -> "good luck (optimistic case)"
+        Luck.BAD -> "bad luck"
+        Luck.AVERAGE -> "average luck"
+        Luck.GOOD -> "good luck"
     }
 
     /** "12'345 CHF", same style as the UI. The LLM copies these strings, it does not format numbers. */

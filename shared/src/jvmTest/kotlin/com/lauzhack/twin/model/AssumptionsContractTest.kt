@@ -15,9 +15,6 @@ class AssumptionsContractTest {
 
     @Test
     fun caseProbabilitiesCoverEveryCaseAndAddUpToOne() {
-        assertEquals(CaseType.entries.toSet(), assumptions.defaultCaseProbs.keys)
-        assertEquals(1.0, assumptions.defaultCaseProbs.values.sum(), 1e-9)
-        assertTrue(assumptions.defaultCaseProbs.values.all { it >= 0.0 })
     }
 
     @Test

@@ -29,9 +29,9 @@ import com.lauzhack.twin.ai.FutureSelfChat
 import com.lauzhack.twin.fake.CannedFutureSelfChat
 import com.lauzhack.twin.ui.i18n.keyStringAsync
 import com.lauzhack.twin.fake.FakeData
-import com.lauzhack.twin.fake.FakeGameEngine
 import com.lauzhack.twin.fake.FakeTwinFactory
-import com.lauzhack.twin.model.Event
+import com.lauzhack.twin.model.ActionCatalog
+import com.lauzhack.twin.model.NOTHING
 import com.lauzhack.twin.model.Lang
 import com.lauzhack.twin.ui.components.PanelData
 import com.lauzhack.twin.ui.components.TopBarActions
@@ -62,27 +62,27 @@ import com.lauzhack.twin.interview.ContentTwinFactory
  * Wires the dependencies: the ONLY place to change the implementations.
  * - engine: RealGameEngine on TwinEngine (#16), with the packaged flow model, macro trends, events and assumptions.
  * - twins + interview: ContentTwinFactory and content/interview.json (#15).
- * - catalog / facts / assumptions: content/events.json, facts.json, assumptions.json ([AppContent]).
+ * - catalog / facts / assumptions: content/events.json (the action pool), facts.json, assumptions.json ([AppContent]).
  * - chat: the Koog agent (ai/) when OPENAI_API_KEY or ANTHROPIC_API_KEY is set, otherwise canned answers.
  */
 fun createAppState(content: AppContent): AppState = AppState(
     engine = RealGameEngine.from(content.flowModel, content.macro, content.events, content.assumptions),
     twins = ContentTwinFactory(content.facts, content.interviewDefaults, content.assumptions.objectivePenalties, content.alexia),
-    chat = createChat(content.events.events, CannedFutureSelfChat(templates = content.chronicle, events = content.events)),
+    chat = createChat(content.events, CannedFutureSelfChat(templates = content.chronicle, events = content.events)),
     assumptions = content.assumptions,
     facts = content.facts,
-    catalog = content.events.events,
+    catalog = Catalog(content.events),
     interview = content.interview.questions,
 )
 
-/** Everything fake (no resources needed): previews and UI tests. */
+/** No resources needed: the real engine on the small hand-written model of [FakeData]. Previews and UI tests. */
 fun createDefaultAppState(): AppState = AppState(
-    engine = FakeGameEngine(FakeData.events, FakeData.assumptions),
+    engine = FakeData.engine(),
     twins = FakeTwinFactory(),
     chat = createChat(FakeData.events),
     assumptions = FakeData.assumptions,
     facts = FakeData.facts,
-    catalog = FakeData.events,
+    catalog = Catalog(FakeData.events),
     interview = FakeData.interview,
 )
 
@@ -92,9 +92,9 @@ private val futureSelfAgent: FutureSelfAgent? by lazy { FutureSelfAgent.fromEnvi
 /** Model shown in the chat badge, or null for canned answers. */
 val aiChatModel: String? get() = futureSelfAgent?.modelId
 
-private fun createChat(catalog: List<Event>, canned: CannedFutureSelfChat = CannedFutureSelfChat()): FutureSelfChat {
+private fun createChat(catalog: ActionCatalog, canned: CannedFutureSelfChat = CannedFutureSelfChat()): FutureSelfChat {
     val agent = futureSelfAgent ?: return canned
-    val mapper = BriefingMapper(eventById = { id -> catalog.firstOrNull { it.id == id } }, text = ::keyStringAsync)
+    val mapper = BriefingMapper(catalog = catalog, text = ::keyStringAsync)
     return AgentFutureSelfChat(agent, mapper, fallback = canned)
 }
 
@@ -152,15 +152,13 @@ private fun panelData(state: AppState): PanelData? {
 
 /** The self of the current node, for the chat header. */
 @Composable
-private fun chatMoment(session: GameSession, eventById: (String) -> Event?): ChatMoment {
+private fun chatMoment(session: GameSession, catalog: Catalog): ChatMoment {
     val now = session.current
     val turn = session.turns.lastOrNull()
-    val event = turn?.eventId?.let(eventById)
-    val option = event?.options?.firstOrNull { it.id == turn.chosenOptionId }
     val after = when {
         turn == null -> null
-        event == null || option == null -> stringResource(Res.string.map_quiet)
-        else -> localized(event.title) + " → " + localized(option.label)
+        turn.actionId == NOTHING -> stringResource(Res.string.map_quiet)
+        else -> catalog.title(turn.actionId)?.let { localized(it) } ?: turn.actionId
     }
     return ChatMoment(now.person.age, now.month / 12, after, session.isOver)
 }
@@ -170,15 +168,14 @@ private fun Router(state: AppState, screen: Screen, actions: TopBarActions) {
     val session = state.session
     val panel = panelData(state)
     when (screen) {
-        Screen.WELCOME -> WelcomeScreen(actions, state::startInterview, state::startDemo)
-        Screen.INTERVIEW -> InterviewScreen(actions, state.interview, state.answers, state::answer, state::undoLastAnswer)
+        Screen.WELCOME -> WelcomeScreen(actions, state::startInterview, state::startDemo, state.luckMode, { state.luckMode = it })
+        Screen.INTERVIEW -> InterviewScreen(actions, state.interview, state.answers, state::answer, state::undoLastAnswer, state::answerNumber)
         Screen.DILEMMA -> {
-            val event = state.currentEvent
-            if (session != null && event != null && panel != null) {
-                val previews = remember(session, event, state.lang) { state.previews(event) }
+            val available = state.available
+            if (session != null && available.isNotEmpty() && panel != null) {
                 DilemmaScreen(
-                    actions, panel, session, event, previews, state::choose,
-                    lived = event.options.map { it.id }.filterTo(mutableSetOf()) { id -> state.tree?.visited?.contains(session.nodeKey + id) == true },
+                    actions = actions, panel = panel, session = session, available = available,
+                    onChoose = state::choose, explored = state.explored,
                 )
             }
         }
@@ -190,13 +187,13 @@ private fun Router(state: AppState, screen: Screen, actions: TopBarActions) {
                     panel = panel,
                     turn = turn,
                     before = session?.stateBefore(turn.index) ?: turn.stateAfter,
-                    event = turn.eventId?.let(state::eventById),
+                    catalog = state.catalog,
                     monthsPerTurn = state.config.monthsPerTurn,
                     isLastTurn = state.isLastTurn,
                     onNext = state::nextTurn,
-                    onOther = if (turn.chosenOptionId != null) state::openOther else null,
+                    onOther = state::decideAgain,
                     onChat = if (state.canChat) state::openChat else null,
-                    explain = state.tree?.cursor?.let { key -> state.traceAt(key) }?.let { tr -> { TracePanel(tr, state::eventById, state.facts, state.assumptions) } },
+                    explain = state.tree?.cursor?.let { key -> state.traceAt(key) }?.let { tr -> { TracePanel(tr, state.catalog, state.facts, state.assumptions) } },
                 )
             }
         }
@@ -219,11 +216,11 @@ private fun Router(state: AppState, screen: Screen, actions: TopBarActions) {
                     noiseBand = state.noiseBand,
                     assumptions = state.assumptions,
                     facts = state.facts,
-                    eventById = state::eventById,
+                    catalog = state.catalog,
                     isEdited = state.isEdited,
                     onResetPath = state::resetToPlayed,
                     map = { LifeMapSection(state) },
-                    explainLife = { state.traceOfLife()?.let { TracePanel(it, state::eventById, state.facts, state.assumptions) } },
+                    explainLife = { state.traceOfLife()?.let { TracePanel(it, state.catalog, state.facts, state.assumptions) } },
                     onChat = state::openChat,
                     onRestart = state::restart,
                     chronicle = state.chronicle,
@@ -244,7 +241,7 @@ private fun Router(state: AppState, screen: Screen, actions: TopBarActions) {
             onPersona = state::choosePersona,
             onAsk = state::ask,
             onBack = state::closeChat,
-            moment = session?.let { chatMoment(it, state::eventById) },
+            moment = session?.let { chatMoment(it, state.catalog) },
         )
     }
 }

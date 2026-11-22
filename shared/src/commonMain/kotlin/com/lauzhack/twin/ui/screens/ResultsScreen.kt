@@ -4,7 +4,6 @@ import com.lauzhack.twin.ui.components.categoryLabel
 import com.lauzhack.twin.ui.components.GoalRow
 import com.lauzhack.twin.ui.goalStatuses
 import com.lauzhack.twin.model.GameResult
-import com.lauzhack.twin.model.ParallelKind
 import com.lauzhack.twin.ui.ChatBubble
 import com.lauzhack.twin.ui.current
 import com.lauzhack.twin.resources.cash_band_desc
@@ -21,7 +20,6 @@ import com.lauzhack.twin.resources.driver_other
 import com.lauzhack.twin.resources.drivers_title
 import com.lauzhack.twin.resources.kpi_below_cushion
 import com.lauzhack.twin.resources.kpi_financing_cost
-import com.lauzhack.twin.resources.pl_other_first
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedButton
@@ -59,12 +57,9 @@ import androidx.compose.ui.unit.dp
 import com.lauzhack.twin.engine.CashBand
 import com.lauzhack.twin.model.Assumptions
 import com.lauzhack.twin.model.FactCatalog
-import com.lauzhack.twin.model.ParallelLife
 import com.lauzhack.twin.model.Stats
-import com.lauzhack.twin.model.CaseType
-import com.lauzhack.twin.model.Event
 import com.lauzhack.twin.model.GameSession
-import com.lauzhack.twin.model.OptionPreview
+import com.lauzhack.twin.ui.Catalog
 import com.lauzhack.twin.model.Turn
 import com.lauzhack.twin.resources.Res
 import com.lauzhack.twin.resources.action_restart
@@ -119,9 +114,6 @@ import com.lauzhack.twin.ui.components.LifeLine
 import com.lauzhack.twin.ui.components.Waterfall
 import com.lauzhack.twin.resources.lifeline_subtitle
 import com.lauzhack.twin.resources.lifeline_title
-import com.lauzhack.twin.resources.pl_row_turn
-import com.lauzhack.twin.resources.pl_side_desc
-import com.lauzhack.twin.resources.pl_side_title
 import com.lauzhack.twin.resources.profile_you
 import com.lauzhack.twin.resources.quiet_node
 import com.lauzhack.twin.ui.theme.LocalTwinColors
@@ -129,7 +121,7 @@ import com.lauzhack.twin.ui.theme.Space
 import com.lauzhack.twin.ui.theme.TwinIcons
 import org.jetbrains.compose.resources.stringResource
 
-/** P8-P11: KPIs, then tabs: overview (cash band, story, goals, parallel lives, drivers), decision tree (what-if), assumptions. */
+/** P8-P11: KPIs, then tabs: overview (goals, drivers, story, chronicle, noise band), the map of decisions, assumptions. */
 @Composable
 fun ResultsScreen(
     actions: TopBarActions,
@@ -139,7 +131,7 @@ fun ResultsScreen(
     noiseBand: CashBand?,
     assumptions: Assumptions,
     facts: FactCatalog,
-    eventById: (String) -> Event?,
+    catalog: Catalog,
     isEdited: Boolean,
     onResetPath: () -> Unit,
     map: @Composable () -> Unit,
@@ -183,7 +175,7 @@ fun ResultsScreen(
         }
 
         when (tab) {
-            0 -> Overview(session, results, noiseBand, facts, eventById, chronicle, chronicleLoading, onWriteChronicle, explainLife)
+            0 -> Overview(session, results, noiseBand, facts, catalog, chronicle, chronicleLoading, onWriteChronicle, explainLife)
             1 -> map()
             else -> AssumptionsTab(assumptions)
         }
@@ -195,7 +187,6 @@ fun ResultsScreen(
 @Composable
 private fun KpiRow(session: GameSession, results: GameResult) {
     val stats = results.stats
-    val other = results.parallelLives.firstOrNull { it.kind == ParallelKind.OTHER_FIRST_CHOICE }
     val goalsTotal = session.current.goals.size
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val wide = maxWidth > 700.dp
@@ -203,8 +194,7 @@ private fun KpiRow(session: GameSession, results: GameResult) {
             { m ->
                 KpiTile(
                     stringResource(Res.string.stat_final_net_worth), stats.finalNetWorth, m, icon = TwinIcons.TrendUp,
-                    delta = other?.let { stats.finalNetWorth - it.stats.finalNetWorth },
-                    caption = other?.let { stringResource(Res.string.pl_other_first) },
+                    delta = stats.finalNetWorth - session.initial.netWorth,
                 )
             },
             { m ->
@@ -246,7 +236,7 @@ private fun Overview(
     results: GameResult,
     noiseBand: CashBand?,
     facts: FactCatalog,
-    eventById: (String) -> Event?,
+    catalog: Catalog,
     chronicle: ChatBubble?,
     chronicleLoading: Boolean,
     onWriteChronicle: suspend () -> Unit,
@@ -263,20 +253,12 @@ private fun Overview(
 
     SectionCard(stringResource(Res.string.lifeline_title), icon = TwinIcons.Calendar) {
         Text(stringResource(Res.string.lifeline_subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        LifeLine(results.beats, facts, eventById)
+        LifeLine(results.beats, facts, catalog)
     }
 
     ChronicleCard(chronicle, chronicleLoading, onWriteChronicle)
 
-    // Your life against the one with the other first choice (same luck). Every other life is in the map.
-    results.parallelLives.firstOrNull { it.kind == ParallelKind.OTHER_FIRST_CHOICE }?.let { other ->
-        SectionCard(stringResource(Res.string.pl_side_title), icon = TwinIcons.Layers) {
-            Text(stringResource(Res.string.pl_side_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            SideBySide(session.turns, results.stats, other, eventById)
-        }
-    }
-
-    // #12: optional, and labelled as month-to-month noise; the analysis is the map of lives.
+    // #12: optional, and labelled as month-to-month noise; the analysis is the map of decisions.
     if (noiseBand != null) {
         SectionCard(stringResource(Res.string.cash_band_title), icon = TwinIcons.Wallet) {
             Text(stringResource(Res.string.cash_band_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -348,49 +330,5 @@ private fun ChatCta(enabled: Boolean, onChat: () -> Unit) {
                 Icon(TwinIcons.Send, null, modifier = Modifier.size(16.dp))
             }
         }
-    }
-}
-
-/** #16: your path and the other first choice, turn by turn and in the final numbers (same luck in both). */
-@Composable
-private fun SideBySide(yours: List<Turn>, stats: Stats, other: ParallelLife, eventById: (String) -> Event?) {
-    @Composable
-    fun choice(t: Turn?): String {
-        if (t == null) return "—"
-        val event = t.eventId?.let(eventById) ?: return stringResource(Res.string.quiet_node)
-        val option = event.options.firstOrNull { it.id == t.chosenOptionId } ?: return localized(event.title)
-        return localized(event.title) + ": " + localized(option.label)
-    }
-
-    @Composable
-    fun row(label: String, a: String, b: String, bold: Boolean = false) {
-        val style = if (bold) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodySmall
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Space.m)) {
-            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(0.22f))
-            Text(a, style = style, modifier = Modifier.weight(0.39f))
-            Text(b, style = style, modifier = Modifier.weight(0.39f))
-        }
-    }
-
-    val twin = LocalTwinColors.current
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Space.m)) {
-        Spacer(Modifier.weight(0.22f))
-        Text(stringResource(Res.string.profile_you), style = MaterialTheme.typography.titleSmall, color = twin.chosen, modifier = Modifier.weight(0.39f))
-        Text(stringResource(Res.string.pl_other_first), style = MaterialTheme.typography.titleSmall, color = twin.alternative, modifier = Modifier.weight(0.39f))
-    }
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-    (0 until maxOf(yours.size, other.turns.size)).forEach { i ->
-        row(stringResource(Res.string.pl_row_turn, i + 1), choice(yours.getOrNull(i)), choice(other.turns.getOrNull(i)))
-    }
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-    row(stringResource(Res.string.stat_final_net_worth), formatChf(stats.finalNetWorth), formatChf(other.stats.finalNetWorth), bold = true)
-    row(stringResource(Res.string.stat_min_cash), formatChf(stats.minCash), formatChf(other.stats.minCash))
-    row(stringResource(Res.string.stat_months_negative), stats.monthsNegativeCash.toString(), other.stats.monthsNegativeCash.toString())
-    val mine = stats.goalsReached.map { goalLabel(it) }
-    val theirs = other.stats.goalsReached.map { goalLabel(it) }
-    row(stringResource(Res.string.goals_title), mine.joinToString().ifEmpty { "—" }, theirs.joinToString().ifEmpty { "—" })
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-        // Positive = your first choice did better than the other one, with the same luck.
-        DeltaPill(stats.finalNetWorth - other.stats.finalNetWorth)
     }
 }

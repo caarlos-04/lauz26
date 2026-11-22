@@ -1,283 +1,341 @@
 {
-  "version": 3,
-  "events": [
+  "version": 5,
+  "actions": [
     {
-      "id": "E-master",
-      "category": "Education & skills",
+      "id": "NOTHING",
+      "category": "Everyday life",
       "title": {
-        "ES": "¿Máster o trabajo?",
-        "EN": "Master's degree or a job?"
+        "EN": "Carry on as you are",
+        "ES": "Seguir como estás"
       },
       "description": {
-        "ES": "Terminas el grado. Puedes estudiar un máster de dos años o empezar a trabajar ya.",
-        "EN": "You are finishing your bachelor's. You can study a two-year master's or start working now."
+        "EN": "No new decision for two years. What is already under way carries on (a master's you started, a loan you are paying back...).",
+        "ES": "Ninguna decisión nueva durante dos años. Lo que ya está en marcha sigue su curso (un máster que empezaste, un préstamo que estás devolviendo...)."
+      },
+      "repeatable": true,
+      "sources": [
+        "No effect: the simulator moves the same life forward (learned flows and public trends, docs/simulator.md)."
+      ],
+      "effects": [],
+      "outcome": {
+        "EN": "Two more years of the life you already have.",
+        "ES": "Dos años más de la vida que ya tienes."
+      }
+    },
+    {
+      "id": "A-master",
+      "category": "Education & skills",
+      "title": {
+        "EN": "Do a master's",
+        "ES": "Hacer un máster"
+      },
+      "description": {
+        "EN": "Study a two-year master's before you start working.",
+        "ES": "Estudiar un máster de dos años antes de empezar a trabajar."
       },
       "requires": {
         "maxAge": 30,
         "facts": {
-          "EDUCATION": ["BACHELOR_IN_PROGRESS"]
+          "EDUCATION": [
+            "BACHELOR_IN_PROGRESS"
+          ]
         }
       },
-      "priority": 0,
-      "earliestTurn": 0,
       "sources": [
         "Tuition: scenario-assumptions.csv (scenario S001), annual_tuition_chf p75 / p50 / p25 for the pessimistic / neutral / optimistic case; 2 years (study_duration_years). Keys tuition.monthly.*.",
         "Salaries: employed income p25 / p50 / p75 (synthetic-profiles.csv) scaled to the age of entry with the BFS LSE 2024 age curve (22 if you start now, 24 after the master's). Keys salary.startNow.*, salary.afterMaster.*.",
         "No master's wage premium: the dataset has no education level and the BFS table we use is by age and position, so both paths pay the same at the same age. The only difference is the age of entry.",
         "Living while studying: the flow model (students spend about 21 % less; the event's tuition replaces the learned one)."
       ],
-      "options": [
+      "effects": [
         {
-          "id": "A",
-          "label": {
-            "ES": "Hacer el máster",
-            "EN": "Do the master's"
-          },
-          "cases": {
-            "PESSIMISTIC": {
-              "prob": 0.25,
-              "effects": [
-                {"type": "expense_delta", "category": "TUITION", "deltaChf": 667, "months": 24},
-                {"type": "set_fact", "key": "EDUCATION", "value": "MASTER_IN_PROGRESS"},
-                {"type": "set_fact", "key": "EDUCATION", "value": "MASTER", "startOffsetMonths": 24},
-                {"type": "add_flag", "flag": "did_master", "startOffsetMonths": 24},
-                {"type": "set_employment", "employment": "EMPLOYED", "startOffsetMonths": 24},
-                {"type": "set_fact", "key": "OCCUPATION", "value": "JUNIOR", "startOffsetMonths": 24},
-                {"type": "set_income", "monthlyChf": 4500, "startOffsetMonths": 24}
-              ],
-              "narrative": {
-                "ES": "Pagas 8'004 CHF al año de matrícula durante dos años. Al acabar empiezas a trabajar con 4'500 CHF al mes.",
-                "EN": "You pay CHF 8'004 a year in tuition for two years. When you finish you start working at CHF 4'500 a month."
-              }
-            },
-            "NEUTRAL": {
-              "prob": 0.5,
-              "effects": [
-                {"type": "expense_delta", "category": "TUITION", "deltaChf": 400, "months": 24},
-                {"type": "set_fact", "key": "EDUCATION", "value": "MASTER_IN_PROGRESS"},
-                {"type": "set_fact", "key": "EDUCATION", "value": "MASTER", "startOffsetMonths": 24},
-                {"type": "add_flag", "flag": "did_master", "startOffsetMonths": 24},
-                {"type": "set_employment", "employment": "EMPLOYED", "startOffsetMonths": 24},
-                {"type": "set_fact", "key": "OCCUPATION", "value": "JUNIOR", "startOffsetMonths": 24},
-                {"type": "set_income", "monthlyChf": 6100, "startOffsetMonths": 24}
-              ],
-              "narrative": {
-                "ES": "Pagas 4'800 CHF al año de matrícula durante dos años. Al acabar empiezas a trabajar con 6'100 CHF al mes.",
-                "EN": "You pay CHF 4'800 a year in tuition for two years. When you finish you start working at CHF 6'100 a month."
-              }
-            },
-            "OPTIMISTIC": {
-              "prob": 0.25,
-              "effects": [
-                {"type": "expense_delta", "category": "TUITION", "deltaChf": 208, "months": 24},
-                {"type": "set_fact", "key": "EDUCATION", "value": "MASTER_IN_PROGRESS"},
-                {"type": "set_fact", "key": "EDUCATION", "value": "MASTER", "startOffsetMonths": 24},
-                {"type": "add_flag", "flag": "did_master", "startOffsetMonths": 24},
-                {"type": "set_employment", "employment": "EMPLOYED", "startOffsetMonths": 24},
-                {"type": "set_fact", "key": "OCCUPATION", "value": "JUNIOR", "startOffsetMonths": 24},
-                {"type": "set_income", "monthlyChf": 7500, "startOffsetMonths": 24}
-              ],
-              "narrative": {
-                "ES": "Pagas 2'496 CHF al año de matrícula durante dos años. Al acabar empiezas a trabajar con 7'500 CHF al mes.",
-                "EN": "You pay CHF 2'496 a year in tuition for two years. When you finish you start working at CHF 7'500 a month."
-              }
-            }
-          }
+          "type": "expense_delta",
+          "category": "TUITION",
+          "deltaChf": 400,
+          "months": 24
         },
         {
-          "id": "B",
-          "label": {
-            "ES": "Empezar a trabajar",
-            "EN": "Start working"
-          },
-          "cases": {
-            "PESSIMISTIC": {
-              "prob": 0.25,
-              "effects": [
-                {"type": "set_fact", "key": "EDUCATION", "value": "BACHELOR"},
-                {"type": "add_flag", "flag": "started_working_early"},
-                {"type": "set_employment", "employment": "EMPLOYED"},
-                {"type": "set_fact", "key": "OCCUPATION", "value": "JUNIOR"},
-                {"type": "set_income", "monthlyChf": 4300}
-              ],
-              "narrative": {
-                "ES": "Empiezas a trabajar ya con 4'300 CHF al mes.",
-                "EN": "You start working now at CHF 4'300 a month."
-              }
-            },
-            "NEUTRAL": {
-              "prob": 0.5,
-              "effects": [
-                {"type": "set_fact", "key": "EDUCATION", "value": "BACHELOR"},
-                {"type": "add_flag", "flag": "started_working_early"},
-                {"type": "set_employment", "employment": "EMPLOYED"},
-                {"type": "set_fact", "key": "OCCUPATION", "value": "JUNIOR"},
-                {"type": "set_income", "monthlyChf": 5800}
-              ],
-              "narrative": {
-                "ES": "Empiezas a trabajar ya con 5'800 CHF al mes.",
-                "EN": "You start working now at CHF 5'800 a month."
-              }
-            },
-            "OPTIMISTIC": {
-              "prob": 0.25,
-              "effects": [
-                {"type": "set_fact", "key": "EDUCATION", "value": "BACHELOR"},
-                {"type": "add_flag", "flag": "started_working_early"},
-                {"type": "set_employment", "employment": "EMPLOYED"},
-                {"type": "set_fact", "key": "OCCUPATION", "value": "JUNIOR"},
-                {"type": "set_income", "monthlyChf": 7200}
-              ],
-              "narrative": {
-                "ES": "Empiezas a trabajar ya con 7'200 CHF al mes.",
-                "EN": "You start working now at CHF 7'200 a month."
-              }
-            }
-          }
+          "type": "set_fact",
+          "key": "EDUCATION",
+          "value": "MASTER_IN_PROGRESS"
+        },
+        {
+          "type": "set_fact",
+          "key": "EDUCATION",
+          "value": "MASTER",
+          "startOffsetMonths": 24
+        },
+        {
+          "type": "add_flag",
+          "flag": "did_master",
+          "startOffsetMonths": 24
+        },
+        {
+          "type": "set_employment",
+          "employment": "EMPLOYED",
+          "startOffsetMonths": 24
+        },
+        {
+          "type": "set_fact",
+          "key": "OCCUPATION",
+          "value": "JUNIOR",
+          "startOffsetMonths": 24
+        },
+        {
+          "type": "set_income",
+          "monthlyChf": 6100,
+          "startOffsetMonths": 24
         }
-      ]
+      ],
+      "uncertain": [
+        {
+          "name": "tuition",
+          "law": "LOGNORMAL",
+          "median": 400,
+          "low": {
+            "q": 0.25,
+            "value": 208
+          },
+          "high": {
+            "q": 0.75,
+            "value": 667
+          },
+          "better": "LOW",
+          "step": 1,
+          "format": "chf",
+          "targets": [
+            {
+              "effect": 0,
+              "field": "deltaChf"
+            }
+          ],
+          "source": "scenario-assumptions.csv annual_tuition_chf p25 / p50 / p75, per month"
+        },
+        {
+          "name": "salary",
+          "law": "LOGNORMAL",
+          "median": 6100,
+          "low": {
+            "q": 0.25,
+            "value": 4500
+          },
+          "high": {
+            "q": 0.75,
+            "value": 7500
+          },
+          "better": "HIGH",
+          "step": 50,
+          "format": "chf",
+          "targets": [
+            {
+              "effect": 6,
+              "field": "monthlyChf"
+            }
+          ],
+          "source": "employed income p25 / p50 / p75 at the age of entry (synthetic-profiles.csv, BFS LSE age curve)"
+        }
+      ],
+      "outcome": {
+        "EN": "You pay CHF {tuition} a month in tuition for two years. Then you start working at CHF {salary} a month.",
+        "ES": "Pagas {tuition} CHF al mes de matrícula durante dos años. Después empiezas a trabajar con {salary} CHF al mes."
+      }
     },
     {
-      "id": "E-part-time-master",
+      "id": "A-start-working",
       "category": "Education & skills",
       "title": {
-        "ES": "¿Un máster mientras trabajas?",
-        "EN": "A master's while you work?"
+        "EN": "Start working now",
+        "ES": "Empezar a trabajar ya"
       },
       "description": {
-        "ES": "Podrías estudiar un máster de dos años reduciendo tu jornada.",
-        "EN": "You could study a two-year master's by working part time."
+        "EN": "Finish with your bachelor's and take your first job.",
+        "ES": "Terminar con tu grado y empezar tu primer trabajo."
       },
       "requires": {
-        "employment": ["EMPLOYED"],
-        "maxAge": 40,
+        "maxAge": 30,
         "facts": {
-          "EDUCATION": ["BACHELOR"]
+          "EDUCATION": [
+            "BACHELOR_IN_PROGRESS"
+          ]
         }
       },
-      "priority": 0,
-      "earliestTurn": 0,
+      "sources": [
+        "Tuition: scenario-assumptions.csv (scenario S001), annual_tuition_chf p75 / p50 / p25 for the pessimistic / neutral / optimistic case; 2 years (study_duration_years). Keys tuition.monthly.*.",
+        "Salaries: employed income p25 / p50 / p75 (synthetic-profiles.csv) scaled to the age of entry with the BFS LSE 2024 age curve (22 if you start now, 24 after the master's). Keys salary.startNow.*, salary.afterMaster.*.",
+        "No master's wage premium: the dataset has no education level and the BFS table we use is by age and position, so both paths pay the same at the same age. The only difference is the age of entry.",
+        "Living while studying: the flow model (students spend about 21 % less; the event's tuition replaces the learned one)."
+      ],
+      "effects": [
+        {
+          "type": "set_fact",
+          "key": "EDUCATION",
+          "value": "BACHELOR"
+        },
+        {
+          "type": "add_flag",
+          "flag": "started_working_early"
+        },
+        {
+          "type": "set_employment",
+          "employment": "EMPLOYED"
+        },
+        {
+          "type": "set_fact",
+          "key": "OCCUPATION",
+          "value": "JUNIOR"
+        },
+        {
+          "type": "set_income",
+          "monthlyChf": 5800
+        }
+      ],
+      "uncertain": [
+        {
+          "name": "salary",
+          "law": "LOGNORMAL",
+          "median": 5800,
+          "low": {
+            "q": 0.25,
+            "value": 4300
+          },
+          "high": {
+            "q": 0.75,
+            "value": 7200
+          },
+          "better": "HIGH",
+          "step": 50,
+          "format": "chf",
+          "targets": [
+            {
+              "effect": 4,
+              "field": "monthlyChf"
+            }
+          ],
+          "source": "employed income p25 / p50 / p75 at the age of entry (synthetic-profiles.csv, BFS LSE age curve)"
+        }
+      ],
+      "outcome": {
+        "EN": "You start working now at CHF {salary} a month.",
+        "ES": "Empiezas a trabajar ya con {salary} CHF al mes."
+      }
+    },
+    {
+      "id": "A-part-time-master",
+      "category": "Education & skills",
+      "title": {
+        "EN": "Study a master's part time",
+        "ES": "Estudiar un máster a media jornada"
+      },
+      "description": {
+        "EN": "Two years working part time while you study a master's.",
+        "ES": "Dos años trabajando a media jornada mientras estudias un máster."
+      },
+      "requires": {
+        "employment": [
+          "EMPLOYED"
+        ],
+        "maxAge": 40,
+        "facts": {
+          "EDUCATION": [
+            "BACHELOR"
+          ]
+        }
+      },
       "sources": [
         "Part-time pay: median part-time income / median employed income in synthetic-profiles.csv (ratio.partTime). Part-time workers get no December bonus in the ledger.",
         "Tuition: scenario-assumptions.csv annual_tuition_chf p75 / p50 / p25 (tuition.monthly.*), 2 years.",
         "No master's wage premium can be measured with our data (see E-master)."
       ],
-      "options": [
+      "effects": [
         {
-          "id": "A",
-          "label": {
-            "ES": "Estudiar a media jornada",
-            "EN": "Study part time"
-          },
-          "cases": {
-            "PESSIMISTIC": {
-              "prob": 0.25,
-              "effects": [
-                {"type": "set_employment", "employment": "PART_TIME"},
-                {"type": "income_factor", "factor": 0.5574, "months": 24},
-                {"type": "set_fact", "key": "EDUCATION", "value": "MASTER_IN_PROGRESS"},
-                {"type": "expense_delta", "category": "TUITION", "deltaChf": 667, "months": 24},
-                {"type": "set_fact", "key": "EDUCATION", "value": "MASTER", "startOffsetMonths": 24},
-                {"type": "set_employment", "employment": "EMPLOYED", "startOffsetMonths": 24},
-                {"type": "add_flag", "flag": "did_part_time_master", "startOffsetMonths": 24}
-              ],
-              "narrative": {
-                "ES": "Dos años a media jornada: cobras un 56 % de tu sueldo, sin paga extra, y pagas 8'004 CHF al año de matrícula. Después vuelves a jornada completa.",
-                "EN": "Two years part time: you earn 56 % of your pay, with no bonus, and pay CHF 8'004 a year in tuition. Then you go back to full time."
-              }
-            },
-            "NEUTRAL": {
-              "prob": 0.5,
-              "effects": [
-                {"type": "set_employment", "employment": "PART_TIME"},
-                {"type": "income_factor", "factor": 0.5574, "months": 24},
-                {"type": "set_fact", "key": "EDUCATION", "value": "MASTER_IN_PROGRESS"},
-                {"type": "expense_delta", "category": "TUITION", "deltaChf": 400, "months": 24},
-                {"type": "set_fact", "key": "EDUCATION", "value": "MASTER", "startOffsetMonths": 24},
-                {"type": "set_employment", "employment": "EMPLOYED", "startOffsetMonths": 24},
-                {"type": "add_flag", "flag": "did_part_time_master", "startOffsetMonths": 24}
-              ],
-              "narrative": {
-                "ES": "Dos años a media jornada: cobras un 56 % de tu sueldo, sin paga extra, y pagas 4'800 CHF al año de matrícula. Después vuelves a jornada completa.",
-                "EN": "Two years part time: you earn 56 % of your pay, with no bonus, and pay CHF 4'800 a year in tuition. Then you go back to full time."
-              }
-            },
-            "OPTIMISTIC": {
-              "prob": 0.25,
-              "effects": [
-                {"type": "set_employment", "employment": "PART_TIME"},
-                {"type": "income_factor", "factor": 0.5574, "months": 24},
-                {"type": "set_fact", "key": "EDUCATION", "value": "MASTER_IN_PROGRESS"},
-                {"type": "expense_delta", "category": "TUITION", "deltaChf": 208, "months": 24},
-                {"type": "set_fact", "key": "EDUCATION", "value": "MASTER", "startOffsetMonths": 24},
-                {"type": "set_employment", "employment": "EMPLOYED", "startOffsetMonths": 24},
-                {"type": "add_flag", "flag": "did_part_time_master", "startOffsetMonths": 24}
-              ],
-              "narrative": {
-                "ES": "Dos años a media jornada: cobras un 56 % de tu sueldo, sin paga extra, y pagas 2'496 CHF al año de matrícula. Después vuelves a jornada completa.",
-                "EN": "Two years part time: you earn 56 % of your pay, with no bonus, and pay CHF 2'496 a year in tuition. Then you go back to full time."
-              }
-            }
-          }
+          "type": "set_employment",
+          "employment": "PART_TIME"
         },
         {
-          "id": "B",
-          "label": {
-            "ES": "Seguir como estás",
-            "EN": "Carry on as you are"
-          },
-          "cases": {
-            "PESSIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "add_flag", "flag": "skipped_master"}
-              ],
-              "narrative": {
-                "ES": "Sigues a jornada completa, sin máster.",
-                "EN": "You stay full time, without a master's."
-              }
-            },
-            "NEUTRAL": {
-              "prob": 0.6,
-              "effects": [
-                {"type": "add_flag", "flag": "skipped_master"}
-              ],
-              "narrative": {
-                "ES": "Sigues a jornada completa, sin máster.",
-                "EN": "You stay full time, without a master's."
-              }
-            },
-            "OPTIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "add_flag", "flag": "skipped_master"}
-              ],
-              "narrative": {
-                "ES": "Sigues a jornada completa, sin máster.",
-                "EN": "You stay full time, without a master's."
-              }
-            }
-          }
+          "type": "income_factor",
+          "factor": 0.5574,
+          "months": 24
+        },
+        {
+          "type": "set_fact",
+          "key": "EDUCATION",
+          "value": "MASTER_IN_PROGRESS"
+        },
+        {
+          "type": "expense_delta",
+          "category": "TUITION",
+          "deltaChf": 400,
+          "months": 24
+        },
+        {
+          "type": "set_fact",
+          "key": "EDUCATION",
+          "value": "MASTER",
+          "startOffsetMonths": 24
+        },
+        {
+          "type": "set_employment",
+          "employment": "EMPLOYED",
+          "startOffsetMonths": 24
+        },
+        {
+          "type": "add_flag",
+          "flag": "did_part_time_master",
+          "startOffsetMonths": 24
         }
-      ]
+      ],
+      "uncertain": [
+        {
+          "name": "tuition",
+          "law": "LOGNORMAL",
+          "median": 400,
+          "low": {
+            "q": 0.25,
+            "value": 208
+          },
+          "high": {
+            "q": 0.75,
+            "value": 667
+          },
+          "better": "LOW",
+          "step": 1,
+          "format": "chf",
+          "targets": [
+            {
+              "effect": 3,
+              "field": "deltaChf"
+            }
+          ],
+          "source": "scenario-assumptions.csv annual_tuition_chf p25 / p50 / p75, per month"
+        }
+      ],
+      "outcome": {
+        "EN": "Two years part time: you earn 56 % of your pay, with no bonus, and pay CHF {tuition} a month in tuition. Then you go back to full time.",
+        "ES": "Dos años a media jornada: cobras un 56 % de tu sueldo, sin paga extra, y pagas {tuition} CHF al mes de matrícula. Después vuelves a jornada completa."
+      }
     },
     {
-      "id": "E-promotion-zurich",
+      "id": "A-job-zurich",
       "category": "Career & employment",
       "title": {
-        "ES": "Un ascenso en Zurich",
-        "EN": "A promotion in Zurich"
+        "EN": "Go for a management job in Zurich",
+        "ES": "Buscar un puesto de dirección en Zúrich"
       },
       "description": {
-        "ES": "Tu empresa te ofrece un puesto de responsabilidad en su oficina de Zurich. Tendrías que mudarte.",
-        "EN": "Your company offers you a management role at its Zurich office. You would have to move."
+        "EN": "Apply for a management role at your company's Zurich office. You would have to move; the pay depends on the level you get, and the flat on how lucky you are.",
+        "ES": "Optar a un puesto de dirección en la oficina de Zúrich de tu empresa. Tendrías que mudarte; el sueldo depende del nivel que consigas, y el piso, de la suerte que tengas."
       },
       "requires": {
-        "employment": ["EMPLOYED"],
+        "employment": [
+          "EMPLOYED"
+        ],
         "minAge": 28,
         "maxAge": 55,
         "facts": {
-          "OCCUPATION": ["JUNIOR", "PROFESSIONAL"],
+          "OCCUPATION": [
+            "JUNIOR",
+            "PROFESSIONAL"
+          ],
           "CITY": [
             "Lausanne",
             "Geneva",
@@ -293,7 +351,6 @@
           ]
         }
       },
-      "priority": 0,
       "earliestTurn": 1,
       "sources": [
         "Catalogue S013 + S021. Pay rise: BFS LSE 2024, median wage of each management level / all positions at age 40 (ratio.promotion.*).",
@@ -301,123 +358,115 @@
         "Living costs in Zurich: flow model city factors (groceries, restaurants, utilities...). Pay does not depend on the city in the dataset.",
         "Career: SENIOR follows the BFS management curve from then on."
       ],
-      "options": [
+      "effects": [
         {
-          "id": "A",
-          "label": {
-            "ES": "Aceptar y mudarte a Zurich",
-            "EN": "Accept and move to Zurich"
-          },
-          "cases": {
-            "PESSIMISTIC": {
-              "prob": 0.25,
-              "effects": [
-                {"type": "set_fact", "key": "OCCUPATION", "value": "SENIOR"},
-                {"type": "income_factor", "factor": 1.0813},
-                {"type": "set_fact", "key": "CITY", "value": "Zurich"},
-                {"type": "market_rent", "quantile": 0.75},
-                {"type": "add_flag", "flag": "promoted"},
-                {"type": "add_flag", "flag": "moved_for_job"}
-              ],
-              "narrative": {
-                "ES": "Te dan un puesto de mando bajo (+8 % de sueldo) y encuentras un piso caro en Zurich.",
-                "EN": "You get a junior management role (+8 % pay) and find an expensive flat in Zurich."
-              }
-            },
-            "NEUTRAL": {
-              "prob": 0.5,
-              "effects": [
-                {"type": "set_fact", "key": "OCCUPATION", "value": "SENIOR"},
-                {"type": "income_factor", "factor": 1.2995},
-                {"type": "set_fact", "key": "CITY", "value": "Zurich"},
-                {"type": "market_rent", "quantile": 0.5},
-                {"type": "add_flag", "flag": "promoted"},
-                {"type": "add_flag", "flag": "moved_for_job"}
-              ],
-              "narrative": {
-                "ES": "Te dan un puesto de mando intermedio (+30 % de sueldo) y encuentras un piso a precio normal en Zurich.",
-                "EN": "You get a middle management role (+30 % pay) and find a flat at the usual price in Zurich."
-              }
-            },
-            "OPTIMISTIC": {
-              "prob": 0.25,
-              "effects": [
-                {"type": "set_fact", "key": "OCCUPATION", "value": "SENIOR"},
-                {"type": "income_factor", "factor": 1.4523},
-                {"type": "set_fact", "key": "CITY", "value": "Zurich"},
-                {"type": "market_rent", "quantile": 0.25},
-                {"type": "add_flag", "flag": "promoted"},
-                {"type": "add_flag", "flag": "moved_for_job"}
-              ],
-              "narrative": {
-                "ES": "Te dan un puesto de dirección (+45 % de sueldo) y encuentras un piso barato en Zurich.",
-                "EN": "You get a senior management role (+45 % pay) and find a cheap flat in Zurich."
-              }
-            }
-          }
+          "type": "set_fact",
+          "key": "OCCUPATION",
+          "value": "SENIOR"
         },
         {
-          "id": "B",
-          "label": {
-            "ES": "Quedarte donde estás",
-            "EN": "Stay where you are"
-          },
-          "cases": {
-            "PESSIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "add_flag", "flag": "declined_promotion"}
-              ],
-              "narrative": {
-                "ES": "Rechazas el puesto y sigues con tu trabajo y tu piso.",
-                "EN": "You turn the role down and keep your job and your flat."
-              }
-            },
-            "NEUTRAL": {
-              "prob": 0.6,
-              "effects": [
-                {"type": "add_flag", "flag": "declined_promotion"}
-              ],
-              "narrative": {
-                "ES": "Rechazas el puesto y sigues con tu trabajo y tu piso.",
-                "EN": "You turn the role down and keep your job and your flat."
-              }
-            },
-            "OPTIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "add_flag", "flag": "declined_promotion"}
-              ],
-              "narrative": {
-                "ES": "Rechazas el puesto y sigues con tu trabajo y tu piso.",
-                "EN": "You turn the role down and keep your job and your flat."
-              }
-            }
-          }
+          "type": "income_factor",
+          "factor": 1.2995
+        },
+        {
+          "type": "set_fact",
+          "key": "CITY",
+          "value": "Zurich"
+        },
+        {
+          "type": "market_rent",
+          "quantile": 0.5
+        },
+        {
+          "type": "add_flag",
+          "flag": "promoted"
+        },
+        {
+          "type": "add_flag",
+          "flag": "moved_for_job"
         }
-      ]
+      ],
+      "uncertain": [
+        {
+          "name": "raise",
+          "law": "LOGNORMAL",
+          "median": 1.2995,
+          "low": {
+            "q": 0.25,
+            "value": 1.0813
+          },
+          "high": {
+            "q": 0.75,
+            "value": 1.4523
+          },
+          "better": "HIGH",
+          "step": 0.0001,
+          "format": "change",
+          "targets": [
+            {
+              "effect": 1,
+              "field": "factor"
+            }
+          ],
+          "source": "BFS LSE 2024: median wage of junior / middle / senior management over all positions at 40 (as p25 / p50 / p75: assumption)",
+          "min": 1.0
+        },
+        {
+          "name": "flat",
+          "law": "QUANTILE",
+          "median": 0.5,
+          "low": {
+            "q": 0.05,
+            "value": 0.05
+          },
+          "high": {
+            "q": 0.95,
+            "value": 0.95
+          },
+          "better": "LOW",
+          "step": 0.01,
+          "format": "flat",
+          "targets": [
+            {
+              "effect": 3,
+              "field": "quantile"
+            }
+          ],
+          "source": "rent model: the quantile of the dataset spread of rents is the luck itself (high luck = a cheaper flat)"
+        }
+      ],
+      "outcome": {
+        "EN": "You get a management role ({raise} pay) and find a flat {flat} in Zurich.",
+        "ES": "Consigues un puesto de dirección ({raise} de sueldo) y encuentras un piso {flat} en Zúrich."
+      }
     },
     {
-      "id": "E-promotion-geneva",
+      "id": "A-job-geneva",
       "category": "Career & employment",
       "title": {
-        "ES": "Un ascenso en Geneva",
-        "EN": "A promotion in Geneva"
+        "EN": "Go for a management job in Geneva",
+        "ES": "Buscar un puesto de dirección en Ginebra"
       },
       "description": {
-        "ES": "Tu empresa te ofrece un puesto de responsabilidad en su oficina de Geneva. Tendrías que mudarte.",
-        "EN": "Your company offers you a management role at its Geneva office. You would have to move."
+        "EN": "Apply for a management role at your company's Geneva office. You would have to move; the pay depends on the level you get, and the flat on how lucky you are.",
+        "ES": "Optar a un puesto de dirección en la oficina de Ginebra de tu empresa. Tendrías que mudarte; el sueldo depende del nivel que consigas, y el piso, de la suerte que tengas."
       },
       "requires": {
-        "employment": ["EMPLOYED"],
+        "employment": [
+          "EMPLOYED"
+        ],
         "minAge": 28,
         "maxAge": 55,
         "facts": {
-          "OCCUPATION": ["JUNIOR", "PROFESSIONAL"],
-          "CITY": ["Zurich"]
+          "OCCUPATION": [
+            "JUNIOR",
+            "PROFESSIONAL"
+          ],
+          "CITY": [
+            "Zurich"
+          ]
         }
       },
-      "priority": 0,
       "earliestTurn": 1,
       "sources": [
         "Catalogue S013 + S022. Pay rise: BFS LSE 2024, median wage of each management level / all positions at age 40 (ratio.promotion.*).",
@@ -425,1352 +474,1010 @@
         "Living costs in Geneva: flow model city factors (groceries, restaurants, utilities...). Pay does not depend on the city in the dataset.",
         "Career: SENIOR follows the BFS management curve from then on."
       ],
-      "options": [
+      "effects": [
         {
-          "id": "A",
-          "label": {
-            "ES": "Aceptar y mudarte a Geneva",
-            "EN": "Accept and move to Geneva"
-          },
-          "cases": {
-            "PESSIMISTIC": {
-              "prob": 0.25,
-              "effects": [
-                {"type": "set_fact", "key": "OCCUPATION", "value": "SENIOR"},
-                {"type": "income_factor", "factor": 1.0813},
-                {"type": "set_fact", "key": "CITY", "value": "Geneva"},
-                {"type": "market_rent", "quantile": 0.75},
-                {"type": "add_flag", "flag": "promoted"},
-                {"type": "add_flag", "flag": "moved_for_job"}
-              ],
-              "narrative": {
-                "ES": "Te dan un puesto de mando bajo (+8 % de sueldo) y encuentras un piso caro en Geneva.",
-                "EN": "You get a junior management role (+8 % pay) and find an expensive flat in Geneva."
-              }
-            },
-            "NEUTRAL": {
-              "prob": 0.5,
-              "effects": [
-                {"type": "set_fact", "key": "OCCUPATION", "value": "SENIOR"},
-                {"type": "income_factor", "factor": 1.2995},
-                {"type": "set_fact", "key": "CITY", "value": "Geneva"},
-                {"type": "market_rent", "quantile": 0.5},
-                {"type": "add_flag", "flag": "promoted"},
-                {"type": "add_flag", "flag": "moved_for_job"}
-              ],
-              "narrative": {
-                "ES": "Te dan un puesto de mando intermedio (+30 % de sueldo) y encuentras un piso a precio normal en Geneva.",
-                "EN": "You get a middle management role (+30 % pay) and find a flat at the usual price in Geneva."
-              }
-            },
-            "OPTIMISTIC": {
-              "prob": 0.25,
-              "effects": [
-                {"type": "set_fact", "key": "OCCUPATION", "value": "SENIOR"},
-                {"type": "income_factor", "factor": 1.4523},
-                {"type": "set_fact", "key": "CITY", "value": "Geneva"},
-                {"type": "market_rent", "quantile": 0.25},
-                {"type": "add_flag", "flag": "promoted"},
-                {"type": "add_flag", "flag": "moved_for_job"}
-              ],
-              "narrative": {
-                "ES": "Te dan un puesto de dirección (+45 % de sueldo) y encuentras un piso barato en Geneva.",
-                "EN": "You get a senior management role (+45 % pay) and find a cheap flat in Geneva."
-              }
-            }
-          }
+          "type": "set_fact",
+          "key": "OCCUPATION",
+          "value": "SENIOR"
         },
         {
-          "id": "B",
-          "label": {
-            "ES": "Quedarte donde estás",
-            "EN": "Stay where you are"
-          },
-          "cases": {
-            "PESSIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "add_flag", "flag": "declined_promotion"}
-              ],
-              "narrative": {
-                "ES": "Rechazas el puesto y sigues con tu trabajo y tu piso.",
-                "EN": "You turn the role down and keep your job and your flat."
-              }
-            },
-            "NEUTRAL": {
-              "prob": 0.6,
-              "effects": [
-                {"type": "add_flag", "flag": "declined_promotion"}
-              ],
-              "narrative": {
-                "ES": "Rechazas el puesto y sigues con tu trabajo y tu piso.",
-                "EN": "You turn the role down and keep your job and your flat."
-              }
-            },
-            "OPTIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "add_flag", "flag": "declined_promotion"}
-              ],
-              "narrative": {
-                "ES": "Rechazas el puesto y sigues con tu trabajo y tu piso.",
-                "EN": "You turn the role down and keep your job and your flat."
-              }
-            }
-          }
+          "type": "income_factor",
+          "factor": 1.2995
+        },
+        {
+          "type": "set_fact",
+          "key": "CITY",
+          "value": "Geneva"
+        },
+        {
+          "type": "market_rent",
+          "quantile": 0.5
+        },
+        {
+          "type": "add_flag",
+          "flag": "promoted"
+        },
+        {
+          "type": "add_flag",
+          "flag": "moved_for_job"
         }
-      ]
-    },
-    {
-      "id": "E-job-loss",
-      "category": "Career & employment",
-      "title": {
-        "ES": "Te quedas sin trabajo",
-        "EN": "You lose your job"
-      },
-      "description": {
-        "ES": "Tu empresa recorta plantilla. Puedes aceptar enseguida un trabajo a media jornada o esperar uno como el que tenías.",
-        "EN": "Your company cuts jobs. You can take a part-time job right away or wait for one like the one you had."
-      },
-      "requires": {
-        "employment": ["EMPLOYED"],
-        "minAge": 20,
-        "maxAge": 62
-      },
-      "priority": 0,
-      "earliestTurn": 1,
-      "sources": [
-        "Income while unemployed: median unemployed income / median employed income in synthetic-profiles.csv (ratio.unemployed). The dataset gives the unemployed almost no income; real Swiss unemployment insurance pays more, but it is not in our data.",
-        "Part-time pay: ratio.partTime (synthetic-profiles.csv); part-time workers get no December bonus in the ledger.",
-        "Length of the gap: 6 months as in catalogue S014; 12 and 3 months for the other cases are assumptions.",
-        "How likely job loss is: Eurostat une_rt_m, Switzerland (unemployment.*), about 8 % under 25 and 4 % from 25 to 74."
       ],
-      "options": [
+      "uncertain": [
         {
-          "id": "A",
-          "label": {
-            "ES": "Aceptar un trabajo a media jornada",
-            "EN": "Take a part-time job"
+          "name": "raise",
+          "law": "LOGNORMAL",
+          "median": 1.2995,
+          "low": {
+            "q": 0.25,
+            "value": 1.0813
           },
-          "cases": {
-            "PESSIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "set_employment", "employment": "PART_TIME"},
-                {"type": "income_factor", "factor": 0.5574, "months": 24},
-                {"type": "set_employment", "employment": "EMPLOYED", "startOffsetMonths": 24},
-                {"type": "add_flag", "flag": "lost_job"},
-                {"type": "add_flag", "flag": "took_part_time_job"}
-              ],
-              "narrative": {
-                "ES": "Trabajas dos años a media jornada (56 % del sueldo, sin paga extra) y luego vuelves a jornada completa.",
-                "EN": "You work part time for two years (56 % of your pay, no bonus), then go back to full time."
-              }
-            },
-            "NEUTRAL": {
-              "prob": 0.6,
-              "effects": [
-                {"type": "set_employment", "employment": "PART_TIME"},
-                {"type": "income_factor", "factor": 0.5574, "months": 24},
-                {"type": "set_employment", "employment": "EMPLOYED", "startOffsetMonths": 24},
-                {"type": "add_flag", "flag": "lost_job"},
-                {"type": "add_flag", "flag": "took_part_time_job"}
-              ],
-              "narrative": {
-                "ES": "Trabajas dos años a media jornada (56 % del sueldo, sin paga extra) y luego vuelves a jornada completa.",
-                "EN": "You work part time for two years (56 % of your pay, no bonus), then go back to full time."
-              }
-            },
-            "OPTIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "set_employment", "employment": "PART_TIME"},
-                {"type": "income_factor", "factor": 0.5574, "months": 24},
-                {"type": "set_employment", "employment": "EMPLOYED", "startOffsetMonths": 24},
-                {"type": "add_flag", "flag": "lost_job"},
-                {"type": "add_flag", "flag": "took_part_time_job"}
-              ],
-              "narrative": {
-                "ES": "Trabajas dos años a media jornada (56 % del sueldo, sin paga extra) y luego vuelves a jornada completa.",
-                "EN": "You work part time for two years (56 % of your pay, no bonus), then go back to full time."
-              }
+          "high": {
+            "q": 0.75,
+            "value": 1.4523
+          },
+          "better": "HIGH",
+          "step": 0.0001,
+          "format": "change",
+          "targets": [
+            {
+              "effect": 1,
+              "field": "factor"
             }
-          }
+          ],
+          "source": "BFS LSE 2024: median wage of junior / middle / senior management over all positions at 40 (as p25 / p50 / p75: assumption)",
+          "min": 1.0
         },
         {
-          "id": "B",
-          "label": {
-            "ES": "Esperar un trabajo como el tuyo",
-            "EN": "Wait for a job like yours"
+          "name": "flat",
+          "law": "QUANTILE",
+          "median": 0.5,
+          "low": {
+            "q": 0.05,
+            "value": 0.05
           },
-          "cases": {
-            "PESSIMISTIC": {
-              "prob": 0.25,
-              "effects": [
-                {"type": "set_employment", "employment": "UNEMPLOYED"},
-                {"type": "income_factor", "factor": 0.0689, "months": 12},
-                {"type": "set_employment", "employment": "EMPLOYED", "startOffsetMonths": 12},
-                {"type": "add_flag", "flag": "lost_job"}
-              ],
-              "narrative": {
-                "ES": "Tardas 12 meses en encontrar un trabajo como el que tenías. Mientras tanto tus ingresos caen a un 7 %.",
-                "EN": "It takes you 12 months to find a job like the one you had. Meanwhile your income drops to 7 %."
-              }
-            },
-            "NEUTRAL": {
-              "prob": 0.5,
-              "effects": [
-                {"type": "set_employment", "employment": "UNEMPLOYED"},
-                {"type": "income_factor", "factor": 0.0689, "months": 6},
-                {"type": "set_employment", "employment": "EMPLOYED", "startOffsetMonths": 6},
-                {"type": "add_flag", "flag": "lost_job"}
-              ],
-              "narrative": {
-                "ES": "Tardas 6 meses en encontrar un trabajo como el que tenías. Mientras tanto tus ingresos caen a un 7 %.",
-                "EN": "It takes you 6 months to find a job like the one you had. Meanwhile your income drops to 7 %."
-              }
-            },
-            "OPTIMISTIC": {
-              "prob": 0.25,
-              "effects": [
-                {"type": "set_employment", "employment": "UNEMPLOYED"},
-                {"type": "income_factor", "factor": 0.0689, "months": 3},
-                {"type": "set_employment", "employment": "EMPLOYED", "startOffsetMonths": 3},
-                {"type": "add_flag", "flag": "lost_job"}
-              ],
-              "narrative": {
-                "ES": "Tardas 3 meses en encontrar un trabajo como el que tenías. Mientras tanto tus ingresos caen a un 7 %.",
-                "EN": "It takes you 3 months to find a job like the one you had. Meanwhile your income drops to 7 %."
-              }
+          "high": {
+            "q": 0.95,
+            "value": 0.95
+          },
+          "better": "LOW",
+          "step": 0.01,
+          "format": "flat",
+          "targets": [
+            {
+              "effect": 3,
+              "field": "quantile"
             }
-          }
+          ],
+          "source": "rent model: the quantile of the dataset spread of rents is the luck itself (high luck = a cheaper flat)"
         }
-      ]
+      ],
+      "outcome": {
+        "EN": "You get a management role ({raise} pay) and find a flat {flat} in Geneva.",
+        "ES": "Consigues un puesto de dirección ({raise} de sueldo) y encuentras un piso {flat} en Ginebra."
+      }
     },
     {
-      "id": "E-job-offer",
+      "id": "A-take-job",
       "category": "Career & employment",
       "title": {
-        "ES": "Una oferta de trabajo",
-        "EN": "A job offer"
+        "EN": "Take the first job you are offered",
+        "ES": "Aceptar el primer trabajo que te ofrezcan"
       },
       "description": {
-        "ES": "Te ofrecen un trabajo ya, con un sueldo modesto. Podrías aceptarlo o seguir buscando algo mejor.",
-        "EN": "You are offered a job now, with a modest salary. You could accept it or keep looking for something better."
+        "EN": "Start working now with a modest salary.",
+        "ES": "Empezar a trabajar ya, con un sueldo modesto."
       },
       "requires": {
-        "employment": ["UNEMPLOYED", "NOT_WORKING"],
+        "employment": [
+          "UNEMPLOYED",
+          "NOT_WORKING"
+        ],
         "minAge": 20,
         "maxAge": 62,
         "facts": {
-          "EDUCATION": ["UNKNOWN", "BACHELOR", "MASTER"]
+          "EDUCATION": [
+            "UNKNOWN",
+            "BACHELOR",
+            "MASTER"
+          ]
         }
       },
-      "priority": 0,
-      "earliestTurn": 0,
       "sources": [
         "Pay: employed income p25 (the offer now) and p25 / p50 / p75 after searching (income.EMPLOYED.*, synthetic-profiles.csv, rounded to 100).",
         "Length of the search: 6 months as in catalogue S014; 12 and 3 months for the other cases are assumptions.",
         "While searching you keep your current income (the dataset's unemployed get almost none)."
       ],
-      "options": [
+      "effects": [
         {
-          "id": "A",
-          "label": {
-            "ES": "Aceptar la oferta",
-            "EN": "Accept the offer"
-          },
-          "cases": {
-            "PESSIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "set_employment", "employment": "EMPLOYED"},
-                {"type": "set_fact", "key": "OCCUPATION", "value": "PROFESSIONAL"},
-                {"type": "set_income", "monthlyChf": 5700},
-                {"type": "add_flag", "flag": "stayed_employed"}
-              ],
-              "narrative": {
-                "ES": "Empiezas a trabajar ya con 5'700 CHF al mes.",
-                "EN": "You start now at CHF 5'700 a month."
-              }
-            },
-            "NEUTRAL": {
-              "prob": 0.6,
-              "effects": [
-                {"type": "set_employment", "employment": "EMPLOYED"},
-                {"type": "set_fact", "key": "OCCUPATION", "value": "PROFESSIONAL"},
-                {"type": "set_income", "monthlyChf": 5700},
-                {"type": "add_flag", "flag": "stayed_employed"}
-              ],
-              "narrative": {
-                "ES": "Empiezas a trabajar ya con 5'700 CHF al mes.",
-                "EN": "You start now at CHF 5'700 a month."
-              }
-            },
-            "OPTIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "set_employment", "employment": "EMPLOYED"},
-                {"type": "set_fact", "key": "OCCUPATION", "value": "PROFESSIONAL"},
-                {"type": "set_income", "monthlyChf": 5700},
-                {"type": "add_flag", "flag": "stayed_employed"}
-              ],
-              "narrative": {
-                "ES": "Empiezas a trabajar ya con 5'700 CHF al mes.",
-                "EN": "You start now at CHF 5'700 a month."
-              }
-            }
-          }
+          "type": "set_employment",
+          "employment": "EMPLOYED"
         },
         {
-          "id": "B",
-          "label": {
-            "ES": "Seguir buscando",
-            "EN": "Keep looking"
-          },
-          "cases": {
-            "PESSIMISTIC": {
-              "prob": 0.25,
-              "effects": [
-                {"type": "set_employment", "employment": "EMPLOYED", "startOffsetMonths": 12},
-                {"type": "set_fact", "key": "OCCUPATION", "value": "PROFESSIONAL", "startOffsetMonths": 12},
-                {"type": "set_income", "monthlyChf": 5700, "startOffsetMonths": 12},
-                {"type": "add_flag", "flag": "stayed_employed", "startOffsetMonths": 12}
-              ],
-              "narrative": {
-                "ES": "Tras 12 meses buscando encuentras un trabajo de 5'700 CHF al mes.",
-                "EN": "After 12 months of searching you find a job paying CHF 5'700 a month."
-              }
-            },
-            "NEUTRAL": {
-              "prob": 0.5,
-              "effects": [
-                {"type": "set_employment", "employment": "EMPLOYED", "startOffsetMonths": 6},
-                {"type": "set_fact", "key": "OCCUPATION", "value": "PROFESSIONAL", "startOffsetMonths": 6},
-                {"type": "set_income", "monthlyChf": 7700, "startOffsetMonths": 6},
-                {"type": "add_flag", "flag": "stayed_employed", "startOffsetMonths": 6}
-              ],
-              "narrative": {
-                "ES": "Tras 6 meses buscando encuentras un trabajo de 7'700 CHF al mes.",
-                "EN": "After 6 months of searching you find a job paying CHF 7'700 a month."
-              }
-            },
-            "OPTIMISTIC": {
-              "prob": 0.25,
-              "effects": [
-                {"type": "set_employment", "employment": "EMPLOYED", "startOffsetMonths": 3},
-                {"type": "set_fact", "key": "OCCUPATION", "value": "PROFESSIONAL", "startOffsetMonths": 3},
-                {"type": "set_income", "monthlyChf": 9600, "startOffsetMonths": 3},
-                {"type": "add_flag", "flag": "stayed_employed", "startOffsetMonths": 3}
-              ],
-              "narrative": {
-                "ES": "Tras 3 meses buscando encuentras un trabajo de 9'600 CHF al mes.",
-                "EN": "After 3 months of searching you find a job paying CHF 9'600 a month."
-              }
-            }
-          }
+          "type": "set_fact",
+          "key": "OCCUPATION",
+          "value": "PROFESSIONAL"
+        },
+        {
+          "type": "set_income",
+          "monthlyChf": 5700
+        },
+        {
+          "type": "add_flag",
+          "flag": "stayed_employed"
         }
-      ]
+      ],
+      "outcome": {
+        "ES": "Empiezas a trabajar ya con 5'700 CHF al mes.",
+        "EN": "You start now at CHF 5'700 a month."
+      }
     },
     {
-      "id": "E-four-day-week",
+      "id": "A-search-job",
       "category": "Career & employment",
       "title": {
-        "ES": "¿Semana de cuatro días?",
-        "EN": "A four-day week?"
+        "EN": "Look for a better job",
+        "ES": "Buscar un trabajo mejor"
       },
       "description": {
-        "ES": "Tu empresa te deja pasar al 80 %: un día libre a la semana a cambio de menos sueldo.",
-        "EN": "Your company lets you work 80 %: one day off a week for less pay."
+        "EN": "Keep searching for a job that pays more. It can take a few months or a year.",
+        "ES": "Seguir buscando un trabajo mejor pagado. Puede costar unos meses o un año."
       },
       "requires": {
-        "employment": ["EMPLOYED"],
+        "employment": [
+          "UNEMPLOYED",
+          "NOT_WORKING"
+        ],
+        "minAge": 20,
+        "maxAge": 62,
+        "facts": {
+          "EDUCATION": [
+            "UNKNOWN",
+            "BACHELOR",
+            "MASTER"
+          ]
+        }
+      },
+      "sources": [
+        "Pay: employed income p25 (the offer now) and p25 / p50 / p75 after searching (income.EMPLOYED.*, synthetic-profiles.csv, rounded to 100).",
+        "Length of the search: 6 months as in catalogue S014; 12 and 3 months for the other cases are assumptions.",
+        "While searching you keep your current income (the dataset's unemployed get almost none)."
+      ],
+      "effects": [
+        {
+          "type": "set_employment",
+          "employment": "EMPLOYED",
+          "startOffsetMonths": 6
+        },
+        {
+          "type": "set_fact",
+          "key": "OCCUPATION",
+          "value": "PROFESSIONAL",
+          "startOffsetMonths": 6
+        },
+        {
+          "type": "set_income",
+          "monthlyChf": 7700,
+          "startOffsetMonths": 6
+        },
+        {
+          "type": "add_flag",
+          "flag": "stayed_employed",
+          "startOffsetMonths": 6
+        }
+      ],
+      "uncertain": [
+        {
+          "name": "months",
+          "law": "LOGNORMAL",
+          "median": 6,
+          "low": {
+            "q": 0.25,
+            "value": 3
+          },
+          "high": {
+            "q": 0.75,
+            "value": 12
+          },
+          "better": "LOW",
+          "step": 1,
+          "format": "months",
+          "targets": [
+            {
+              "effect": 0,
+              "field": "startOffsetMonths"
+            },
+            {
+              "effect": 1,
+              "field": "startOffsetMonths"
+            },
+            {
+              "effect": 2,
+              "field": "startOffsetMonths"
+            },
+            {
+              "effect": 3,
+              "field": "startOffsetMonths"
+            }
+          ],
+          "min": 1,
+          "max": 24,
+          "source": "catalogue S014 (6 months); 3 and 12 months as p25 / p75 are an assumption"
+        },
+        {
+          "name": "salary",
+          "law": "LOGNORMAL",
+          "median": 7700,
+          "low": {
+            "q": 0.25,
+            "value": 5700
+          },
+          "high": {
+            "q": 0.75,
+            "value": 9600
+          },
+          "better": "HIGH",
+          "step": 50,
+          "format": "chf",
+          "targets": [
+            {
+              "effect": 2,
+              "field": "monthlyChf"
+            }
+          ],
+          "source": "employed income p25 / p50 / p75 (synthetic-profiles.csv)"
+        }
+      ],
+      "outcome": {
+        "EN": "After {months} months of searching you find a job paying CHF {salary} a month.",
+        "ES": "Tras {months} meses buscando encuentras un trabajo de {salary} CHF al mes."
+      }
+    },
+    {
+      "id": "A-four-day-week",
+      "category": "Career & employment",
+      "title": {
+        "EN": "Work four days a week (80 %)",
+        "ES": "Trabajar cuatro días a la semana (80 %)"
+      },
+      "description": {
+        "EN": "One day off a week, for 80 % of your pay and no December bonus.",
+        "ES": "Un día libre a la semana, por el 80 % del sueldo y sin la paga de diciembre."
+      },
+      "requires": {
+        "employment": [
+          "EMPLOYED"
+        ],
         "minAge": 25
       },
-      "priority": 0,
-      "earliestTurn": 1,
       "sources": [
         "80 % of the pay: the definition of catalogue scenario S017.",
         "Part-time workers get no December bonus in synthetic-transactions.zip (flow model: the bonus depends on employment)."
       ],
-      "options": [
+      "effects": [
         {
-          "id": "A",
-          "label": {
-            "ES": "Pasar al 80 %",
-            "EN": "Go to 80 %"
-          },
-          "cases": {
-            "PESSIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "set_employment", "employment": "PART_TIME"},
-                {"type": "income_factor", "factor": 0.8},
-                {"type": "add_flag", "flag": "four_day_week"}
-              ],
-              "narrative": {
-                "ES": "Cobras el 80 % del sueldo y ya no tienes paga extra en diciembre.",
-                "EN": "You earn 80 % of your pay and no longer get the December bonus."
-              }
-            },
-            "NEUTRAL": {
-              "prob": 0.6,
-              "effects": [
-                {"type": "set_employment", "employment": "PART_TIME"},
-                {"type": "income_factor", "factor": 0.8},
-                {"type": "add_flag", "flag": "four_day_week"}
-              ],
-              "narrative": {
-                "ES": "Cobras el 80 % del sueldo y ya no tienes paga extra en diciembre.",
-                "EN": "You earn 80 % of your pay and no longer get the December bonus."
-              }
-            },
-            "OPTIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "set_employment", "employment": "PART_TIME"},
-                {"type": "income_factor", "factor": 0.8},
-                {"type": "add_flag", "flag": "four_day_week"}
-              ],
-              "narrative": {
-                "ES": "Cobras el 80 % del sueldo y ya no tienes paga extra en diciembre.",
-                "EN": "You earn 80 % of your pay and no longer get the December bonus."
-              }
-            }
-          }
+          "type": "set_employment",
+          "employment": "PART_TIME"
         },
         {
-          "id": "B",
-          "label": {
-            "ES": "Seguir a jornada completa",
-            "EN": "Stay full time"
-          },
-          "cases": {
-            "PESSIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "add_flag", "flag": "stayed_full_time"}
-              ],
-              "narrative": {
-                "ES": "Sigues a jornada completa.",
-                "EN": "You stay full time."
-              }
-            },
-            "NEUTRAL": {
-              "prob": 0.6,
-              "effects": [
-                {"type": "add_flag", "flag": "stayed_full_time"}
-              ],
-              "narrative": {
-                "ES": "Sigues a jornada completa.",
-                "EN": "You stay full time."
-              }
-            },
-            "OPTIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "add_flag", "flag": "stayed_full_time"}
-              ],
-              "narrative": {
-                "ES": "Sigues a jornada completa.",
-                "EN": "You stay full time."
-              }
-            }
-          }
+          "type": "income_factor",
+          "factor": 0.8
+        },
+        {
+          "type": "add_flag",
+          "flag": "four_day_week"
         }
-      ]
-    },
-    {
-      "id": "E-shared-flat",
-      "category": "Housing & property",
-      "title": {
-        "ES": "¿Compartir piso?",
-        "EN": "Share a flat?"
-      },
-      "description": {
-        "ES": "Unos amigos buscan a alguien para compartir piso. En tu ciudad, compartir cuesta un tercio menos que vivir solo, pero dejarías tu contrato actual.",
-        "EN": "Some friends are looking for a flatmate. In your city sharing costs a third less than living alone, but you would leave your current lease."
-      },
-      "requires": {
-        "household": ["SINGLE"],
-        "facts": {
-          "HOUSING": ["RENTED_FLAT"]
-        }
-      },
-      "priority": 0,
-      "earliestTurn": 1,
-      "sources": [
-        "Catalogue S032 + S049. New rent: rent model learned from synthetic-profiles.csv (household x city): a shared flat costs about 0.68 of living alone; p75 / p50 / p25 of the dataset spread for the three cases.",
-        "Living costs do not depend on the household in the dataset (flow model), so only the rent changes."
       ],
-      "options": [
-        {
-          "id": "A",
-          "label": {
-            "ES": "Mudarte al piso compartido",
-            "EN": "Move into the shared flat"
-          },
-          "cases": {
-            "PESSIMISTIC": {
-              "prob": 0.25,
-              "effects": [
-                {"type": "set_household", "household": "SHARED_HOUSING"},
-                {"type": "set_fact", "key": "HOUSING", "value": "SHARED_FLAT"},
-                {"type": "set_fact", "key": "FAMILY", "value": "SINGLE"},
-                {"type": "market_rent", "quantile": 0.75},
-                {"type": "add_flag", "flag": "moved_to_shared_flat"}
-              ],
-              "narrative": {
-                "ES": "Encuentras un piso caro en tu ciudad.",
-                "EN": "You find an expensive flat in your city."
-              }
-            },
-            "NEUTRAL": {
-              "prob": 0.5,
-              "effects": [
-                {"type": "set_household", "household": "SHARED_HOUSING"},
-                {"type": "set_fact", "key": "HOUSING", "value": "SHARED_FLAT"},
-                {"type": "set_fact", "key": "FAMILY", "value": "SINGLE"},
-                {"type": "market_rent", "quantile": 0.5},
-                {"type": "add_flag", "flag": "moved_to_shared_flat"}
-              ],
-              "narrative": {
-                "ES": "Encuentras un piso a precio normal en tu ciudad.",
-                "EN": "You find a flat at the usual price in your city."
-              }
-            },
-            "OPTIMISTIC": {
-              "prob": 0.25,
-              "effects": [
-                {"type": "set_household", "household": "SHARED_HOUSING"},
-                {"type": "set_fact", "key": "HOUSING", "value": "SHARED_FLAT"},
-                {"type": "set_fact", "key": "FAMILY", "value": "SINGLE"},
-                {"type": "market_rent", "quantile": 0.25},
-                {"type": "add_flag", "flag": "moved_to_shared_flat"}
-              ],
-              "narrative": {
-                "ES": "Encuentras un piso barato en tu ciudad.",
-                "EN": "You find a cheap flat in your city."
-              }
-            }
-          }
-        },
-        {
-          "id": "B",
-          "label": {
-            "ES": "Quedarte en tu piso",
-            "EN": "Stay in your flat"
-          },
-          "cases": {
-            "PESSIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "add_flag", "flag": "stayed_in_flat"}
-              ],
-              "narrative": {
-                "ES": "Te quedas donde estás.",
-                "EN": "You stay where you are."
-              }
-            },
-            "NEUTRAL": {
-              "prob": 0.6,
-              "effects": [
-                {"type": "add_flag", "flag": "stayed_in_flat"}
-              ],
-              "narrative": {
-                "ES": "Te quedas donde estás.",
-                "EN": "You stay where you are."
-              }
-            },
-            "OPTIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "add_flag", "flag": "stayed_in_flat"}
-              ],
-              "narrative": {
-                "ES": "Te quedas donde estás.",
-                "EN": "You stay where you are."
-              }
-            }
-          }
-        }
-      ]
+      "outcome": {
+        "ES": "Cobras el 80 % del sueldo y ya no tienes paga extra en diciembre.",
+        "EN": "You earn 80 % of your pay and no longer get the December bonus."
+      }
     },
     {
-      "id": "E-own-flat",
-      "category": "Housing & property",
-      "title": {
-        "ES": "¿Vivir solo?",
-        "EN": "Live on your own?"
-      },
-      "description": {
-        "ES": "Te ofrecen un piso para ti solo en tu ciudad. Ganarías intimidad; en tu ciudad, vivir solo cuesta la mitad más que compartir.",
-        "EN": "You are offered a flat of your own in your city. More privacy; in your city living alone costs half as much again as sharing."
-      },
-      "requires": {
-        "household": ["SHARED_HOUSING"],
-        "facts": {
-          "HOUSING": ["SHARED_FLAT"]
-        }
-      },
-      "priority": 0,
-      "earliestTurn": 1,
-      "sources": [
-        "Catalogue S031. New rent: rent model learned from synthetic-profiles.csv (household x city): a shared flat costs about 0.68 of living alone; p75 / p50 / p25 of the dataset spread for the three cases.",
-        "Living costs do not depend on the household in the dataset (flow model), so only the rent changes."
-      ],
-      "options": [
-        {
-          "id": "A",
-          "label": {
-            "ES": "Alquilar el piso para ti",
-            "EN": "Rent the flat for yourself"
-          },
-          "cases": {
-            "PESSIMISTIC": {
-              "prob": 0.25,
-              "effects": [
-                {"type": "set_household", "household": "SINGLE"},
-                {"type": "set_fact", "key": "HOUSING", "value": "RENTED_FLAT"},
-                {"type": "set_fact", "key": "FAMILY", "value": "SINGLE"},
-                {"type": "market_rent", "quantile": 0.75},
-                {"type": "add_flag", "flag": "rented_own_flat"}
-              ],
-              "narrative": {
-                "ES": "Encuentras un piso caro en tu ciudad.",
-                "EN": "You find an expensive flat in your city."
-              }
-            },
-            "NEUTRAL": {
-              "prob": 0.5,
-              "effects": [
-                {"type": "set_household", "household": "SINGLE"},
-                {"type": "set_fact", "key": "HOUSING", "value": "RENTED_FLAT"},
-                {"type": "set_fact", "key": "FAMILY", "value": "SINGLE"},
-                {"type": "market_rent", "quantile": 0.5},
-                {"type": "add_flag", "flag": "rented_own_flat"}
-              ],
-              "narrative": {
-                "ES": "Encuentras un piso a precio normal en tu ciudad.",
-                "EN": "You find a flat at the usual price in your city."
-              }
-            },
-            "OPTIMISTIC": {
-              "prob": 0.25,
-              "effects": [
-                {"type": "set_household", "household": "SINGLE"},
-                {"type": "set_fact", "key": "HOUSING", "value": "RENTED_FLAT"},
-                {"type": "set_fact", "key": "FAMILY", "value": "SINGLE"},
-                {"type": "market_rent", "quantile": 0.25},
-                {"type": "add_flag", "flag": "rented_own_flat"}
-              ],
-              "narrative": {
-                "ES": "Encuentras un piso barato en tu ciudad.",
-                "EN": "You find a cheap flat in your city."
-              }
-            }
-          }
-        },
-        {
-          "id": "B",
-          "label": {
-            "ES": "Quedarte en tu piso",
-            "EN": "Stay in your flat"
-          },
-          "cases": {
-            "PESSIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "add_flag", "flag": "stayed_in_flat"}
-              ],
-              "narrative": {
-                "ES": "Te quedas donde estás.",
-                "EN": "You stay where you are."
-              }
-            },
-            "NEUTRAL": {
-              "prob": 0.6,
-              "effects": [
-                {"type": "add_flag", "flag": "stayed_in_flat"}
-              ],
-              "narrative": {
-                "ES": "Te quedas donde estás.",
-                "EN": "You stay where you are."
-              }
-            },
-            "OPTIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "add_flag", "flag": "stayed_in_flat"}
-              ],
-              "narrative": {
-                "ES": "Te quedas donde estás.",
-                "EN": "You stay where you are."
-              }
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "E-self-employed",
-      "category": "Entrepreneurship & innovation",
-      "title": {
-        "ES": "¿Montar tu propio negocio?",
-        "EN": "Start your own business?"
-      },
-      "description": {
-        "ES": "Podrías dejar tu empleo y trabajar por tu cuenta.",
-        "EN": "You could leave your job and work for yourself."
-      },
-      "requires": {
-        "employment": ["EMPLOYED"],
-        "minAge": 25,
-        "maxAge": 55
-      },
-      "priority": 0,
-      "earliestTurn": 1,
-      "sources": [
-        "Catalogue S111 + S015. Income: self-employed income p25 / p50 / p75 divided by the median employed income in synthetic-profiles.csv (ratio.selfEmployed.*): wider spread than employees.",
-        "In the ledger the self-employed get a December payout as often as employees (flow model)."
-      ],
-      "options": [
-        {
-          "id": "A",
-          "label": {
-            "ES": "Trabajar por tu cuenta",
-            "EN": "Work for yourself"
-          },
-          "cases": {
-            "PESSIMISTIC": {
-              "prob": 0.25,
-              "effects": [
-                {"type": "set_employment", "employment": "SELF_EMPLOYED"},
-                {"type": "income_factor", "factor": 0.6009},
-                {"type": "add_flag", "flag": "started_business"}
-              ],
-              "narrative": {
-                "ES": "Tu negocio te deja -40 % respecto a tu sueldo de antes.",
-                "EN": "Your business pays you -40 % compared with your old salary."
-              }
-            },
-            "NEUTRAL": {
-              "prob": 0.5,
-              "effects": [
-                {"type": "set_employment", "employment": "SELF_EMPLOYED"},
-                {"type": "income_factor", "factor": 0.9394},
-                {"type": "add_flag", "flag": "started_business"}
-              ],
-              "narrative": {
-                "ES": "Tu negocio te deja -6 % respecto a tu sueldo de antes.",
-                "EN": "Your business pays you -6 % compared with your old salary."
-              }
-            },
-            "OPTIMISTIC": {
-              "prob": 0.25,
-              "effects": [
-                {"type": "set_employment", "employment": "SELF_EMPLOYED"},
-                {"type": "income_factor", "factor": 1.2758},
-                {"type": "add_flag", "flag": "started_business"}
-              ],
-              "narrative": {
-                "ES": "Tu negocio te deja +28 % respecto a tu sueldo de antes.",
-                "EN": "Your business pays you +28 % compared with your old salary."
-              }
-            }
-          }
-        },
-        {
-          "id": "B",
-          "label": {
-            "ES": "Seguir como asalariado",
-            "EN": "Stay an employee"
-          },
-          "cases": {
-            "PESSIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "add_flag", "flag": "stayed_employed"}
-              ],
-              "narrative": {
-                "ES": "Sigues en tu empresa.",
-                "EN": "You stay with your employer."
-              }
-            },
-            "NEUTRAL": {
-              "prob": 0.6,
-              "effects": [
-                {"type": "add_flag", "flag": "stayed_employed"}
-              ],
-              "narrative": {
-                "ES": "Sigues en tu empresa.",
-                "EN": "You stay with your employer."
-              }
-            },
-            "OPTIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "add_flag", "flag": "stayed_employed"}
-              ],
-              "narrative": {
-                "ES": "Sigues en tu empresa.",
-                "EN": "You stay with your employer."
-              }
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "E-back-to-full-time",
+      "id": "A-back-to-full-time",
       "category": "Career & employment",
       "title": {
-        "ES": "¿Volver a jornada completa?",
-        "EN": "Back to full time?"
+        "EN": "Go back to full time",
+        "ES": "Volver a jornada completa"
       },
       "description": {
-        "ES": "Tu empresa te ofrece volver a jornada completa.",
-        "EN": "Your company offers you a full-time position again."
+        "EN": "Ask for a full-time position again.",
+        "ES": "Pedir otra vez un puesto a jornada completa."
       },
       "requires": {
-        "employment": ["PART_TIME"],
+        "employment": [
+          "PART_TIME"
+        ],
         "maxAge": 62,
-        "flagsNone": ["four_day_week", "took_part_time_job"]
+        "flagsNone": [
+          "four_day_week",
+          "took_part_time_job"
+        ]
       },
-      "priority": 0,
-      "earliestTurn": 0,
       "sources": [
         "Reverse of catalogue S017. Full-time pay: 1 / ratio.partTime (median employed / median part-time income, synthetic-profiles.csv).",
         "Full-time employees get the December bonus in the ledger (flow model); part-time workers do not."
       ],
-      "options": [
+      "effects": [
         {
-          "id": "A",
-          "label": {
-            "ES": "Volver a jornada completa",
-            "EN": "Go back to full time"
-          },
-          "cases": {
-            "PESSIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "set_employment", "employment": "EMPLOYED"},
-                {"type": "income_factor", "factor": 1.794},
-                {"type": "add_flag", "flag": "back_to_full_time"}
-              ],
-              "narrative": {
-                "ES": "Tu sueldo pasa a ser el de jornada completa (+79 %) y vuelves a tener paga extra.",
-                "EN": "Your pay becomes a full-time salary (+79 %) and you get the December bonus again."
-              }
-            },
-            "NEUTRAL": {
-              "prob": 0.6,
-              "effects": [
-                {"type": "set_employment", "employment": "EMPLOYED"},
-                {"type": "income_factor", "factor": 1.794},
-                {"type": "add_flag", "flag": "back_to_full_time"}
-              ],
-              "narrative": {
-                "ES": "Tu sueldo pasa a ser el de jornada completa (+79 %) y vuelves a tener paga extra.",
-                "EN": "Your pay becomes a full-time salary (+79 %) and you get the December bonus again."
-              }
-            },
-            "OPTIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "set_employment", "employment": "EMPLOYED"},
-                {"type": "income_factor", "factor": 1.794},
-                {"type": "add_flag", "flag": "back_to_full_time"}
-              ],
-              "narrative": {
-                "ES": "Tu sueldo pasa a ser el de jornada completa (+79 %) y vuelves a tener paga extra.",
-                "EN": "Your pay becomes a full-time salary (+79 %) and you get the December bonus again."
-              }
-            }
-          }
+          "type": "set_employment",
+          "employment": "EMPLOYED"
         },
         {
-          "id": "B",
-          "label": {
-            "ES": "Seguir a media jornada",
-            "EN": "Stay part time"
-          },
-          "cases": {
-            "PESSIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "add_flag", "flag": "stayed_employed"}
-              ],
-              "narrative": {
-                "ES": "Sigues a media jornada.",
-                "EN": "You stay part time."
-              }
-            },
-            "NEUTRAL": {
-              "prob": 0.6,
-              "effects": [
-                {"type": "add_flag", "flag": "stayed_employed"}
-              ],
-              "narrative": {
-                "ES": "Sigues a media jornada.",
-                "EN": "You stay part time."
-              }
-            },
-            "OPTIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "add_flag", "flag": "stayed_employed"}
-              ],
-              "narrative": {
-                "ES": "Sigues a media jornada.",
-                "EN": "You stay part time."
-              }
-            }
-          }
+          "type": "income_factor",
+          "factor": 1.794
+        },
+        {
+          "type": "add_flag",
+          "flag": "back_to_full_time"
         }
-      ]
+      ],
+      "outcome": {
+        "ES": "Tu sueldo pasa a ser el de jornada completa (+79 %) y vuelves a tener paga extra.",
+        "EN": "Your pay becomes a full-time salary (+79 %) and you get the December bonus again."
+      }
     },
     {
-      "id": "E-back-to-employee",
+      "id": "A-self-employed",
       "category": "Entrepreneurship & innovation",
       "title": {
-        "ES": "¿Volver a ser asalariado?",
-        "EN": "Become an employee again?"
+        "EN": "Start your own business",
+        "ES": "Montar tu propio negocio"
       },
       "description": {
-        "ES": "Una empresa te ofrece un puesto fijo. Tendrías que cerrar tu negocio.",
-        "EN": "A company offers you a permanent job. You would close your business."
+        "EN": "Leave your job and work for yourself. Your income can go up or down.",
+        "ES": "Dejar tu trabajo y trabajar por tu cuenta. Tus ingresos pueden subir o bajar."
       },
       "requires": {
-        "employment": ["SELF_EMPLOYED"],
+        "employment": [
+          "EMPLOYED"
+        ],
+        "minAge": 25,
+        "maxAge": 55
+      },
+      "sources": [
+        "Catalogue S111 + S015. Income: self-employed income p25 / p50 / p75 divided by the median employed income in synthetic-profiles.csv (ratio.selfEmployed.*): wider spread than employees.",
+        "In the ledger the self-employed get a December payout as often as employees (flow model)."
+      ],
+      "effects": [
+        {
+          "type": "set_employment",
+          "employment": "SELF_EMPLOYED"
+        },
+        {
+          "type": "income_factor",
+          "factor": 0.9394
+        },
+        {
+          "type": "add_flag",
+          "flag": "started_business"
+        }
+      ],
+      "uncertain": [
+        {
+          "name": "change",
+          "law": "LOGNORMAL",
+          "median": 0.9394,
+          "low": {
+            "q": 0.25,
+            "value": 0.6009
+          },
+          "high": {
+            "q": 0.75,
+            "value": 1.2758
+          },
+          "better": "HIGH",
+          "step": 0.0001,
+          "format": "change",
+          "targets": [
+            {
+              "effect": 1,
+              "field": "factor"
+            }
+          ],
+          "source": "self-employed income p25 / p50 / p75 / median employed income (synthetic-profiles.csv)"
+        }
+      ],
+      "outcome": {
+        "EN": "Your business pays you {change} compared with your old salary.",
+        "ES": "Tu negocio te deja {change} respecto a tu sueldo de antes."
+      }
+    },
+    {
+      "id": "A-back-to-employee",
+      "category": "Entrepreneurship & innovation",
+      "title": {
+        "EN": "Become an employee again",
+        "ES": "Volver a trabajar por cuenta ajena"
+      },
+      "description": {
+        "EN": "Close your business and take a permanent job.",
+        "ES": "Cerrar tu negocio y aceptar un trabajo fijo."
+      },
+      "requires": {
+        "employment": [
+          "SELF_EMPLOYED"
+        ],
         "maxAge": 60
       },
-      "priority": 0,
-      "earliestTurn": 0,
       "sources": [
         "Reverse of catalogue S015 / S111. Pay: employed income p25 / p50 / p75 divided by the median self-employed income (ratio.employedVsSelfEmployed.*, synthetic-profiles.csv)."
       ],
-      "options": [
+      "effects": [
         {
-          "id": "A",
-          "label": {
-            "ES": "Aceptar el puesto",
-            "EN": "Take the job"
-          },
-          "cases": {
-            "PESSIMISTIC": {
-              "prob": 0.25,
-              "effects": [
-                {"type": "set_employment", "employment": "EMPLOYED"},
-                {"type": "income_factor", "factor": 0.7861},
-                {"type": "add_flag", "flag": "became_employee"}
-              ],
-              "narrative": {
-                "ES": "Como asalariado cobras -21 % respecto a lo que te daba tu negocio.",
-                "EN": "As an employee you earn -21 % compared with what your business paid you."
-              }
-            },
-            "NEUTRAL": {
-              "prob": 0.5,
-              "effects": [
-                {"type": "set_employment", "employment": "EMPLOYED"},
-                {"type": "income_factor", "factor": 1.0645},
-                {"type": "add_flag", "flag": "became_employee"}
-              ],
-              "narrative": {
-                "ES": "Como asalariado cobras +6 % respecto a lo que te daba tu negocio.",
-                "EN": "As an employee you earn +6 % compared with what your business paid you."
-              }
-            },
-            "OPTIMISTIC": {
-              "prob": 0.25,
-              "effects": [
-                {"type": "set_employment", "employment": "EMPLOYED"},
-                {"type": "income_factor", "factor": 1.3252},
-                {"type": "add_flag", "flag": "became_employee"}
-              ],
-              "narrative": {
-                "ES": "Como asalariado cobras +33 % respecto a lo que te daba tu negocio.",
-                "EN": "As an employee you earn +33 % compared with what your business paid you."
-              }
-            }
-          }
+          "type": "set_employment",
+          "employment": "EMPLOYED"
         },
         {
-          "id": "B",
-          "label": {
-            "ES": "Seguir con tu negocio",
-            "EN": "Keep your business"
-          },
-          "cases": {
-            "PESSIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "add_flag", "flag": "started_business"}
-              ],
-              "narrative": {
-                "ES": "Sigues trabajando por tu cuenta.",
-                "EN": "You keep working for yourself."
-              }
-            },
-            "NEUTRAL": {
-              "prob": 0.6,
-              "effects": [
-                {"type": "add_flag", "flag": "started_business"}
-              ],
-              "narrative": {
-                "ES": "Sigues trabajando por tu cuenta.",
-                "EN": "You keep working for yourself."
-              }
-            },
-            "OPTIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "add_flag", "flag": "started_business"}
-              ],
-              "narrative": {
-                "ES": "Sigues trabajando por tu cuenta.",
-                "EN": "You keep working for yourself."
-              }
-            }
-          }
+          "type": "income_factor",
+          "factor": 1.0645
+        },
+        {
+          "type": "add_flag",
+          "flag": "became_employee"
         }
-      ]
+      ],
+      "uncertain": [
+        {
+          "name": "change",
+          "law": "LOGNORMAL",
+          "median": 1.0645,
+          "low": {
+            "q": 0.25,
+            "value": 0.7861
+          },
+          "high": {
+            "q": 0.75,
+            "value": 1.3252
+          },
+          "better": "HIGH",
+          "step": 0.0001,
+          "format": "change",
+          "targets": [
+            {
+              "effect": 1,
+              "field": "factor"
+            }
+          ],
+          "source": "employed income p25 / p50 / p75 / median self-employed income (synthetic-profiles.csv)"
+        }
+      ],
+      "outcome": {
+        "EN": "As an employee you earn {change} compared with what your business paid you.",
+        "ES": "Como asalariado cobras {change} respecto a lo que te daba tu negocio."
+      }
     },
     {
-      "id": "E-move-cheaper",
-      "category": "Relocation & geography",
+      "id": "A-shared-flat",
+      "category": "Housing & property",
       "title": {
-        "ES": "¿Mudarte a una ciudad más barata?",
-        "EN": "Move to a cheaper city?"
+        "EN": "Move into a shared flat",
+        "ES": "Irte a un piso compartido"
       },
       "description": {
-        "ES": "En Friburgo el alquiler y la compra diaria son más baratos que en tu ciudad. Tu sueldo no cambiaría, pero dejarías tu piso y tu entorno.",
-        "EN": "In Fribourg rent and everyday shopping cost less than in your city. Your pay would not change, but you would leave your flat and your surroundings."
+        "EN": "Share a flat with friends: in your city it costs about a third less than living alone.",
+        "ES": "Compartir piso con amigos: en tu ciudad cuesta alrededor de un tercio menos que vivir solo."
+      },
+      "requires": {
+        "household": [
+          "SINGLE"
+        ],
+        "facts": {
+          "HOUSING": [
+            "RENTED_FLAT"
+          ]
+        }
+      },
+      "sources": [
+        "Catalogue S032 + S049. New rent: rent model learned from synthetic-profiles.csv (household x city): a shared flat costs about 0.68 of living alone; p75 / p50 / p25 of the dataset spread for the three cases.",
+        "Living costs do not depend on the household in the dataset (flow model), so only the rent changes."
+      ],
+      "effects": [
+        {
+          "type": "set_household",
+          "household": "SHARED_HOUSING"
+        },
+        {
+          "type": "set_fact",
+          "key": "HOUSING",
+          "value": "SHARED_FLAT"
+        },
+        {
+          "type": "set_fact",
+          "key": "FAMILY",
+          "value": "SINGLE"
+        },
+        {
+          "type": "market_rent",
+          "quantile": 0.5
+        },
+        {
+          "type": "add_flag",
+          "flag": "moved_to_shared_flat"
+        }
+      ],
+      "uncertain": [
+        {
+          "name": "flat",
+          "law": "QUANTILE",
+          "median": 0.5,
+          "low": {
+            "q": 0.05,
+            "value": 0.05
+          },
+          "high": {
+            "q": 0.95,
+            "value": 0.95
+          },
+          "better": "LOW",
+          "step": 0.01,
+          "format": "flat",
+          "targets": [
+            {
+              "effect": 3,
+              "field": "quantile"
+            }
+          ],
+          "source": "rent model: the quantile of the dataset spread of rents is the luck itself (high luck = a cheaper flat)"
+        }
+      ],
+      "outcome": {
+        "EN": "You find a flat {flat} in your city.",
+        "ES": "Encuentras un piso {flat} en tu ciudad."
+      }
+    },
+    {
+      "id": "A-own-flat",
+      "category": "Housing & property",
+      "title": {
+        "EN": "Rent a flat of your own",
+        "ES": "Alquilar un piso para ti"
+      },
+      "description": {
+        "EN": "More privacy, for about half as much again as sharing.",
+        "ES": "Más intimidad, por alrededor de la mitad más que compartir."
+      },
+      "requires": {
+        "household": [
+          "SHARED_HOUSING"
+        ],
+        "facts": {
+          "HOUSING": [
+            "SHARED_FLAT"
+          ]
+        }
+      },
+      "sources": [
+        "Catalogue S031. New rent: rent model learned from synthetic-profiles.csv (household x city): a shared flat costs about 0.68 of living alone; p75 / p50 / p25 of the dataset spread for the three cases.",
+        "Living costs do not depend on the household in the dataset (flow model), so only the rent changes."
+      ],
+      "effects": [
+        {
+          "type": "set_household",
+          "household": "SINGLE"
+        },
+        {
+          "type": "set_fact",
+          "key": "HOUSING",
+          "value": "RENTED_FLAT"
+        },
+        {
+          "type": "set_fact",
+          "key": "FAMILY",
+          "value": "SINGLE"
+        },
+        {
+          "type": "market_rent",
+          "quantile": 0.5
+        },
+        {
+          "type": "add_flag",
+          "flag": "rented_own_flat"
+        }
+      ],
+      "uncertain": [
+        {
+          "name": "flat",
+          "law": "QUANTILE",
+          "median": 0.5,
+          "low": {
+            "q": 0.05,
+            "value": 0.05
+          },
+          "high": {
+            "q": 0.95,
+            "value": 0.95
+          },
+          "better": "LOW",
+          "step": 0.01,
+          "format": "flat",
+          "targets": [
+            {
+              "effect": 3,
+              "field": "quantile"
+            }
+          ],
+          "source": "rent model: the quantile of the dataset spread of rents is the luck itself (high luck = a cheaper flat)"
+        }
+      ],
+      "outcome": {
+        "EN": "You find a flat {flat} in your city.",
+        "ES": "Encuentras un piso {flat} en tu ciudad."
+      }
+    },
+    {
+      "id": "A-move-cheaper",
+      "category": "Relocation & geography",
+      "title": {
+        "EN": "Move to Fribourg, a cheaper city",
+        "ES": "Mudarte a Friburgo, una ciudad más barata"
+      },
+      "description": {
+        "EN": "Rent and everyday shopping cost less in Fribourg. Your pay would not change.",
+        "ES": "En Friburgo el alquiler y la compra del día a día cuestan menos. Tu sueldo no cambiaría."
       },
       "requires": {
         "facts": {
-          "CITY": ["Zurich", "Geneva", "Lucerne", "Basel", "Bern", "Lausanne", "Winterthur"]
+          "CITY": [
+            "Zurich",
+            "Geneva",
+            "Lucerne",
+            "Basel",
+            "Bern",
+            "Lausanne",
+            "Winterthur"
+          ]
         }
       },
-      "priority": 0,
-      "earliestTurn": 1,
       "sources": [
         "Catalogue S021 / S022 in the other direction. Fribourg is the cheapest city of the dataset overall: rent model x0.94 and living costs x0.94 (flow model) against Neuchatel; the origin cities have rent factors of 1.08 or more.",
         "Pay does not depend on the city in the dataset (no significant difference), so only costs change.",
         "New rent: rent model (household x city) at the p75 / p50 / p25 of the dataset spread."
       ],
-      "options": [
+      "effects": [
         {
-          "id": "A",
-          "label": {
-            "ES": "Mudarte a Friburgo",
-            "EN": "Move to Fribourg"
-          },
-          "cases": {
-            "PESSIMISTIC": {
-              "prob": 0.25,
-              "effects": [
-                {"type": "set_fact", "key": "CITY", "value": "Fribourg"},
-                {"type": "market_rent", "quantile": 0.75},
-                {"type": "add_flag", "flag": "moved_to_cheaper_city"}
-              ],
-              "narrative": {
-                "ES": "Te mudas a Friburgo y encuentras un piso caro.",
-                "EN": "You move to Fribourg and find an expensive flat."
-              }
-            },
-            "NEUTRAL": {
-              "prob": 0.5,
-              "effects": [
-                {"type": "set_fact", "key": "CITY", "value": "Fribourg"},
-                {"type": "market_rent", "quantile": 0.5},
-                {"type": "add_flag", "flag": "moved_to_cheaper_city"}
-              ],
-              "narrative": {
-                "ES": "Te mudas a Friburgo y encuentras un piso a precio normal.",
-                "EN": "You move to Fribourg and find a flat at the usual price."
-              }
-            },
-            "OPTIMISTIC": {
-              "prob": 0.25,
-              "effects": [
-                {"type": "set_fact", "key": "CITY", "value": "Fribourg"},
-                {"type": "market_rent", "quantile": 0.25},
-                {"type": "add_flag", "flag": "moved_to_cheaper_city"}
-              ],
-              "narrative": {
-                "ES": "Te mudas a Friburgo y encuentras un piso barato.",
-                "EN": "You move to Fribourg and find a cheap flat."
-              }
-            }
-          }
+          "type": "set_fact",
+          "key": "CITY",
+          "value": "Fribourg"
         },
         {
-          "id": "B",
-          "label": {
-            "ES": "Quedarte en tu ciudad",
-            "EN": "Stay in your city"
-          },
-          "cases": {
-            "PESSIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "add_flag", "flag": "stayed_in_city"}
-              ],
-              "narrative": {
-                "ES": "Te quedas en tu ciudad.",
-                "EN": "You stay in your city."
-              }
-            },
-            "NEUTRAL": {
-              "prob": 0.6,
-              "effects": [
-                {"type": "add_flag", "flag": "stayed_in_city"}
-              ],
-              "narrative": {
-                "ES": "Te quedas en tu ciudad.",
-                "EN": "You stay in your city."
-              }
-            },
-            "OPTIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "add_flag", "flag": "stayed_in_city"}
-              ],
-              "narrative": {
-                "ES": "Te quedas en tu ciudad.",
-                "EN": "You stay in your city."
-              }
-            }
-          }
+          "type": "market_rent",
+          "quantile": 0.5
+        },
+        {
+          "type": "add_flag",
+          "flag": "moved_to_cheaper_city"
         }
-      ]
+      ],
+      "uncertain": [
+        {
+          "name": "flat",
+          "law": "QUANTILE",
+          "median": 0.5,
+          "low": {
+            "q": 0.05,
+            "value": 0.05
+          },
+          "high": {
+            "q": 0.95,
+            "value": 0.95
+          },
+          "better": "LOW",
+          "step": 0.01,
+          "format": "flat",
+          "targets": [
+            {
+              "effect": 1,
+              "field": "quantile"
+            }
+          ],
+          "source": "rent model: the quantile of the dataset spread of rents is the luck itself (high luck = a cheaper flat)"
+        }
+      ],
+      "outcome": {
+        "EN": "You move to Fribourg and find a flat {flat}.",
+        "ES": "Te mudas a Friburgo y encuentras un piso {flat}."
+      }
     },
     {
-      "id": "E-retirement",
+      "id": "A-retire",
       "category": "Retirement & pensions",
       "title": {
-        "ES": "¿Jubilarte ya?",
-        "EN": "Retire now?"
+        "EN": "Retire now",
+        "ES": "Jubilarte ahora"
       },
       "description": {
-        "ES": "Podrías jubilarte ahora o trabajar dos años más.",
-        "EN": "You could retire now or work two more years."
+        "EN": "Stop working and live on your pension.",
+        "ES": "Dejar de trabajar y vivir de tu pensión."
       },
       "requires": {
-        "employment": ["EMPLOYED", "PART_TIME", "SELF_EMPLOYED"],
+        "employment": [
+          "EMPLOYED",
+          "PART_TIME",
+          "SELF_EMPLOYED"
+        ],
         "minAge": 63
       },
-      "priority": 0,
-      "earliestTurn": 0,
       "sources": [
         "Pension: retired income p25 / p50 / p75 divided by the median employed income in synthetic-profiles.csv (ratio.retired.*). Taking it as a share of your own pay is an assumption.",
         "In the dataset everyone aged 67 or more is retired and nobody younger is: earlier retirement is not observed, so the pension does not depend on the age you retire."
       ],
-      "options": [
+      "effects": [
         {
-          "id": "A",
-          "label": {
-            "ES": "Jubilarte ahora",
-            "EN": "Retire now"
-          },
-          "cases": {
-            "PESSIMISTIC": {
-              "prob": 0.25,
-              "effects": [
-                {"type": "set_employment", "employment": "RETIRED", "startOffsetMonths": 0},
-                {"type": "income_factor", "factor": 0.4201, "startOffsetMonths": 0},
-                {"type": "set_fact", "key": "OCCUPATION", "value": "NONE", "startOffsetMonths": 0},
-                {"type": "add_flag", "flag": "retired", "startOffsetMonths": 0}
-              ],
-              "narrative": {
-                "ES": "Tu pensión es un 42 % de tu sueldo.",
-                "EN": "Your pension is 42 % of your pay."
-              }
-            },
-            "NEUTRAL": {
-              "prob": 0.5,
-              "effects": [
-                {"type": "set_employment", "employment": "RETIRED", "startOffsetMonths": 0},
-                {"type": "income_factor", "factor": 0.4955, "startOffsetMonths": 0},
-                {"type": "set_fact", "key": "OCCUPATION", "value": "NONE", "startOffsetMonths": 0},
-                {"type": "add_flag", "flag": "retired", "startOffsetMonths": 0}
-              ],
-              "narrative": {
-                "ES": "Tu pensión es un 50 % de tu sueldo.",
-                "EN": "Your pension is 50 % of your pay."
-              }
-            },
-            "OPTIMISTIC": {
-              "prob": 0.25,
-              "effects": [
-                {"type": "set_employment", "employment": "RETIRED", "startOffsetMonths": 0},
-                {"type": "income_factor", "factor": 0.5836, "startOffsetMonths": 0},
-                {"type": "set_fact", "key": "OCCUPATION", "value": "NONE", "startOffsetMonths": 0},
-                {"type": "add_flag", "flag": "retired", "startOffsetMonths": 0}
-              ],
-              "narrative": {
-                "ES": "Tu pensión es un 58 % de tu sueldo.",
-                "EN": "Your pension is 58 % of your pay."
-              }
-            }
-          }
+          "type": "set_employment",
+          "employment": "RETIRED",
+          "startOffsetMonths": 0
         },
         {
-          "id": "B",
-          "label": {
-            "ES": "Trabajar dos años más",
-            "EN": "Work two more years"
-          },
-          "cases": {
-            "PESSIMISTIC": {
-              "prob": 0.25,
-              "effects": [
-                {"type": "set_employment", "employment": "RETIRED", "startOffsetMonths": 24},
-                {"type": "income_factor", "factor": 0.4201, "startOffsetMonths": 24},
-                {"type": "set_fact", "key": "OCCUPATION", "value": "NONE", "startOffsetMonths": 24},
-                {"type": "add_flag", "flag": "retired", "startOffsetMonths": 24}
-              ],
-              "narrative": {
-                "ES": "Trabajas dos años más; luego tu pensión es un 42 % de tu sueldo.",
-                "EN": "You work two more years; then your pension is 42 % of your pay."
-              }
-            },
-            "NEUTRAL": {
-              "prob": 0.5,
-              "effects": [
-                {"type": "set_employment", "employment": "RETIRED", "startOffsetMonths": 24},
-                {"type": "income_factor", "factor": 0.4955, "startOffsetMonths": 24},
-                {"type": "set_fact", "key": "OCCUPATION", "value": "NONE", "startOffsetMonths": 24},
-                {"type": "add_flag", "flag": "retired", "startOffsetMonths": 24}
-              ],
-              "narrative": {
-                "ES": "Trabajas dos años más; luego tu pensión es un 50 % de tu sueldo.",
-                "EN": "You work two more years; then your pension is 50 % of your pay."
-              }
-            },
-            "OPTIMISTIC": {
-              "prob": 0.25,
-              "effects": [
-                {"type": "set_employment", "employment": "RETIRED", "startOffsetMonths": 24},
-                {"type": "income_factor", "factor": 0.5836, "startOffsetMonths": 24},
-                {"type": "set_fact", "key": "OCCUPATION", "value": "NONE", "startOffsetMonths": 24},
-                {"type": "add_flag", "flag": "retired", "startOffsetMonths": 24}
-              ],
-              "narrative": {
-                "ES": "Trabajas dos años más; luego tu pensión es un 58 % de tu sueldo.",
-                "EN": "You work two more years; then your pension is 58 % of your pay."
-              }
-            }
-          }
+          "type": "income_factor",
+          "factor": 0.4955,
+          "startOffsetMonths": 0
+        },
+        {
+          "type": "set_fact",
+          "key": "OCCUPATION",
+          "value": "NONE",
+          "startOffsetMonths": 0
+        },
+        {
+          "type": "add_flag",
+          "flag": "retired",
+          "startOffsetMonths": 0
         }
-      ]
+      ],
+      "uncertain": [
+        {
+          "name": "pension",
+          "law": "LOGNORMAL",
+          "median": 0.4955,
+          "low": {
+            "q": 0.25,
+            "value": 0.4201
+          },
+          "high": {
+            "q": 0.75,
+            "value": 0.5836
+          },
+          "better": "HIGH",
+          "step": 0.0001,
+          "format": "share",
+          "targets": [
+            {
+              "effect": 1,
+              "field": "factor"
+            }
+          ],
+          "source": "retired income p25 / p50 / p75 / median employed income (synthetic-profiles.csv)"
+        }
+      ],
+      "outcome": {
+        "EN": "Your pension is {pension} of your pay.",
+        "ES": "Tu pensión es un {pension} de tu sueldo."
+      }
     },
     {
-      "id": "E-financing",
+      "id": "A-loan",
       "category": "Debt & credit",
       "title": {
-        "ES": "Tu cuenta está en negativo",
-        "EN": "Your account is overdrawn"
+        "EN": "Take out a personal loan",
+        "ES": "Pedir un préstamo personal"
       },
       "description": {
-        "ES": "Estás pagando intereses por el descubierto. Puedes pedir un préstamo personal o seguir en descubierto.",
-        "EN": "You are paying interest on the overdraft. You can take out a personal loan or stay overdrawn."
+        "EN": "Your account is overdrawn and you pay 8.5 % on it. A loan is cheaper, but you pay it back over five years.",
+        "ES": "Tu cuenta está en descubierto y pagas un 8,5 % por ello. Un préstamo es más barato, pero lo devuelves en cinco años."
       },
       "requires": {
         "maxCashChf": 0
       },
-      "priority": 10,
-      "repeatable": false,
-      "earliestTurn": 1,
       "sources": [
         "Loan: synthetic-liabilities.csv, median principal (loan.principal.p50) at the p90 / p50 / p10 interest rate (loan.rate.*), 60-month annuity (the dataset never pays its loans: assumption).",
         "Overdraft interest: 8.5 %/year, the maximum loan rate in the dataset (assumption)."
       ],
-      "options": [
+      "effects": [
         {
-          "id": "A",
-          "label": {
-            "ES": "Pedir un préstamo personal",
-            "EN": "Take out a personal loan"
-          },
-          "cases": {
-            "PESSIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "add_liability", "principalChf": 37000, "annualRate": 0.0805, "termMonths": 60},
-                {"type": "add_flag", "flag": "took_loan"}
-              ],
-              "narrative": {
-                "ES": "El banco te presta 37'000 CHF al 8.1 % a cinco años.",
-                "EN": "The bank lends you CHF 37'000 at 8.1 % over five years."
-              }
-            },
-            "NEUTRAL": {
-              "prob": 0.6,
-              "effects": [
-                {"type": "add_liability", "principalChf": 37000, "annualRate": 0.0582, "termMonths": 60},
-                {"type": "add_flag", "flag": "took_loan"}
-              ],
-              "narrative": {
-                "ES": "El banco te presta 37'000 CHF al 5.8 % a cinco años.",
-                "EN": "The bank lends you CHF 37'000 at 5.8 % over five years."
-              }
-            },
-            "OPTIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "add_liability", "principalChf": 37000, "annualRate": 0.0302, "termMonths": 60},
-                {"type": "add_flag", "flag": "took_loan"}
-              ],
-              "narrative": {
-                "ES": "El banco te presta 37'000 CHF al 3.0 % a cinco años.",
-                "EN": "The bank lends you CHF 37'000 at 3.0 % over five years."
-              }
-            }
-          }
+          "type": "add_liability",
+          "principalChf": 37000,
+          "annualRate": 0.0582,
+          "termMonths": 60
         },
         {
-          "id": "B",
-          "label": {
-            "ES": "Seguir en descubierto",
-            "EN": "Stay overdrawn"
-          },
-          "cases": {
-            "PESSIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "add_flag", "flag": "kept_overdraft"}
-              ],
-              "narrative": {
-                "ES": "Sigues pagando un 8,5 % de interés por lo que debes.",
-                "EN": "You keep paying 8.5 % interest on what you owe."
-              }
-            },
-            "NEUTRAL": {
-              "prob": 0.6,
-              "effects": [
-                {"type": "add_flag", "flag": "kept_overdraft"}
-              ],
-              "narrative": {
-                "ES": "Sigues pagando un 8,5 % de interés por lo que debes.",
-                "EN": "You keep paying 8.5 % interest on what you owe."
-              }
-            },
-            "OPTIMISTIC": {
-              "prob": 0.2,
-              "effects": [
-                {"type": "add_flag", "flag": "kept_overdraft"}
-              ],
-              "narrative": {
-                "ES": "Sigues pagando un 8,5 % de interés por lo que debes.",
-                "EN": "You keep paying 8.5 % interest on what you owe."
-              }
-            }
-          }
+          "type": "add_flag",
+          "flag": "took_loan"
         }
-      ]
+      ],
+      "uncertain": [
+        {
+          "name": "rate",
+          "law": "NORMAL",
+          "median": 0.0582,
+          "low": {
+            "q": 0.1,
+            "value": 0.0302
+          },
+          "high": {
+            "q": 0.9,
+            "value": 0.0805
+          },
+          "better": "LOW",
+          "step": 0.0001,
+          "format": "percent",
+          "targets": [
+            {
+              "effect": 0,
+              "field": "annualRate"
+            }
+          ],
+          "min": 0.0,
+          "source": "synthetic-liabilities.csv interest rates p10 / p50 / p90"
+        }
+      ],
+      "outcome": {
+        "EN": "The bank lends you CHF 37’000 at {rate} over five years.",
+        "ES": "El banco te presta 37’000 CHF al {rate} a cinco años."
+      }
+    }
+  ],
+  "shocks": [
+    {
+      "id": "S-job-loss-young",
+      "category": "Career & employment",
+      "title": {
+        "EN": "You lose your job",
+        "ES": "Pierdes tu trabajo"
+      },
+      "description": {
+        "EN": "Your company cuts jobs. You look for a job like the one you had.",
+        "ES": "Tu empresa recorta plantilla. Buscas un trabajo como el que tenías."
+      },
+      "requires": {
+        "employment": [
+          "EMPLOYED"
+        ],
+        "minAge": 20,
+        "maxAge": 24
+      },
+      "probability": 0.08,
+      "sources": [
+        "Income while unemployed: median unemployed income / median employed income in synthetic-profiles.csv (ratio.unemployed). The dataset gives the unemployed almost no income; real Swiss unemployment insurance pays more, but it is not in our data.",
+        "Length of the gap: 6 months as in catalogue S014; 12 and 3 months for the other cases are assumptions.",
+        "How likely job loss is: Eurostat une_rt_m, Switzerland (unemployment.*), about 8 % under 25 and 4 % from 25 to 74.",
+        "Chance per two-year turn: the Swiss unemployment rate of the age group (Eurostat une_rt_m, 5-year mean) used as the chance of losing your job during the turn (assumption); the month it happens is drawn within the turn."
+      ],
+      "effects": [
+        {
+          "type": "set_employment",
+          "employment": "UNEMPLOYED"
+        },
+        {
+          "type": "income_factor",
+          "factor": 0.0689,
+          "months": 6
+        },
+        {
+          "type": "set_employment",
+          "employment": "EMPLOYED",
+          "startOffsetMonths": 6
+        },
+        {
+          "type": "add_flag",
+          "flag": "lost_job"
+        }
+      ],
+      "uncertain": [
+        {
+          "name": "months",
+          "law": "LOGNORMAL",
+          "median": 6,
+          "low": {
+            "q": 0.25,
+            "value": 3
+          },
+          "high": {
+            "q": 0.75,
+            "value": 12
+          },
+          "better": "LOW",
+          "step": 1,
+          "format": "months",
+          "targets": [
+            {
+              "effect": 1,
+              "field": "months"
+            },
+            {
+              "effect": 2,
+              "field": "startOffsetMonths"
+            }
+          ],
+          "min": 1,
+          "max": 24,
+          "source": "catalogue S014 (6 months); 3 and 12 months as p25 / p75 are an assumption"
+        }
+      ],
+      "outcome": {
+        "EN": "It takes you {months} months to find a job like the one you had. Meanwhile your income drops to 7 %.",
+        "ES": "Tardas {months} meses en encontrar un trabajo como el que tenías. Mientras tanto tus ingresos caen a un 7 %."
+      }
+    },
+    {
+      "id": "S-job-loss",
+      "category": "Career & employment",
+      "title": {
+        "EN": "You lose your job",
+        "ES": "Pierdes tu trabajo"
+      },
+      "description": {
+        "EN": "Your company cuts jobs. You look for a job like the one you had.",
+        "ES": "Tu empresa recorta plantilla. Buscas un trabajo como el que tenías."
+      },
+      "requires": {
+        "employment": [
+          "EMPLOYED"
+        ],
+        "minAge": 25,
+        "maxAge": 62
+      },
+      "probability": 0.04,
+      "sources": [
+        "Income while unemployed: median unemployed income / median employed income in synthetic-profiles.csv (ratio.unemployed). The dataset gives the unemployed almost no income; real Swiss unemployment insurance pays more, but it is not in our data.",
+        "Length of the gap: 6 months as in catalogue S014; 12 and 3 months for the other cases are assumptions.",
+        "How likely job loss is: Eurostat une_rt_m, Switzerland (unemployment.*), about 8 % under 25 and 4 % from 25 to 74.",
+        "Chance per two-year turn: the Swiss unemployment rate of the age group (Eurostat une_rt_m, 5-year mean) used as the chance of losing your job during the turn (assumption); the month it happens is drawn within the turn."
+      ],
+      "effects": [
+        {
+          "type": "set_employment",
+          "employment": "UNEMPLOYED"
+        },
+        {
+          "type": "income_factor",
+          "factor": 0.0689,
+          "months": 6
+        },
+        {
+          "type": "set_employment",
+          "employment": "EMPLOYED",
+          "startOffsetMonths": 6
+        },
+        {
+          "type": "add_flag",
+          "flag": "lost_job"
+        }
+      ],
+      "uncertain": [
+        {
+          "name": "months",
+          "law": "LOGNORMAL",
+          "median": 6,
+          "low": {
+            "q": 0.25,
+            "value": 3
+          },
+          "high": {
+            "q": 0.75,
+            "value": 12
+          },
+          "better": "LOW",
+          "step": 1,
+          "format": "months",
+          "targets": [
+            {
+              "effect": 1,
+              "field": "months"
+            },
+            {
+              "effect": 2,
+              "field": "startOffsetMonths"
+            }
+          ],
+          "min": 1,
+          "max": 24,
+          "source": "catalogue S014 (6 months); 3 and 12 months as p25 / p75 are an assumption"
+        }
+      ],
+      "outcome": {
+        "EN": "It takes you {months} months to find a job like the one you had. Meanwhile your income drops to 7 %.",
+        "ES": "Tardas {months} meses en encontrar un trabajo como el que tenías. Mientras tanto tus ingresos caen a un 7 %."
+      }
     }
   ]
 }

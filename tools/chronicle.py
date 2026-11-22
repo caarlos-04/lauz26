@@ -5,7 +5,7 @@ with content/chronicle.json, in ES or EN, using only the numbers the beats carry
 shared/.../chronicle/Chronicle.kt (tools/test_chronicle.py and ChronicleTest.kt use the same beats).
 
     python tools/chronicle.py --check                                   # templates vs Kotlin enums, facts.json, events.json
-    python tools/chronicle.py --play P00001 --choices A,B --lang ES     # a whole game with the reference engine, told
+    python tools/chronicle.py --play P00001 --path A-master,NOTHING --lang ES   # a life with the reference engine, told
 """
 import argparse
 import csv
@@ -16,12 +16,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import default_data_dir  # noqa: E402
+from game import outcome_text  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTENT = ROOT / "content"
 ENUMS_KT = ROOT / "shared" / "src" / "commonMain" / "kotlin" / "com" / "lauzhack" / "twin" / "model" / "Enums.kt"
 START_YEAR = 2025
-PLACEHOLDERS = {"age", "year", "years", "cash", "cashAbs", "target", "netWorth", "goal", "event", "option", "narrative",
+PLACEHOLDERS = {"age", "year", "years", "cash", "cashAbs", "target", "netWorth", "goal", "event", "narrative",
                 "employment", "household", "value", "flag", "because"}
 MONEY = {"cash", "target", "netWorth"}
 PARAGRAPH_STARTS = {"DECISION", "QUIET_PERIOD", "END"}
@@ -50,9 +51,8 @@ def fill(template: str, values: dict) -> str:
 
 def render(beats: list[dict], lang: str, tpl: dict, events: dict, facts: dict, start_year: int = START_YEAR) -> list[dict]:
     """One line per beat: {month, age, kind, text}. Beats without a template are skipped."""
-    by_id = {e["id"]: e for e in events["events"]}
-    chosen: dict[str, str] = {}                       # eventId -> option of its DECISION beat
-    current = None                                    # event of the decision being told
+    by_id = {e["id"]: e for e in events["actions"] + events.get("shocks", [])}
+    current = None                                    # action of the decision being told
     lines = []
     for b in beats:
         d, kind, ev = b.get("data") or {}, b["kind"], by_id.get(b.get("eventId") or "")
@@ -66,16 +66,12 @@ def render(beats: list[dict], lang: str, tpl: dict, events: dict, facts: dict, s
             v["goal"] = tpl["labels"]["goal"].get(d["goal"], {}).get(lang, d["goal"])
         if kind in ("DECISION", "QUIET_PERIOD"):
             current = ev["id"] if ev else None
-        if kind == "DECISION" and ev:
-            chosen[ev["id"]] = d.get("option", "")
         v["event"] = ev["title"][lang] if ev else ""
         # the cause is told only when it is not the decision of this paragraph (e.g. the job after the master's)
         v["because"] = fill(tpl["because"][lang], v) if ev and ev["id"] != current else ""
-        opt = next((o for o in ev["options"] if o["id"] == chosen.get(ev["id"])), None) if ev else None
-        if opt:
-            v["option"] = opt["label"][lang]
-            if d.get("case") in opt["cases"]:
-                v["narrative"] = opt["cases"][d["case"]]["narrative"][lang]
+        if ev and kind in ("OUTCOME", "SHOCK"):
+            names = {s["name"] for s in ev.get("uncertain", [])}
+            v["narrative"] = outcome_text(ev, {k: float(x) for k, x in d.items() if k in names}, lang)
         if kind == "LIFE_CHANGE":
             lc = tpl["lifeChange"]
             if "employment" in d:
@@ -165,7 +161,7 @@ def check(tpl: dict, facts: dict, events: dict) -> list[str]:
         for code, lt in values.items():
             if any(not lt.get(lang) for lang in langs):
                 errors.append(f"facts.json {key}.{code}: missing a language")
-    for e in events["events"]:
+    for e in events["actions"] + events.get("shocks", []):
         if any(not e["title"].get(lang) for lang in langs):
             errors.append(f"events.json {e['id']}: title missing a language")
     return errors
@@ -175,8 +171,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--check", action="store_true")
     ap.add_argument("--play", metavar="PROFILE_ID")
-    ap.add_argument("--choices", default="")
-    ap.add_argument("--luck", default="")
+    ap.add_argument("--path", default="")
+    ap.add_argument("--mode", default="SAME_LEVEL", choices=["SAME_LEVEL", "FULL_RANDOM"])
     ap.add_argument("--seed", type=int, default=2026)
     ap.add_argument("--lang", default="EN", choices=["EN", "ES"])
     a = ap.parse_args()
@@ -195,9 +191,8 @@ def main() -> int:
         from game import play
         from validate_events import load_context
         s0, model, macro = load_context(a.play, facts)
-        choices = [c for c in a.choices.split(",") if c]
-        lucks = [float(x) for x in a.luck.split(",") if x]
-        result = play(events["events"], s0, model, macro, choices, lucks, a.seed, a.lang)
+        path = [c for c in a.path.split(",") if c]
+        result = play(events["actions"], events.get("shocks", []), s0, model, macro, path, a.seed, a.mode, a.lang)
         for p in paragraphs(render(result["beats"], a.lang, tpl, events, facts, int(s0["period"][:4]))):
             print(p + "\n")
     return 0

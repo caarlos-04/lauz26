@@ -24,7 +24,7 @@ class FakeTwinFactory : TwinFactory {
     override fun demo(): NewGame = NewGame(FakeData.alexia, FakeData.alexiaPreferences)
 
     override fun fromInterview(questions: List<InterviewQuestion>, answers: List<InterviewAnswer>): NewGame {
-        val fields = fieldsOf(questions, answers)
+        val fields = com.lauzhack.twin.interview.fieldsOf(questions, answers)
         val age = fields[ProfileField.AGE]?.toIntOrNull() ?: 30
         val city = fields[ProfileField.CITY] ?: "Lausanne"
         val employment = fields[ProfileField.EMPLOYMENT]?.let { Employment.valueOf(it) } ?: Employment.EMPLOYED
@@ -33,6 +33,7 @@ class FakeTwinFactory : TwinFactory {
         val income = fields[ProfileField.MONTHLY_INCOME]?.toDoubleOrNull() ?: 3_000.0
         val rent = fields[ProfileField.MONTHLY_RENT]?.toDoubleOrNull() ?: 1_300.0
         val cash = fields[ProfileField.OPENING_CASH]?.toDoubleOrNull() ?: 8_000.0
+        val investments = fields[ProfileField.INVESTMENTS]?.toDoubleOrNull() ?: 0.0
         val objective = fields[ProfileField.OBJECTIVE]?.let { Objective.valueOf(it) } ?: Objective.BALANCED
         val minCash = fields[ProfileField.MIN_CASH]?.toDoubleOrNull() ?: (rent * 3)
 
@@ -59,12 +60,12 @@ class FakeTwinFactory : TwinFactory {
             },
         )
         val opening = FinancialStatement(
-            profileId = "USER-${answers.joinToString("") { it.optionId.take(2) }}",
+            profileId = "USER-${answers.joinToString("") { (it.optionId ?: it.value?.toLong()?.toString()).orEmpty().take(2) }}",
             month = 0,
             period = "2025-01-01",
             person = Person(displayName = "", age = age, employment = employment, household = household, facts = facts, flags = emptyList()),
             cashChf = cash,
-            investmentsChf = 0.0,
+            investmentsChf = investments,
             loan = null,
             monthlyIncomeChf = income,
             monthlyRentChf = rent,
@@ -75,15 +76,5 @@ class FakeTwinFactory : TwinFactory {
         )
         val penalty = FakeData.assumptions.objectivePenalties[objective] ?: 50.0
         return NewGame(opening, Preferences(objective, minCash, penalty))
-    }
-
-    private fun fieldsOf(questions: List<InterviewQuestion>, answers: List<InterviewAnswer>): Map<ProfileField, String> {
-        val fields = mutableMapOf<ProfileField, String>()
-        for (answer in answers) {
-            val option = questions.firstOrNull { it.id == answer.questionId }
-                ?.options?.firstOrNull { it.id == answer.optionId } ?: continue
-            fields.putAll(option.sets)
-        }
-        return fields
     }
 }

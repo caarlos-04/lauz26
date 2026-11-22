@@ -21,8 +21,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.lauzhack.twin.model.BeatKind
-import com.lauzhack.twin.model.CaseType
-import com.lauzhack.twin.model.Event
+import com.lauzhack.twin.ui.Catalog
+import com.lauzhack.twin.resources.beat_shock
 import com.lauzhack.twin.model.FactCatalog
 import com.lauzhack.twin.model.FactKey
 import com.lauzhack.twin.model.StoryBeat
@@ -49,17 +49,17 @@ import org.jetbrains.compose.resources.stringResource
 
 /**
  * P8 life line (#16): the engine's [StoryBeat]s as a vertical timeline. Structured data only: every text comes from
- * the beat, the event catalogue and the fact labels; nothing is computed here. CASE_RESOLVED is shown as the case
- * badge of its decision.
+ * the beat, the event catalogue and the fact labels; nothing is computed here. OUTCOME is shown as the luck badge
+ * of its decision.
  */
 @Composable
-fun LifeLine(beats: List<StoryBeat>, facts: FactCatalog, eventById: (String) -> Event?, modifier: Modifier = Modifier) {
-    val cases = beats.filter { it.kind == BeatKind.CASE_RESOLVED }
-        .mapNotNull { b -> b.data["case"]?.let { c -> CaseType.entries.firstOrNull { it.name == c } }?.let { (b.eventId to b.month) to it } }
+fun LifeLine(beats: List<StoryBeat>, facts: FactCatalog, catalog: Catalog, modifier: Modifier = Modifier) {
+    val lucks = beats.filter { it.kind == BeatKind.OUTCOME && it.data.size > 1 }      // luck + at least one drawn number
+        .mapNotNull { b -> b.data["luck"]?.toDoubleOrNull()?.let { (b.eventId to b.month) to it } }
         .toMap()
-    val rows = beats.filter { it.kind != BeatKind.CASE_RESOLVED }
+    val rows = beats.filter { it.kind != BeatKind.OUTCOME }
     // Life changes of the same month (new job, degree, milestone...) are told in one row, so the line stays short.
-    val texts = rows.map { beatText(it, facts, eventById) }
+    val texts = rows.map { beatText(it, facts, catalog) }
     val merged = mutableListOf<Pair<StoryBeat, String>>()
     rows.forEachIndexed { i, beat ->
         val text = texts[i] ?: return@forEachIndexed
@@ -73,7 +73,7 @@ fun LifeLine(beats: List<StoryBeat>, facts: FactCatalog, eventById: (String) -> 
             BeatRow(
                 beat = beat,
                 text = text,
-                case = cases[beat.eventId to beat.month].takeIf { beat.kind == BeatKind.DECISION },
+                luck = lucks[beat.eventId to beat.month].takeIf { beat.kind == BeatKind.DECISION },
                 first = i == 0,
                 last = i == merged.lastIndex,
             )
@@ -82,7 +82,7 @@ fun LifeLine(beats: List<StoryBeat>, facts: FactCatalog, eventById: (String) -> 
 }
 
 @Composable
-private fun BeatRow(beat: StoryBeat, text: String, case: CaseType?, first: Boolean, last: Boolean) {
+private fun BeatRow(beat: StoryBeat, text: String, luck: Double?, first: Boolean, last: Boolean) {
     val line = MaterialTheme.colorScheme.outlineVariant
     Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(Space.m)) {
         // Rail: line above and below a dot coloured by the kind of moment.
@@ -100,7 +100,7 @@ private fun BeatRow(beat: StoryBeat, text: String, case: CaseType?, first: Boole
             )
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.s)) {
                 Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f, fill = false))
-                if (case != null) CaseBadge(case)
+                if (luck != null) LuckBadge(luck)
             }
         }
     }
@@ -110,7 +110,7 @@ private fun BeatRow(beat: StoryBeat, text: String, case: CaseType?, first: Boole
 private fun beatColor(kind: BeatKind): Color {
     val twin = LocalTwinColors.current
     return when (kind) {
-        BeatKind.CASH_NEGATIVE, BeatKind.LOW_POINT, BeatKind.GOAL_MISSED -> twin.negative
+        BeatKind.CASH_NEGATIVE, BeatKind.LOW_POINT, BeatKind.GOAL_MISSED, BeatKind.SHOCK -> twin.negative
         BeatKind.CASH_RECOVERED, BeatKind.GOAL_REACHED -> twin.positive
         BeatKind.DECISION -> twin.chosen
         BeatKind.LIFE_CHANGE -> MaterialTheme.colorScheme.tertiary
@@ -120,18 +120,15 @@ private fun beatColor(kind: BeatKind): Color {
 
 /** Text of a moment, or null if it is not shown. */
 @Composable
-private fun beatText(beat: StoryBeat, facts: FactCatalog, eventById: (String) -> Event?): String? {
+private fun beatText(beat: StoryBeat, facts: FactCatalog, catalog: Catalog): String? {
     val d = beat.data
     return when (beat.kind) {
         BeatKind.START -> stringResource(Res.string.beat_start)
         BeatKind.END -> stringResource(Res.string.beat_end)
         BeatKind.QUIET_PERIOD -> stringResource(Res.string.quiet_node)
-        BeatKind.DECISION -> {
-            val event = beat.eventId?.let(eventById) ?: return null
-            val option = event.options.firstOrNull { it.id == d["option"] } ?: return localized(event.title)
-            stringResource(Res.string.beat_decision, localized(event.title), localized(option.label))
-        }
-        BeatKind.CASE_RESOLVED -> null
+        BeatKind.DECISION -> stringResource(Res.string.beat_decision, catalog.title(beat.eventId)?.let { localized(it) } ?: return null)
+        BeatKind.SHOCK -> stringResource(Res.string.beat_shock, catalog.title(beat.eventId)?.let { localized(it) } ?: return null)
+        BeatKind.OUTCOME -> null
         BeatKind.LIFE_CHANGE -> when {
             d["flag"] != null -> stringResource(Res.string.beat_milestone, facts.flags[d["flag"]]?.let { localized(it) } ?: d["flag"]!!)
             d["fact"] != null -> {

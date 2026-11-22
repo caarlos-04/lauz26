@@ -23,13 +23,14 @@ FutureSelfAgent (Koog AIAgent, single run, no tools) ──► OpenAI / Anthropi
   only numbers from the briefing, copy them exactly, say "I don't remember" otherwise, cite year/age, simulation ≠ advice,
   no new scenarios, answer in the user's language.
 - **Dynamic part** (`LifeBriefing` → `renderBriefing`): profile, life facts at start/end (labels from `facts.json`), money at start
-  and now, every turn (question, choice, luck, outcome, net worth before/after; quiet periods), moments (`StoryBeat`s), goals,
-  risk (low point, months negative / below cushion, financing cost), cash band, what moved net worth (`Attribution`), parallel
-  lives, assumptions. Amounts are pre-formatted in CHF so the model copies them instead of calculating.
-- Rebuilt **on every call** from the current branch: editing the tree changes what the future self knows on the next message
-  (the UI also clears the chat and the story). What-if branches and edited turns are flagged.
-- **Personas**: `FUTURE_SELF` (you in 10 years) and `PARALLEL_SELF` (the you who took the other first option; parallel life
-  `OTHER_FIRST_CHOICE`). **Chronicle**: ≤250-word story of the ten years, generated on demand in Results.
+  and now, every turn (the action decided, luck, outcome, a shock if any, net worth before/after; "carried on as before"),
+  moments (`StoryBeat`s), goals, risk (low point, months negative / below cushion, financing cost), cash band, what moved
+  net worth (`Attribution`), assumptions. Amounts are pre-formatted in CHF so the model copies them instead of calculating.
+- Rebuilt **on every call** from the selected node of the tree of decisions: each node has its own conversation, and turns
+  that differ from the life first played are flagged.
+- **Persona**: `FUTURE_SELF`, the self of the selected moment (ten years on at the end of a life; mid-life it does not know
+  what comes next). The parallel self went away with the automatic parallel lives. **Chronicle**: ≤250-word story,
+  generated on demand.
 
 ## Configuration
 | Env var | Default | Meaning |

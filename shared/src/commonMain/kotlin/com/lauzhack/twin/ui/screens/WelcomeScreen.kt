@@ -1,5 +1,10 @@
 package com.lauzhack.twin.ui.screens
 
+import androidx.compose.material3.FilterChip
+import com.lauzhack.twin.model.LuckMode
+import com.lauzhack.twin.resources.welcome_luck_title
+import com.lauzhack.twin.ui.i18n.keyString
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -47,7 +52,13 @@ import org.jetbrains.compose.resources.stringResource
 
 /** Start: an editorial cover (title, promise, two actions), a drawing of the map of lives and three numbered ideas. */
 @Composable
-fun WelcomeScreen(actions: TopBarActions, onStartInterview: () -> Unit, onPlayDemo: () -> Unit) {
+fun WelcomeScreen(
+    actions: TopBarActions,
+    onStartInterview: () -> Unit,
+    onPlayDemo: () -> Unit,
+    luckMode: LuckMode = LuckMode.SAME_LEVEL,
+    onLuckMode: (LuckMode) -> Unit = {},
+) {
     AppShell(actions) {
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val wide = maxWidth > 760.dp
@@ -56,7 +67,7 @@ fun WelcomeScreen(actions: TopBarActions, onStartInterview: () -> Unit, onPlayDe
                 horizontalArrangement = Arrangement.spacedBy(Space.xxxl),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Cover(onStartInterview, onPlayDemo, Modifier.weight(1.15f))
+                Cover(onStartInterview, onPlayDemo, luckMode, onLuckMode, Modifier.weight(1.15f))
                 if (wide) TreeDrawing(Modifier.weight(1f).height(300.dp))
             }
         }
@@ -85,7 +96,7 @@ fun WelcomeScreen(actions: TopBarActions, onStartInterview: () -> Unit, onPlayDe
 }
 
 @Composable
-private fun Cover(onStartInterview: () -> Unit, onPlayDemo: () -> Unit, modifier: Modifier) {
+private fun Cover(onStartInterview: () -> Unit, onPlayDemo: () -> Unit, luckMode: LuckMode, onLuckMode: (LuckMode) -> Unit, modifier: Modifier) {
     Column(modifier.widthIn(max = 560.dp), verticalArrangement = Arrangement.spacedBy(Space.l)) {
         Text(stringResource(Res.string.welcome_badge), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(stringResource(Res.string.welcome_title), style = MaterialTheme.typography.displayMedium)
@@ -101,6 +112,20 @@ private fun Cover(onStartInterview: () -> Unit, onPlayDemo: () -> Unit, modifier
             }
         }
         Text(stringResource(Res.string.welcome_demo_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        // How luck is drawn in the game (docs/decision-tree.md), chosen before it starts.
+        Column(verticalArrangement = Arrangement.spacedBy(Space.xs)) {
+            Text(stringResource(Res.string.welcome_luck_title), style = MaterialTheme.typography.labelLarge)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
+                LuckMode.entries.forEach { mode ->
+                    FilterChip(
+                        selected = mode == luckMode,
+                        onClick = { onLuckMode(mode) },
+                        label = { Text(keyString("welcome_luck_${mode.name}")) },
+                    )
+                }
+            }
+            Text(keyString("welcome_luck_desc_${luckMode.name}"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 

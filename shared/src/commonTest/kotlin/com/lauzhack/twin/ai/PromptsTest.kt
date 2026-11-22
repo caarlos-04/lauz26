@@ -17,8 +17,8 @@ class PromptsTest {
         lifeAtStart = listOf("Studying a bachelor", "Shared flat"),
         lifeAtEnd = listOf("Master's degree", "Rented flat", "Did a master's degree"),
         turns = listOf(
-            TurnLine(1, 0, false, "Finish the master?", "Finish it", "Start working", Luck.GOOD, "You got a grant.", 8_000.0, 12_500.0, 9_000.0),
-            TurnLine(2, 24, false, "Move to a studio?", "Stay", "Move", Luck.BAD, "Rent went up.", 12_500.0, 10_100.0, 4_200.0, editedInWhatIf = whatIf),
+            TurnLine(1, 0, false, "Do a master's", null, Luck.GOOD, 80, "You got a grant.", 8_000.0, 12_500.0, 9_000.0),
+            TurnLine(2, 24, false, "Move to a studio", "You lose your job: six months without work", Luck.BAD, 12, "Rent went up.", 12_500.0, 10_100.0, 4_200.0, editedInWhatIf = whatIf),
             TurnLine(3, 48, true, netWorthBeforeChf = 10_100.0, netWorthAfterChf = 15_000.0, cashAfterChf = 6_000.0),
         ),
         moments = listOf(MomentLine(30, "Cash went below zero (financing needed)")),
@@ -26,7 +26,6 @@ class PromptsTest {
         risk = RiskLine(-1_250.0, 30, 3, 14, 85.0),
         outlook = OutlookLine(1_000.0, 15_000.0, 30_000.0),
         drivers = listOf(DriverLine("Income (income)", 250_000.0)),
-        parallelLives = listOf(ParallelLine("Other first choice", listOf("Finish the master?: Start working"), 48_000.0, 13_234.4, 1, 0)),
         assumptionNotes = listOf("Inflation 1.5 % per year (assumption)."),
         isWhatIf = whatIf,
     )
@@ -42,17 +41,17 @@ class PromptsTest {
     @Test
     fun briefingContainsTurnsMomentsAndEngineNumbers() {
         val text = Prompts.renderBriefing(briefing())
-        listOf("Finish the master?", "Move to a studio?", "Finish it", "Start working", "Rent went up.").forEach { assertContains(text, it) }
-        assertContains(text, "good luck")
+        listOf("decided \"Do a master's\"", "decided \"Move to a studio\"", "Rent went up.").forEach { assertContains(text, it) }
+        assertContains(text, "Not chosen, it just happened: You lose your job")
+        assertContains(text, "good luck (percentile 80 of 100)")
         assertContains(text, "2027, age 24")                      // turn 2 at month 24
-        assertContains(text, "quiet period")                      // turn 3 had no event
+        assertContains(text, "carried on as before")              // turn 3: NOTHING
         assertContains(text, "net worth 61'234 CHF")              // final net worth
         assertContains(text, "-1'250 CHF")                        // lowest cash
         assertContains(text, "Months below the cushion: 14")
         assertContains(text, "Emergency fund: 10'000 CHF by 2028 -> REACHED")
         assertContains(text, "2027, age 24: Cash went below zero") // moment at month 30
         assertContains(text, "Life now: Master's degree")
-        assertContains(text, "+13'234 CHF")                       // vs the other life
         assertContains(text, "Inflation 1.5 %")
     }
 
@@ -61,22 +60,21 @@ class PromptsTest {
         assertFalse("WHAT-IF" in Prompts.renderBriefing(briefing(whatIf = false)))
         val edited = Prompts.renderBriefing(briefing(whatIf = true))
         assertContains(edited, "WHAT-IF")
-        assertContains(edited, "[changed in the what-if tree]")
+        assertContains(edited, "[different from the life first played]")
     }
 
     @Test
     fun personasAndChronicleShareRulesAndBriefing() {
         val b = briefing(lang = ChatLanguage.ES)
         val future = Prompts.chatSystem(b, Persona.FUTURE_SELF)
-        val parallel = Prompts.chatSystem(b, Persona.PARALLEL_SELF)
         val chronicle = Prompts.chronicleSystem(b)
-        listOf(future, parallel, chronicle).forEach {
+        listOf(future, chronicle).forEach {
             assertContains(it, "Never calculate new numbers")
             assertContains(it, "not financial advice")
             assertContains(it, "Answer language: Spanish")
             assertTrue(it.endsWith(Prompts.renderBriefing(b)))
         }
-        assertContains(parallel, "parallel self")
+        assertContains(future, "future self")
         assertContains(chronicle, "at most 250 words")
     }
 
@@ -90,11 +88,10 @@ class PromptsTest {
         val mid = briefing().copy(
             end = MoneySnapshot(48, 6_000.0, 15_000.0, 400.0, 0.0, "employed"),
             goals = listOf(GoalLine("House deposit", 50_000.0, 96, reached = false, progressPercent = 12)),
-            parallelLives = emptyList(),
             outlook = null,
             complete = false,
         )
-        val system = Prompts.chatSystem(mid, Persona.PARALLEL_SELF)          // no parallel self mid-life
+        val system = Prompts.chatSystem(mid, Persona.FUTURE_SELF)
         assertContains(system, "You do NOT know what happens after now")
         assertFalse(system.contains("ten years from now"))
         assertContains(system, "Now (you): 2029, age 26")
