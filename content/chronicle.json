@@ -20,7 +20,7 @@
       "flag": "facts.json label of the milestone data.flag",
       "because": "the 'because' text with the event title when the beat was caused by an event other than the decision being told (e.g. a job that starts two years after the master's), otherwise empty"
     },
-    "check": "python tools/chronicle.py --check; render a real game: python tools/chronicle.py --play P00001 --choices A,B --lang ES"
+    "check": "python tools/chronicle.py --check; render a real game: python tools/chronicle.py --play <profile_id> --choices A,B --lang ES"
   },
   "beats": {
     "START": {

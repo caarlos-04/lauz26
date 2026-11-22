@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "facts": {
+    "EDUCATION": {
+      "UNKNOWN": { "ES": "Estudios no indicados", "EN": "Education not stated" },
+      "BACHELOR_IN_PROGRESS": { "ES": "Estudiando el grado", "EN": "Studying for a bachelor's" },
+      "BACHELOR": { "ES": "Graduada/o", "EN": "Bachelor's degree" },
+      "MASTER_IN_PROGRESS": { "ES": "Estudiando un máster", "EN": "Studying for a master's" },
+      "MASTER": { "ES": "Máster", "EN": "Master's degree" }
+    },
+    "OCCUPATION": {
+      "NONE": { "ES": "Sin actividad laboral", "EN": "No work activity" },
+      "JUNIOR": { "ES": "Primer empleo", "EN": "First job" },
+      "PROFESSIONAL": { "ES": "Profesional", "EN": "Professional" },
+      "SENIOR": { "ES": "Puesto sénior", "EN": "Senior role" }
+    },
+    "CITY": {
+      "Lausanne": { "ES": "Lausana", "EN": "Lausanne" },
+      "Geneva": { "ES": "Ginebra", "EN": "Geneva" },
+      "Zurich": { "ES": "Zúrich", "EN": "Zurich" },
+      "Basel": { "ES": "Basilea", "EN": "Basel" },
+      "Bern": { "ES": "Berna", "EN": "Bern" },
+      "Lugano": { "ES": "Lugano", "EN": "Lugano" },
+      "Lucerne": { "ES": "Lucerna", "EN": "Lucerne" },
+      "Fribourg": { "ES": "Friburgo", "EN": "Fribourg" },
+      "Neuchatel": { "ES": "Neuchâtel", "EN": "Neuchâtel" },
+      "Biel": { "ES": "Biel", "EN": "Biel" },
+      "St Gallen": { "ES": "San Galo", "EN": "St Gallen" },
+      "Winterthur": { "ES": "Winterthur", "EN": "Winterthur" },
+      "ABROAD": { "ES": "En el extranjero", "EN": "Abroad" }
+    },
+    "HOUSING": {
+      "WITH_PARENTS": { "ES": "Con la familia", "EN": "Living with family" },
+      "SHARED_FLAT": { "ES": "Piso compartido", "EN": "Shared flat" },
+      "RENTED_FLAT": { "ES": "Piso de alquiler", "EN": "Rented flat" },
+      "OWNED_HOME": { "ES": "Vivienda en propiedad", "EN": "Own home" }
+    },
+    "FAMILY": {
+      "SINGLE": { "ES": "Sin pareja", "EN": "Single" },
+      "COUPLE": { "ES": "En pareja", "EN": "In a couple" },
+      "FAMILY": { "ES": "Con hijos", "EN": "With children" }
+    }
+  },
+  "flags": {
+    "did_master": { "ES": "Hizo un máster", "EN": "Did a master's" },
+    "started_working_early": { "ES": "Empezó a trabajar al acabar el grado", "EN": "Started working right after the bachelor's" },
+    "took_loan": { "ES": "Pidió un préstamo", "EN": "Took out a loan" },
+    "kept_overdraft": { "ES": "Siguió en descubierto", "EN": "Stayed overdrawn" },
+    "did_part_time_master": { "ES": "Hizo un máster a tiempo parcial", "EN": "Did a part-time master's" },
+    "skipped_master": { "ES": "Decidió no hacer el máster", "EN": "Decided not to do the master's" },
+    "promoted": { "ES": "Ascendió a un puesto de responsabilidad", "EN": "Was promoted to a management role" },
+    "moved_for_job": { "ES": "Se mudó de ciudad por trabajo", "EN": "Moved to another city for work" },
+    "declined_promotion": { "ES": "Rechazó un ascenso", "EN": "Turned down a promotion" },
+    "lost_job": { "ES": "Perdió el trabajo", "EN": "Lost their job" },
+    "took_part_time_job": { "ES": "Aceptó un trabajo a tiempo parcial", "EN": "Took a part-time job" },
+    "four_day_week": { "ES": "Pasó a trabajar cuatro días a la semana", "EN": "Moved to a four-day week" },
+    "stayed_full_time": { "ES": "Siguió a jornada completa", "EN": "Stayed full time" },
+    "moved_to_shared_flat": { "ES": "Se mudó a un piso compartido", "EN": "Moved into a shared flat" },
+    "rented_own_flat": { "ES": "Alquiló un piso para vivir solo", "EN": "Rented a flat of their own" },
+    "stayed_in_flat": { "ES": "Se quedó en el mismo piso", "EN": "Stayed in the same flat" },
+    "started_business": { "ES": "Montó su propio negocio", "EN": "Started their own business" },
+    "stayed_employed": { "ES": "Siguió como asalariado", "EN": "Stayed an employee" },
+    "retired": { "ES": "Se jubiló", "EN": "Retired" },
+    "moved_to_cheaper_city": { "ES": "Se mudó a una ciudad más barata", "EN": "Moved to a cheaper city" },
+    "stayed_in_city": { "ES": "Se quedó en su ciudad", "EN": "Stayed in their city" },
+    "back_to_full_time": { "ES": "Volvió a jornada completa", "EN": "Went back to full time" },
+    "became_employee": { "ES": "Cerró su negocio y volvió a ser asalariado", "EN": "Closed their business and became an employee" }
+  },
+  "initialFromProfile": {
+    "EDUCATION": { "from": "datasetEmployment", "map": { "STUDENT": "BACHELOR_IN_PROGRESS" }, "default": "UNKNOWN" },
+    "OCCUPATION": {
+      "from": "datasetEmployment",
+      "map": { "EMPLOYED": "PROFESSIONAL", "PART_TIME": "PROFESSIONAL", "SELF_EMPLOYED": "PROFESSIONAL" },
+      "default": "NONE"
+    },
+    "HOUSING": { "from": "household", "map": { "SHARED_HOUSING": "SHARED_FLAT" }, "default": "RENTED_FLAT" },
+    "FAMILY": {
+      "from": "household",
+      "map": { "SINGLE": "SINGLE", "SHARED_HOUSING": "SINGLE", "COUPLE": "COUPLE", "FAMILY": "FAMILY" }
+    },
+    "CITY": { "from": "city" }
+  }
+}

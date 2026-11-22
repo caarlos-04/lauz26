@@ -6,8 +6,12 @@
 | `facts.json` | Life facts (education, occupation, city, housing, family), milestones and initial-fact rules | `docs/README.md` 5.4 |
 | `assumptions.json` | Engine rules without person data: financing rate, investment return, default case probabilities, penalties per objective, sensitivity ranges (every number with its source). **Generated** by `python tools/assumptions.py --build` (after `tools/macro.py`); inflation and wage/rent growth live in `macro.json` and the sensitivity copies their range | `docs/README.md` 5.7, `Assumptions` (Kotlin) |
 | `chronicle.json` | Chronicle templates (P11, plan B without network): one ES/EN sentence per `StoryBeat` kind, life-change variants and labels. Only uses the numbers the beats carry. Check: `python tools/chronicle.py --check` | `ChronicleTemplates` (Kotlin, `chronicle/Chronicle.kt`) |
+| `flow-model.json` | Simulator input: monthly flows learned from the ledger (aggregates only: factors, quantiles). **Generated** by `tools/flow_model.py` (Dev A), copied here with `python tools/ship_resources.py --from-out` | `FlowModel` (`model/Simulation.kt`) |
+| `macro.json` | Simulator input: Swiss trends and the yearly public series behind them. **Generated** by `tools/macro.py` (Dev A), copied the same way | `MacroFile` (`model/Simulation.kt`) |
 
-Once the KMP project exists, these files are copied into the `commonMain` resources.
+Every `*.json` here is shipped with the app: `python tools/ship_resources.py` copies them to
+`shared/src/commonMain/composeResources/files/` and `AppContent.load()` (`shared/.../content/AppContent.kt`) decodes them on
+Android, Desktop and Web. A test fails if a shipped copy is older than its source, so run the script after editing a file here.
 Event and fact texts are written in both languages (`{"ES": "...", "EN": "..."}`) because they are shown to the user.
 
 ## Before pushing content
@@ -60,3 +64,20 @@ from `tools/event_data.py` (`tools/out/event-data.json`).
 
 Coverage (one game per dataset profile, 2,400 games): about one quiet turn out of five for people who work or study;
 retired people get fewer events (nothing measurable in the catalogue fits most of them).
+
+## Data sources and attribution
+The shipped files hold aggregates only, never a row of the synthetic dataset (`tools/ship_resources.py --check` looks for row
+identifiers). Sources and reuse terms (checked 2026-11-22; the repository is private):
+- **LauzHack 2026 AI Financial Twin Challenge, synthetic dataset** (concept and framework: Stefania Stan): used as the
+  organisers permit for the challenge; `flow-model.json` keeps only fitted factors and quantiles.
+- **Swiss Federal Statistical Office (BFS)**: rent price index, Swiss wage index, earnings structure survey (T9_b, T11).
+  Terms OPEN-BY: free use, commercial included, **citing the source is mandatory**.
+- **Swiss National Bank (SNB)**, data.snb.ch: exchange rates (`devkum`), Confederation bond yields (`rendoblid`).
+  Non-commercial use with the source cited; commercial use needs SNB consent.
+- **Bank for International Settlements (BIS)**: central bank policy rates (`WS_CBPOL`), residential property prices (`WS_SPP`).
+  Free reproduction, **BIS cited as the source**, without implying endorsement.
+- **World Bank**, World Development Indicators (inflation, GDP growth, unemployment): reuse with attribution (CC BY 4.0).
+- **Eurostat** (`une_rt_m`): © European Union, reuse with acknowledgement of the source.
+
+The UI must show these sources (e.g. in an "About the data" screen); `macro.json` carries provider, dataset, URL and retrieval
+date for every series.
