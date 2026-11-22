@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App -->
+    <string name="app_name">Financial Twin</string>
+    <string name="app_tagline">No predigas el futuro. Hazlo explorable.</string>
+    <string name="action_back">Atrás</string>
+    <string name="action_restart">Empezar de nuevo</string>
+    <string name="theme_dark">Oscuro</string>
+    <string name="theme_light">Claro</string>
+    <string name="lang_toggle">EN</string>
+    <string name="months_value">%1$d meses</string>
+    <string name="month_value">Mes %1$d</string>
+    <string name="disclaimer">Esto es una simulación con datos sintéticos, no una predicción ni asesoramiento financiero. Importes en CHF, sin impuestos.</string>
+
+    <!-- Welcome -->
+    <string name="welcome_title">Diseña tu propia vida</string>
+    <string name="welcome_subtitle">Toma decisiones para los próximos 10 años y mira cómo podrían evolucionar tus finanzas en casos pesimista, neutro y optimista.</string>
+    <string name="welcome_start_interview">Crear mi perfil</string>
+    <string name="welcome_play_demo">Jugar como Alexia (demo)</string>
+    <string name="welcome_demo_desc">Alexia, 20 años, estudiante en Lausana, con CHF 8’000 ahorrados.</string>
+
+    <!-- Interview -->
+    <string name="interview_title">Cuéntanos sobre ti</string>
+    <string name="interview_progress">Pregunta %1$d de %2$d</string>
+    <string name="q_age">¿Cuántos años tienes?</string>
+    <string name="q_age_a1">18–22</string>
+    <string name="q_age_a2">23–30</string>
+    <string name="q_age_a3">31–45</string>
+    <string name="q_age_a4">46–64</string>
+    <string name="q_city">¿Dónde vives?</string>
+    <string name="q_city_lausanne">Lausana</string>
+    <string name="q_city_geneva">Ginebra</string>
+    <string name="q_city_zurich">Zúrich</string>
+    <string name="q_city_bern">Berna</string>
+    <string name="q_education">¿Estás estudiando?</string>
+    <string name="q_education_bachelor_in_progress">Sí, un grado</string>
+    <string name="q_education_master_in_progress">Sí, un máster</string>
+    <string name="q_education_bachelor">No, tengo un grado</string>
+    <string name="q_education_master">No, tengo un máster</string>
+    <string name="q_education_none">No, no tengo título</string>
+    <string name="q_employment">¿A qué te dedicas?</string>
+    <string name="q_employment_not_working">No trabajo</string>
+    <string name="q_employment_employed">Empleado a tiempo completo</string>
+    <string name="q_employment_part_time">Tiempo parcial</string>
+    <string name="q_employment_self_employed">Autónomo</string>
+    <string name="q_household">¿Con quién vives?</string>
+    <string name="q_household_single">Solo/a</string>
+    <string name="q_household_couple">Con mi pareja</string>
+    <string name="q_household_family">Con mi familia (hijos)</string>
+    <string name="q_household_shared">Piso compartido</string>
+    <string name="q_income">¿Cuál es tu ingreso neto mensual?</string>
+    <string name="q_income_i1">Menos de CHF 1’500</string>
+    <string name="q_income_i2">CHF 1’500 – 4’000</string>
+    <string name="q_income_i3">CHF 4’000 – 7’000</string>
+    <string name="q_income_i4">Más de CHF 7’000</string>
+    <string name="q_rent">¿Cuánto pagas de alquiler al mes?</string>
+    <string name="q_rent_r1">Menos de CHF 1’000</string>
+    <string name="q_rent_r2">CHF 1’000 – 1’600</string>
+    <string name="q_rent_r3">CHF 1’600 – 2’500</string>
+    <string name="q_rent_r4">Más de CHF 2’500</string>
+    <string name="q_cash">¿Cuánto tienes ahorrado?</string>
+    <string name="q_cash_c1">Menos de CHF 5’000</string>
+    <string name="q_cash_c2">CHF 5’000 – 15’000</string>
+    <string name="q_cash_c3">CHF 15’000 – 50’000</string>
+    <string name="q_cash_c4">Más de CHF 50’000</string>
+    <string name="q_goal">¿Cuál es tu meta principal?</string>
+    <string name="q_goal_emergency">Un fondo de emergencia</string>
+    <string name="q_goal_home">Comprar o alquilar mi propia casa</string>
+    <string name="q_goal_travel">Viajar</string>
+    <string name="q_goal_retirement">Preparar mi jubilación</string>
+
+    <!-- Goals -->
+    <string name="goal_emergency">Fondo de emergencia</string>
+    <string name="goal_travel">Gran viaje</string>
+    <string name="goal_home">Entrada de un piso</string>
+    <string name="goal_retirement">Ahorro para la jubilación</string>
+
+    <!-- Employment -->
+    <string name="employment_EMPLOYED">Empleado</string>
+    <string name="employment_PART_TIME">Tiempo parcial</string>
+    <string name="employment_SELF_EMPLOYED">Autónomo</string>
+    <string name="employment_RETIRED">Jubilado</string>
+    <string name="employment_UNEMPLOYED">Desempleado</string>
+
+    <!-- State summary -->
+    <string name="state_cash">Caja</string>
+    <string name="state_net_worth">Patrimonio neto</string>
+    <string name="state_monthly_net">Balance mensual</string>
+    <string name="state_age">Edad</string>
+    <string name="state_age_value">%1$d años</string>
+    <string name="state_status">Situación</string>
+
+    <!-- Dilemma -->
+    <string name="dilemma_turn">Turno %1$d de %2$d · mes %3$d</string>
+    <string name="option_label">Opción %1$s</string>
+    <string name="case_PESSIMISTIC">Pesimista</string>
+    <string name="case_NEUTRAL">Neutro</string>
+    <string name="case_OPTIMISTIC">Optimista</string>
+    <string name="case_prob">Probabilidad %1$s</string>
+    <string name="delta_net_worth">Cambio de patrimonio</string>
+    <string name="min_cash">Caja mínima</string>
+    <string name="choose_option">Elegir %1$s</string>
+    <string name="dilemma_hint">Cada opción muestra sus 3 casos posibles tras %1$d meses. Al elegir, se sortea uno.</string>
+
+    <!-- Resolution -->
+    <string name="resolution_title">Qué ha pasado</string>
+    <string name="resolution_drawing">Sorteando el caso…</string>
+    <string name="resolution_case_drawn">Caso sorteado: %1$s</string>
+    <string name="resolution_before">Antes</string>
+    <string name="resolution_after">Tras %1$d meses</string>
+    <string name="resolution_next_turn">Siguiente turno</string>
+    <string name="resolution_see_results">Ver mi futuro</string>
+    <string name="resolution_counterfactual">Con la otra opción (mismo caso), tu patrimonio sería %1$s.</string>
+
+    <!-- Results -->
+    <string name="results_title">Tus próximos 10 años</string>
+    <string name="chart_cash">Evolución de la caja</string>
+    <string name="chart_net_worth">Evolución del patrimonio neto</string>
+    <string name="chart_calibrated">Calibrado con datos</string>
+    <string name="chart_assumptions">Solo supuestos</string>
+    <string name="legend_band">Rango p10–p90</string>
+    <string name="legend_median">Mediana (camino elegido)</string>
+    <string name="legend_alternative">Mediana (camino alternativo)</string>
+    <string name="stats_title">Cifras clave</string>
+    <string name="stat_final_net_worth">Patrimonio final</string>
+    <string name="stat_min_cash">Caja mínima</string>
+    <string name="stat_min_cash_value">%1$s (mes %2$d)</string>
+    <string name="stat_months_negative">Meses con caja negativa</string>
+    <string name="stat_prob_negative">Probabilidad de caja negativa</string>
+    <string name="goals_title">Metas</string>
+    <string name="goal_target">%1$s antes del mes %2$d</string>
+    <string name="goal_reached">Alcanzada</string>
+    <string name="goal_missed">No alcanzada</string>
+    <string name="goal_prob">Probabilidad: %1$s</string>
+    <string name="goal_median_month">Normalmente se alcanza en el mes %1$d</string>
+    <string name="compare_title">Camino elegido vs alternativo</string>
+    <string name="compare_chosen">Elegido</string>
+    <string name="compare_alternative">Alternativo</string>
+    <string name="compare_delta">Diferencia en patrimonio final</string>
+    <string name="compare_reasons">Decisiones que explican la diferencia (de mayor a menor)</string>
+    <string name="compare_reason_line">%1$s → %2$s en ese turno</string>
+    <string name="assumptions_title">Supuestos</string>
+    <string name="limitations_title">Limitaciones</string>
+    <string name="limitation_1">El dataset solo cubre 24 meses; más allá, las curvas dependen de supuestos explícitos.</string>
+    <string name="limitation_2">Los datos son sintéticos: la calibración reproduce el generador, no el comportamiento real.</string>
+    <string name="limitation_3">No se modelan impuestos, pilares de pensión ni varios miembros del hogar.</string>
+    <string name="limitation_4">No es asesoramiento financiero: úsalo para explorar, no para decidir.</string>
+    <string name="results_chat">Hablar con mi yo del futuro</string>
+
+    <!-- Chat -->
+    <string name="chat_title">Tu yo del futuro</string>
+    <string name="chat_intro">Pregunta a tu yo del futuro por tus resultados. Las respuestas solo usan las cifras calculadas por la simulación.</string>
+    <string name="chat_placeholder">Pregunta algo…</string>
+    <string name="chat_send">Enviar</string>
+    <string name="chat_thinking">Pensando…</string>
+    <string name="chat_suggestion_risk">¿Cuál fue mi mayor riesgo?</string>
+    <string name="chat_suggestion_goals">¿Alcancé mis metas?</string>
+    <string name="chat_suggestion_other">¿Y si hubiera elegido las otras opciones?</string>
+
+    <!-- Events -->
+
+    <!-- Decision tree (what-if) -->
+    <string name="tree_title">Tu árbol de decisiones</string>
+    <string name="tree_hint">Toca la otra rama de cualquier turno para cambiar la decisión, o elige otro caso. Las decisiones posteriores se mantienen y todo lo de abajo se recalcula.</string>
+    <string name="tree_start">Inicio · patrimonio %1$s</string>
+    <string name="tree_level">Turno %1$d · mes %2$d</string>
+    <string name="tree_net_worth_after">Patrimonio después</string>
+    <string name="tree_would_be">Sería</string>
+    <string name="tree_edited">editado</string>
+    <string name="tree_reset">Volver al camino que jugué</string>
+    <string name="chat_edited_notice">Estás explorando un camino editado: las respuestas usan sus cifras.</string>
+    <string name="tree_pending_level">Turno %1$d · mes %2$d · pregunta nueva</string>
+    <string name="tree_new_question">pregunta nueva</string>
+    <string name="results_incomplete">Camino incompleto: responde la pregunta nueva del árbol para ver los 10 años completos. Las cifras de abajo suponen que no hay más decisiones.</string>
+
+    <!-- Redesign -->
+    <string name="nav_year">Año %1$d / %2$d</string>
+    <string name="profile_you">Tú</string>
+    <string name="timeline_title">Tus 10 años</string>
+    <string name="chart_tooltip_when">Año %1$s · mes %2$s</string>
+    <string name="year_axis">A%1$d</string>
+    <string name="welcome_badge">AI Financial Twin · LauzHack 2026</string>
+    <string name="welcome_feature_cases_title">Tres casos por decisión</string>
+    <string name="welcome_feature_cases_desc">Cada elección muestra un resultado pesimista, neutro y optimista antes de decidir.</string>
+    <string name="welcome_feature_mc_title">Explora cada rama</string>
+    <string name="welcome_feature_mc_desc">Un árbol de decisiones exacto y vidas paralelas muestran qué cambió cada decisión, con la misma suerte.</string>
+    <string name="welcome_feature_chat_title">Habla con tu yo del futuro</string>
+    <string name="welcome_feature_chat_desc">Pregunta por tus resultados; las respuestas solo usan las cifras calculadas por la simulación.</string>
+    <string name="welcome_preview_label">Ilustración: un rango de futuros posibles</string>
+    <string name="tab_overview">Resumen</string>
+    <string name="tab_tree">Árbol de decisiones</string>
+    <string name="tab_assumptions">Supuestos</string>
+    <string name="kpi_vs_alternative">vs. el camino alternativo</string>
+    <string name="goals_reached_value">%1$d de %2$d</string>
+    <string name="results_headline">Adónde te llevan tus decisiones</string>
+    <string name="chat_cta_desc">Pregunta por los riesgos, las metas o qué habría pasado si no.</string>
+    <string name="chat_future_self">Tú, dentro de 10 años</string>
+    <string name="chat_ai_badge">IA · %1$s</string>
+    <string name="chat_offline_badge">Respuestas de ejemplo</string>
+    <string name="chat_offline_note">Respuesta sin conexión: no se pudo contactar con la IA.</string>
+    <string name="quiet_title">Un periodo tranquilo</string>
+    <string name="quiet_desc">Ninguna gran decisión en estos %1$d meses: la vida sigue y tus finanzas evolucionan solas.</string>
+    <string name="quiet_node">Periodo tranquilo</string>
+    <string name="pl_title">Vidas paralelas</string>
+    <string name="pl_subtitle">Misma suerte, otras decisiones, calculado por el motor</string>
+    <string name="pl_other_first">Otra primera decisión</string>
+    <string name="pl_optimal">Mejor estrategia</string>
+    <string name="pl_vs">frente a ti: %1$s</string>
+    <string name="kpi_below_cushion">Meses bajo el colchón</string>
+    <string name="kpi_financing_cost">Coste de financiación</string>
+    <string name="drivers_title">Qué movió tu patrimonio</string>
+    <string name="driver_income">Ingresos</string>
+    <string name="driver_expense">Gastos</string>
+    <string name="driver_debt">Intereses del préstamo</string>
+    <string name="driver_financing">Coste de la caja negativa</string>
+    <string name="driver_investment">Crecimiento de inversiones</string>
+    <string name="driver_other">Otros</string>
+    <string name="chronicle_title">Tu historia</string>
+    <string name="chronicle_desc">Tu yo del futuro cuenta estos diez años, usando solo las cifras calculadas.</string>
+    <string name="chronicle_write">Escribir mi historia</string>
+    <string name="chronicle_rewrite">Volver a escribir</string>
+    <string name="persona_future">Yo del futuro</string>
+    <string name="persona_parallel">Yo paralelo</string>
+    <string name="chat_parallel_intro">Habla con el tú que eligió la otra opción en la primera decisión.</string>
+    <string name="q_objective">¿Qué es lo más importante para ti?</string>
+    <string name="q_objective_growth">Hacer crecer mi patrimonio</string>
+    <string name="q_objective_balanced">Un equilibrio entre crecer y seguridad</string>
+    <string name="q_objective_safe">La seguridad, ante todo</string>
+    <string name="q_mincash">¿Cuánto dinero quieres tener siempre disponible?</string>
+    <string name="q_mincash_m1">Unos 1.000 CHF</string>
+    <string name="q_mincash_m2">Unos 3.000 CHF</string>
+    <string name="q_mincash_m3">Unos 6.000 CHF</string>
+    <string name="q_mincash_m4">Unos 12.000 CHF</string>
+    <string name="cash_band_title">Caja: ruido mes a mes</string>
+    <string name="cash_band_desc">Cuánto mueven tu caja los altibajos de cada mes (p10–p90), con tus decisiones y tu suerte fijas. El análisis está en el árbol de decisiones y las vidas paralelas.</string>
+    <string name="lifeline_title">Tu línea de vida</string>
+    <string name="lifeline_subtitle">Los momentos que marcaron tus diez años, calculados por el motor</string>
+    <string name="beat_when">Mes %1$d · %2$d años</string>
+    <string name="beat_start">Inicio de la partida</string>
+    <string name="beat_end">Fin de los diez años</string>
+    <string name="beat_decision">%1$s → %2$s</string>
+    <string name="beat_cash_negative">La caja bajó de cero (financiada con intereses)</string>
+    <string name="beat_cash_recovered">La caja vuelve a ser positiva</string>
+    <string name="beat_low_point">Caja mínima: %1$s</string>
+    <string name="beat_goal_reached">Objetivo alcanzado: %1$s</string>
+    <string name="beat_goal_missed">Objetivo no alcanzado: %1$s</string>
+    <string name="beat_milestone">Hito: %1$s</string>
+    <string name="beat_work">Trabajo: %1$s</string>
+    <string name="waterfall_start">Patrimonio al inicio</string>
+    <string name="waterfall_end">Patrimonio al final</string>
+    <string name="pl_side_title">Lado a lado: la otra primera elección</string>
+    <string name="pl_side_desc">La misma suerte en cada turno; solo cambia la primera decisión. La diferencia es lo que aportó esa decisión.</string>
+    <string name="pl_row_turn">Turno %1$d</string>
+    <string name="employment_NOT_WORKING">Sin trabajo</string>
+</resources>

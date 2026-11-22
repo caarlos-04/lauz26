@@ -10,5 +10,8 @@ captures
 .cxx
 node_modules/
 
+# Local secrets (API keys): copy .env.example to .env
+.env
+
 # Third-party public datasets (redistribution terms not checked); regenerate with data/download.sh
 data/raw/

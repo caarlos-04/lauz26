@@ -1,0 +1,119 @@
+package com.lauzhack.twin.ai
+
+import kotlinx.serialization.Serializable
+
+/**
+ * Everything the future self is allowed to know: one life path (the branch selected in the decision tree),
+ * already computed by the engine and with every label resolved. It is the dynamic part of the prompt;
+ * the LLM never computes on it. Built by [BriefingMapper] from [ChatContext].
+ * Money is CHF, months are indices since the start of the game.
+ */
+@Serializable
+data class LifeBriefing(
+    val language: ChatLanguage,
+    val profile: ProfileLine,
+    val start: MoneySnapshot,
+    val end: MoneySnapshot,
+    val lifeAtStart: List<String>,
+    val lifeAtEnd: List<String>,
+    val turns: List<TurnLine>,
+    val moments: List<MomentLine>,
+    val goals: List<GoalLine>,
+    val risk: RiskLine,
+    val outlook: OutlookLine? = null,
+    val drivers: List<DriverLine> = emptyList(),
+    val parallelLives: List<ParallelLine> = emptyList(),
+    val assumptionNotes: List<String> = emptyList(),
+    /** True when the user changed decisions or luck in the tree: this is not the life they played. */
+    val isWhatIf: Boolean = false,
+)
+
+@Serializable enum class ChatLanguage { EN, ES }
+
+/** Luck drawn for a decision (pessimistic / neutral / optimistic case). */
+@Serializable enum class Luck { BAD, AVERAGE, GOOD }
+
+@Serializable
+data class ProfileLine(
+    val name: String,
+    val ageAtStart: Int,
+    val startYear: Int,
+    val horizonYears: Int,
+    val city: String,
+    val household: String,
+    val objective: String,
+    val minCashChf: Double,
+)
+
+@Serializable
+data class MoneySnapshot(
+    val month: Int,
+    val cashChf: Double,
+    val netWorthChf: Double,
+    val monthlyNetChf: Double,
+    val debtChf: Double,
+    val employment: String,
+)
+
+/** One turn: a decision, or a quiet period when no event fitted ([quiet] = true, decision fields null). */
+@Serializable
+data class TurnLine(
+    val turn: Int,              // 1-based
+    val month: Int,             // month the turn started
+    val quiet: Boolean,
+    val question: String? = null,
+    val chosen: String? = null,
+    val notChosen: String? = null,
+    val luck: Luck? = null,
+    val outcome: String? = null,
+    val netWorthBeforeChf: Double,
+    val netWorthAfterChf: Double,
+    val cashAfterChf: Double,
+    /** Changed by the user in the what-if tree (option or luck differs from the played game). */
+    val editedInWhatIf: Boolean = false,
+)
+
+/** A story moment (engine StoryBeat) already turned into a short English line. */
+@Serializable
+data class MomentLine(val month: Int, val text: String)
+
+@Serializable
+data class GoalLine(
+    val name: String,
+    val targetChf: Double,
+    val targetMonth: Int,
+    val reached: Boolean,
+    val progressPercent: Int,
+)
+
+@Serializable
+data class RiskLine(
+    val minCashChf: Double,
+    val minCashMonth: Int,
+    val monthsNegativeCash: Int,
+    val monthsBelowMinCash: Int,
+    val financingCostChf: Double,
+)
+
+/** Monte Carlo cash band at the end of the horizon. */
+@Serializable
+data class OutlookLine(
+    val finalCashP10Chf: Double,
+    val finalCashP50Chf: Double,
+    val finalCashP90Chf: Double,
+)
+
+/** One line of the net worth attribution (start + sum of drivers = end). */
+@Serializable
+data class DriverLine(val label: String, val chf: Double)
+
+/** Another life computed by the engine with the same luck. */
+@Serializable
+data class ParallelLine(
+    val title: String,                 // "Other first choice", "Best strategy"
+    val choices: List<String>,         // "Question: chosen option" per decision
+    val finalNetWorthChf: Double,
+    val deltaVsThisPathChf: Double,    // this path minus that life
+    val goalsReached: Int,
+    val monthsNegativeCash: Int,
+)
