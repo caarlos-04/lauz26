@@ -5,7 +5,7 @@ import com.lauzhack.twin.interview.DemoProfile
 import com.lauzhack.twin.interview.InterviewCatalog
 import com.lauzhack.twin.interview.InterviewDefaults
 import com.lauzhack.twin.model.Assumptions
-import com.lauzhack.twin.model.EventCatalog
+import com.lauzhack.twin.model.ActionCatalog
 import com.lauzhack.twin.model.FactCatalog
 import com.lauzhack.twin.model.FlowModel
 import com.lauzhack.twin.model.MacroFile
@@ -16,7 +16,7 @@ import org.jetbrains.compose.resources.ExperimentalResourceApi
 // Everything the app reads at start, decoded from the JSON packaged as Compose resources (composeResources/files/,
 // copied from content/ by tools/ship_resources.py). Same files on Android, Desktop and Web.
 data class AppContent(
-    val events: EventCatalog,
+    val events: ActionCatalog,
     val facts: FactCatalog,
     val assumptions: Assumptions,
     val chronicle: ChronicleTemplates,

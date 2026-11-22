@@ -1,127 +1,108 @@
 package com.lauzhack.twin.ui
 
 import com.lauzhack.twin.engine.isOver
+import com.lauzhack.twin.engine.nodeId
 import com.lauzhack.twin.fake.FakeData
-import com.lauzhack.twin.fake.FakeGameEngine
 import com.lauzhack.twin.fake.FakeTwinFactory
+import com.lauzhack.twin.model.FactKey
 import com.lauzhack.twin.model.GameConfig
 import com.lauzhack.twin.model.GameSession
+import com.lauzhack.twin.model.LuckMode
+import com.lauzhack.twin.model.NOTHING
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
+// The tree of decisions (docs/decision-tree.md) on the real engine with the small model of FakeData.
 class LifeTreeTest {
-    private val engine = FakeGameEngine(FakeData.events, FakeData.assumptions)
-    private val carTurn = 3 // E-car has earliestTurn = 3
+    private val engine = FakeData.engine()
 
-    private fun start(): LifeTree {
+    private fun start(mode: LuckMode = LuckMode.SAME_LEVEL): LifeTree {
         val game = FakeTwinFactory().demo()
-        return LifeTree.start(GameSession(game.opening, 11L, game.preferences, emptyList(), GameConfig()))
+        return LifeTree.start(GameSession(game.opening, 11L, game.preferences, emptyList(), GameConfig(), mode))
     }
 
-    /** Live play: always option A (quiet turns are played as they come). */
-    private fun playAllA(tree: LifeTree = start()): LifeTree {
+    /** Live play: the given actions, then "carry on as you are" to the end. */
+    private fun play(vararg path: String, tree: LifeTree = start()): LifeTree {
         var t = tree
-        while (!t.current.isOver) t = if (engine.questionAt(t) == null) engine.playQuiet(t) else engine.choose(t, "A")
+        var i = 0
+        while (!t.current.isOver) t = engine.choose(t, path.getOrElse(i++) { NOTHING })
         return t
     }
 
     @Test
-    fun keyIsTheChoices() {
-        val t = playAllA()
-        assertEquals(listOf("E-studies", "E-housing", "E-hours", "E-car", "E-car-loan"), t.current.turns.map { it.eventId })
-        assertEquals("AAAAA", t.cursor)
-        assertEquals(t.cursor, t.current.nodeKey)
-        assertEquals(setOf("", "A", "AA", "AAA", "AAAA", "AAAAA"), t.visited)
+    fun theKeyIsThePathOfActions() {
+        val t = play("A-master")
+        assertEquals("A-master/NOTHING/NOTHING/NOTHING/NOTHING", t.cursor)
+        assertEquals(t.cursor, t.current.nodeId)
+        assertEquals(6, t.nodes.size, "one node per decision taken, nothing else")
+        assertEquals(t.nodes.keys, t.decisions.nodes.keys)
+        assertEquals(t.current.turns.last().stateAfter, t.decisions.nodes.getValue(t.cursor).state)
+        assertEquals("A-master/NOTHING", ancestorAt(t.cursor, 2))
+        assertEquals("A-master", parentOf("A-master/NOTHING"))
+        assertEquals(3, depthOf("A-master/NOTHING/NOTHING"))
     }
 
     @Test
-    fun sameChoicesGiveTheSameLife() {
-        assertEquals(playAllA().current, playAllA().current)
+    fun thePoolOffersEveryActionThatFitsAndNothingFirst() {
+        val ids = engine.actionsAt(start()).map { it.id }
+        assertEquals(NOTHING, ids.first())
+        assertTrue("A-master" in ids && "A-start-working" in ids)
+        assertTrue("A-loan" !in ids, "cash is positive")
+        val afterMaster = engine.choose(start(), "A-master")
+        assertTrue("A-master" !in engine.actionsAt(afterMaster).map { it.id }, "taken once per life")
+        assertTrue(engine.actionsAt(play()).isEmpty(), "no decisions after the end")
     }
 
     @Test
-    fun luckIsFixedPerTurnInEveryBranch() {
-        val all = engine.expandAll(start())
-        all.nodes.values.forEach { s ->
-            s.turns.forEachIndexed { i, turn ->
-                if (turn.eventId != null) assertEquals(engine.resolveLuck(s.copy(turns = s.turns.take(i)), FakeData.events.first { it.id == turn.eventId }.options.first()).first, turn.luck)
-            }
+    fun nothingKeepsWhatIsUnderWay() {
+        val t = play("A-master")
+        val second = t.nodes.getValue("A-master/NOTHING").current
+        assertEquals("MASTER", second.person.facts[FactKey.EDUCATION], "the master's ends although the player does nothing")
+    }
+
+    @Test
+    fun theSameDecisionAtTheSameMomentGivesTheSameChild() {
+        val a = engine.decide(start(), "", "A-master")
+        val (again, key) = engine.decide(a.first, "", "A-master")
+        assertEquals(a.second, key)
+        assertEquals(a.first, again, "reused, not recomputed")
+        assertEquals(play("A-master").current, play("A-master").current)
+    }
+
+    @Test
+    fun goingBackOpensANewBranchAndForgetsNothing() {
+        val lived = play("A-master")
+        val back = engine.choose(lived.goTo(""), "A-start-working")
+        assertEquals("A-start-working", back.cursor)
+        assertTrue(lived.cursor in back.nodes, "the life already lived is kept")
+        assertEquals(setOf("A-master", "A-start-working"), back.children("").toSet())
+        // Coming back to the start remembers the last way down.
+        assertEquals("A-start-working", back.goTo("").lastChild[""])
+    }
+
+    @Test
+    fun sameLevelLuckIsSharedBySiblingsFullRandomIsNot() {
+        fun lucks(mode: LuckMode) = listOf("A-master", "A-start-working", NOTHING).map { id ->
+            engine.decide(start(mode), "", id).first.nodes.getValue(id).turns[0].luck
         }
-        // Turn 0 has the same luck in both branches.
-        assertEquals(all.nodes.getValue("A").turns[0].luck, all.nodes.getValue("B").turns[0].luck)
+        assertEquals(1, lucks(LuckMode.SAME_LEVEL).toSet().size)
+        assertEquals(3, lucks(LuckMode.FULL_RANDOM).toSet().size)
     }
 
     @Test
-    fun switchingKeepsEarlierTurnsAndRemembersTheOtherBranch() {
-        val played = playAllA()
-        val b = engine.switchAt(played, carTurn)
-        assertEquals("AAAB", b.cursor.take(4))
-        assertEquals(played.current.turns.take(carTurn), b.current.turns.take(carTurn))
-        assertTrue("AAAAA" in b.nodes, "the played life is never forgotten")
-
-        // Going back to A at the same turn goes down the life already played, nothing pending.
-        val backToA = engine.switchAt(b, carTurn)
-        assertEquals("AAAAA", backToA.cursor)
-        assertEquals(played.current, backToA.current)
+    fun differentDecisionsEndDifferently() {
+        val all = engine.explore(start())
+        assertTrue(all.lives.size >= 5)
+        assertNotEquals(1, all.lives.map { all.nodes.getValue(it).current }.toSet().size)
+        all.lives.forEach { key -> assertEquals(key, all.nodes.getValue(key).nodeId) }
+        assertEquals("", all.cursor, "exploring does not move the user")
     }
 
     @Test
-    fun aDifferentBranchCanGetADifferentQuestion() {
-        val b = engine.switchAt(playAllA(), carTurn)
-        // Travelcard instead of the car loan: no debt => the car-loan question does not come; another one waits.
-        assertEquals("AAAB", b.cursor)
-        assertEquals("E-sabbatical", assertNotNull(engine.questionAt(b)).id)
-        val answered = engine.descend(engine.choose(b, "B"))
-        assertEquals("AAABB", answered.cursor)
-        assertTrue(answered.current.isOver)
-
-        // Back to A, then to B again: the sabbatical answer is remembered.
-        val again = engine.switchAt(engine.switchAt(answered, carTurn), carTurn)
-        assertEquals("AAABB", again.cursor)
-    }
-
-    @Test
-    fun goToRemembersTheWayDown() {
-        val b = engine.descend(engine.choose(engine.switchAt(playAllA(), carTurn), "B"))
-        val atStart = b.goTo("")
-        assertEquals("", atStart.cursor)
-        assertEquals("AAABB", engine.descend(atStart).cursor)
-    }
-
-    @Test
-    fun everyLifeIsAtMost2PowTurnsAndComplete() {
-        val all = engine.expandAll(start())
-        val lives = all.lives
-        assertTrue(lives.size in 2..32, "lives: ${lives.size}")
-        assertEquals(lives.size, lives.toSet().size)
-        lives.forEach { key ->
-            val s = all.nodes.getValue(key)
-            assertTrue(s.isOver)
-            assertEquals(key, s.nodeKey)
-        }
-        // Expanding does not move the user nor mark anything as visited.
-        assertEquals("", all.cursor)
-        assertEquals(setOf(""), all.visited)
-    }
-
-    @Test
-    fun differentLivesEndDifferently() {
-        val all = engine.expandAll(start())
-        val ends = all.lives.map { all.nodes.getValue(it).turns.last().stateAfter }
-        assertNotEquals(1, ends.toSet().size)
-    }
-
-    @Test
-    fun quietTurnsAreNotChoices() {
-        val t = start()
-        assertFailsWith<IllegalStateException> { engine.withChild(t, "", null) }   // turn 0 has a question
-        assertNull(siblingOf("A").takeIf { it == "A" })
-        assertEquals("B", siblingOf("A"))
-        assertFailsWith<IllegalArgumentException> { siblingOf("A-") }
+    fun anUnavailableActionIsRefused() {
+        assertFailsWith<IllegalArgumentException> { engine.decide(start(), "", "A-loan") }
     }
 }

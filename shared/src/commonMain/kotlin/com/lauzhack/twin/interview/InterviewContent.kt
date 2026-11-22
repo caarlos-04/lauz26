@@ -17,7 +17,7 @@ data class InterviewCatalog(
 )
 
 // Root of content/interview-defaults.json: medians of the dataset for the answers "I don't know" (an option that sets no
-// field) and to size the goal. Every value says how many people of the dataset are behind it (n).
+// field), how a typed debt is repaid, and to size the goal. Every value says how many people of the dataset are behind it (n).
 @Serializable
 data class InterviewDefaults(
     val version: Int,
@@ -31,6 +31,10 @@ data class InterviewDefaults(
     val rentOverall: Median,
     val cashByAgeBand: List<Median>,                    // same order as ageBands
     val cashOverall: Median,
+    val investmentsByAgeBand: List<Median>,             // same order as ageBands
+    val investmentsOverall: Median,
+    val debtOverall: Median,                            // most people owe nothing
+    val loan: LoanDefault,                              // how a debt typed in the interview is repaid
     val goals: Map<String, GoalDefault>,                // dataset goal_name -> typical size, date and priority
     val monthlyOutflowChf: Double,                      // median monthly expenses in the ledger (anchor of the cushion options)
 )
@@ -39,6 +43,9 @@ data class InterviewDefaults(
 data class InterviewLimits(
     val goalTargetChf: List<Double>,                    // [smallest, largest] goal of the dataset
 )
+
+@Serializable
+data class LoanDefault(val annualRate: Double, val termMonths: Int, val n: Int)
 
 @Serializable
 data class AgeBand(val from: Int, val to: Int? = null)  // from <= age < to (open end: null)

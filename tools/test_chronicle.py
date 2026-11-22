@@ -10,13 +10,13 @@ def b(month, age, kind, event=None, **data):
 
 BEATS = [
     b(0, 20, "START", cash=8000),
-    b(0, 20, "DECISION", "E-master", option="A", label="ignored: texts come from events.json"),
-    b(0, 20, "CASE_RESOLVED", "E-master", case="NEUTRAL", luck="0.50"),
-    b(0, 20, "LIFE_CHANGE", "E-master", fact="EDUCATION", value="MASTER_IN_PROGRESS"),
+    b(0, 20, "DECISION", "A-master", label="ignored: texts come from events.json"),
+    b(0, 20, "OUTCOME", "A-master", luck="0.50", tuition="400", salary="6100"),
+    b(0, 20, "LIFE_CHANGE", "A-master", fact="EDUCATION", value="MASTER_IN_PROGRESS"),
     b(14, 21, "CASH_NEGATIVE", cash=-995),
-    b(24, 22, "QUIET_PERIOD"),
-    b(25, 22, "LIFE_CHANGE", "E-master", employment="EMPLOYED"),
-    b(25, 22, "LIFE_CHANGE", "E-master", flag="did_master"),
+    b(24, 22, "QUIET_PERIOD", "NOTHING"),
+    b(25, 22, "LIFE_CHANGE", "A-master", employment="EMPLOYED"),
+    b(25, 22, "LIFE_CHANGE", "A-master", flag="did_master"),
     b(61, 25, "GOAL_REACHED", goal="Career transition", target=39366),
     b(120, 30, "END", netWorth=158098, cash=158098),
 ]
@@ -34,17 +34,16 @@ class ChronicleTest(unittest.TestCase):
         self.assertEqual([], ch.check(self.tpl, self.facts, self.events))
 
     def test_english(self):
-        master = next(e for e in self.events["events"] if e["id"] == "E-master")
-        narrative = master["options"][0]["cases"]["NEUTRAL"]["narrative"]["EN"]
+        narrative = "You pay CHF 400 a month in tuition for two years. Then you start working at CHF 6’100 a month."
         self.assertEqual([
             "You start at 20, in 2025, with CHF 8’000 in your account.",
-            "At 20 (2025) a decision came up, “Master's degree or a job?”, and you chose: Do the master's.",
+            "At 20 (2025) you decided: Do a master's.",
             narrative,
             "At 20 your studies reached a new stage: Studying for a master's.",          # cause = the decision being told
             "At 21 your account went into the red (CHF 995 below zero) and you started paying interest on it.",
-            "At 22 two quiet years began, with no big decisions.",
-            "At 22 you started working full time (because of “Master's degree or a job?”).",
-            "Milestone at 22: Did a master's (because of “Master's degree or a job?”).",
+            "At 22 you carried on as you were for two years, with no new decisions.",
+            "At 22 you started working full time (because of “Do a master's”).",
+            "Milestone at 22: Did a master's (because of “Do a master's”).",
             "At 25 you reached your goal: a career change (CHF 39’366).",
             "10 years later, at 30, your net worth is CHF 158’098, CHF 158’098 of it in cash.",
         ], self.lines("EN"))
@@ -56,7 +55,7 @@ class ChronicleTest(unittest.TestCase):
         self.assertEqual(4, len(ch.paragraphs(ch.render(BEATS, "ES", self.tpl, self.events, self.facts))))
 
     def test_unknown_codes_never_crash(self):
-        lines = ch.render([b(0, 20, "LIFE_CHANGE", "E-nope", flag="new_flag"), b(1, 20, "GOAL_MISSED", goal="Some goal", target=1)],
+        lines = ch.render([b(0, 20, "LIFE_CHANGE", "A-nope", flag="new_flag"), b(1, 20, "GOAL_MISSED", goal="Some goal", target=1)],
                           "EN", self.tpl, self.events, self.facts)
         self.assertEqual("Milestone at 20: new_flag.", lines[0]["text"])
         self.assertIn("Some goal", lines[1]["text"])

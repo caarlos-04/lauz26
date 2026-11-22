@@ -29,21 +29,19 @@ The numbers the game produces today are not credible. Goal: every figure on scre
 - [x] Decided: each node keeps its own conversation during the session
 - [x] Works offline (canned answers) with the same flow
 
-## 3. Explore the other path at any moment (up to 32 lives)
-Up to 5 decisions × 2 options = at most 2⁵ = **32 possible lives**. Each branch gets its own questions (events depend
-on the life), and a quiet turn does not split the branch, so a game can have fewer than 32.
-- [x] At any turn you can go back and take the other decision, and keep playing from there
-- [x] Every explored branch is kept: you never lose a life you already played
-- [x] By the end you can visit every possible life (up to 32)
-- [x] View of the full tree: which branches are explored, which are not, where you are now
+## 3. Choose what to do, and explore other lives (tree of decisions)
+Changed: the player no longer answers binary questions picked by the engine. At each decision point they choose one
+action of the pool (every action that fits, "carry on as you are" included), and going back to any moment and deciding
+something else opens a new branch. Only what the user decides exists (`docs/decision-tree.md`).
+- [x] Pool of actions with requirements; NOTHING always available; what is under way carries on
+- [x] Job loss as a shock (not chosen), drawn per turn with the unemployment rate of the age group
+- [x] Luck mode chosen at the start: same luck at the same age (fair comparison) or own luck per decision
+- [x] Every explored branch is kept; go back to any moment and decide something else
+- [x] Map of the lives the user decided (no precomputed lives); chat, chronicle and trace for every node
+- [x] Automatic parallel lives and the parallel self removed (comparisons are between explored branches)
 - [ ] Compare any two lives side by side (net worth, cash, life facts, key moments)
-- [x] Decided: the luck per turn is fixed and the same in every branch; the drawn case cannot be changed, you only
-      switch between options
-- [x] Decided: each branch keeps its own events (option A of the plan): "up to 32" lives
-- [x] Every node shows which question that branch got; comparisons show the question of each life, not just "turn N"
-- [ ] Performance: computing or precomputing the 32 lives is fast on Android (done: off the UI thread, cached per
-      node; ~0.2 s on a laptop. Still to check on a real phone)
-- [x] Chronicle and chat available for every branch (links to section 2)
+- [ ] More actions in the pool (save, invest, change city, family...); "finish your studies" for students
+- [ ] Performance on a real phone (one decision = 24 months per action previewed: cheap)
 
 ## 4. Where the numbers come from (no black box)
 - [ ] Any number on screen (cash, net worth, income, expenses, deltas, goal %) can be opened to see how it was computed
@@ -60,8 +58,8 @@ on the life), and a quiet turn does not split the branch, so a game can have few
 - [x] The person's goals are visible from the start (what, how much in CHF, by when, priority)
 - [x] Progress of each goal shown as % covered, at every point of the life
 - [x] Clear when a goal is reached or missed, and at which age
-- [x] See how each decision moves the goals before choosing (in the preview of the options)
-- [ ] Compare goal coverage between branches / parallel lives (partly: each life in the map shows goals reached, e.g. "451k · 2/2")
+- [x] See how each decision moves the goals before choosing (in the preview of the actions)
+- [ ] Compare goal coverage between branches (partly: each life in the map shows goals reached, e.g. "451k · 2/2")
 - [ ] Decide: where do the goals come from (interview, dataset, both) and can the user edit them?
 - [ ] Decide: what a goal measures (cash or net worth). Shown in the UI with today's engine rule: savings-type goals on cash, the rest on net worth
 - [x] The future self and the chronicle talk about the goals with the computed %

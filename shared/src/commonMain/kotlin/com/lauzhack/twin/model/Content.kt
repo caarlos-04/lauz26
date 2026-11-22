@@ -26,7 +26,6 @@ data class InitialFactRule(
 data class Assumptions(
     val investmentReturnAnnual: Double,
     val financingRateAnnual: Double,
-    val defaultCaseProbs: Map<CaseType, Double>,
     val objectivePenalties: Map<Objective, Double>,
     val sensitivity: List<SensitivityParam>,
     val sourceNotes: List<String>,
@@ -45,8 +44,24 @@ data class SensitivityParam(
 data class InterviewQuestion(
     val id: String,
     val textKey: String,
-    val options: List<InterviewOption>,
+    val options: List<InterviewOption> = emptyList(),   // a choice; for a number, only "I don't know" (if any)
+    val input: NumberInput? = null,                     // a number the person types (age, income, debt...)
 )
+
+// A typed number: it fills [field] and must be between [min] and [max] (the dataset range); [typical] (the dataset
+// median) is shown as a hint and pre-filled.
+@Serializable
+data class NumberInput(
+    val field: ProfileField,
+    val min: Double,
+    val max: Double,
+    val step: Double,
+    val unit: InputUnit,
+    val typical: Double,
+)
+
+@Serializable
+enum class InputUnit { YEARS, CHF, CHF_MONTH }
 
 @Serializable
 data class InterviewOption(
@@ -55,10 +70,12 @@ data class InterviewOption(
     val sets: Map<ProfileField, String>,
 )
 
+// One answer: an option of a choice (or "I don't know"), or a typed number.
 @Serializable
 data class InterviewAnswer(
     val questionId: String,
-    val optionId: String,
+    val optionId: String? = null,
+    val value: Double? = null,
 )
 
 @Serializable

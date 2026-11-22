@@ -38,10 +38,11 @@ def goal_value(goal: dict, s: dict) -> float:
 
 
 def goal_state(goal: dict, s: dict) -> str:
-    """REACHED, MISSED (its date has passed) or IN_PROGRESS."""
-    if goal_value(goal, s) >= goal["targetChf"]:
-        return "REACHED"
-    return "MISSED" if s["period"][:7] > goal["targetDate"][:7] else "IN_PROGRESS"
+    """MISSED once its date has passed (hitting the target later does not count), else REACHED or IN_PROGRESS.
+    The story keeps the first change from IN_PROGRESS: a goal reached in time stays reached in the life line."""
+    if s["period"][:7] > goal["targetDate"][:7]:
+        return "MISSED"
+    return "REACHED" if goal_value(goal, s) >= goal["targetChf"] else "IN_PROGRESS"
 
 
 # ---------------------------------------------------------------- building

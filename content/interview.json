@@ -3,7 +3,7 @@
   "meta": {
     "generator": "tools/interview.py --build",
     "source": "Options and values come from the LauzHack 2026 synthetic dataset; texts are ours (ES/EN).",
-    "note": "Each option fills fields of the person (ProfileField). Numbers are the dataset median of the people in the band (or its middle if fewer than 30 people). 'dk' options fill nothing: the value comes from interview-defaults.json. textKey / labelKey are the keys of the UI strings (python tools/interview.py --strings DIR)."
+    "note": "Each option fills fields of the person (ProfileField). A question with `input` is answered with a number typed by the person, between min and max (the dataset range); `typical` (the dataset median) is shown as a hint. 'dk' options fill nothing: the value comes from interview-defaults.json. textKey / labelKey are the keys of the UI strings (python tools/interview.py --strings DIR)."
   },
   "questions": [
     {
@@ -13,74 +13,15 @@
         "EN": "How old are you?",
         "ES": "¿Cuántos años tienes?"
       },
-      "options": [
-        {
-          "id": "a1",
-          "labelKey": "q_age_a1",
-          "label": {
-            "EN": "18–24",
-            "ES": "18–24"
-          },
-          "sets": {
-            "AGE": "21"
-          }
-        },
-        {
-          "id": "a2",
-          "labelKey": "q_age_a2",
-          "label": {
-            "EN": "25–34",
-            "ES": "25–34"
-          },
-          "sets": {
-            "AGE": "30"
-          }
-        },
-        {
-          "id": "a3",
-          "labelKey": "q_age_a3",
-          "label": {
-            "EN": "35–44",
-            "ES": "35–44"
-          },
-          "sets": {
-            "AGE": "40"
-          }
-        },
-        {
-          "id": "a4",
-          "labelKey": "q_age_a4",
-          "label": {
-            "EN": "45–54",
-            "ES": "45–54"
-          },
-          "sets": {
-            "AGE": "49"
-          }
-        },
-        {
-          "id": "a5",
-          "labelKey": "q_age_a5",
-          "label": {
-            "EN": "55–64",
-            "ES": "55–64"
-          },
-          "sets": {
-            "AGE": "59"
-          }
-        },
-        {
-          "id": "a6",
-          "labelKey": "q_age_a6",
-          "label": {
-            "EN": "65 or older",
-            "ES": "65 o más"
-          },
-          "sets": {
-            "AGE": "71"
-          }
-        }
-      ]
+      "options": [],
+      "input": {
+        "field": "AGE",
+        "min": 18,
+        "max": 76,
+        "step": 1,
+        "unit": "YEARS",
+        "typical": 46
+      }
     },
     {
       "id": "city",
@@ -428,70 +369,23 @@
       },
       "options": [
         {
-          "id": "i1",
-          "labelKey": "q_income_i1",
-          "label": {
-            "EN": "Less than CHF 2’500",
-            "ES": "Menos de CHF 2’500"
-          },
-          "sets": {
-            "MONTHLY_INCOME": "950"
-          }
-        },
-        {
-          "id": "i2",
-          "labelKey": "q_income_i2",
-          "label": {
-            "EN": "CHF 2’500 – 5’000",
-            "ES": "CHF 2’500 – 5’000"
-          },
-          "sets": {
-            "MONTHLY_INCOME": "4100"
-          }
-        },
-        {
-          "id": "i3",
-          "labelKey": "q_income_i3",
-          "label": {
-            "EN": "CHF 5’000 – 7’500",
-            "ES": "CHF 5’000 – 7’500"
-          },
-          "sets": {
-            "MONTHLY_INCOME": "5950"
-          }
-        },
-        {
-          "id": "i4",
-          "labelKey": "q_income_i4",
-          "label": {
-            "EN": "CHF 7’500 – 10’000",
-            "ES": "CHF 7’500 – 10’000"
-          },
-          "sets": {
-            "MONTHLY_INCOME": "8750"
-          }
-        },
-        {
-          "id": "i5",
-          "labelKey": "q_income_i5",
-          "label": {
-            "EN": "More than CHF 10’000",
-            "ES": "Más de CHF 10’000"
-          },
-          "sets": {
-            "MONTHLY_INCOME": "10750"
-          }
-        },
-        {
-          "id": "idk",
-          "labelKey": "q_income_idk",
+          "id": "dk",
+          "labelKey": "q_income_dk",
           "label": {
             "EN": "I don’t know",
             "ES": "No lo sé"
           },
           "sets": {}
         }
-      ]
+      ],
+      "input": {
+        "field": "MONTHLY_INCOME",
+        "min": 0,
+        "max": 12300,
+        "step": 50,
+        "unit": "CHF_MONTH",
+        "typical": 5550
+      }
     },
     {
       "id": "rent",
@@ -502,144 +396,104 @@
       },
       "options": [
         {
-          "id": "r1",
-          "labelKey": "q_rent_r1",
-          "label": {
-            "EN": "Less than CHF 1’200",
-            "ES": "Menos de CHF 1’200"
-          },
-          "sets": {
-            "MONTHLY_RENT": "1050"
-          }
-        },
-        {
-          "id": "r2",
-          "labelKey": "q_rent_r2",
-          "label": {
-            "EN": "CHF 1’200 – 1’600",
-            "ES": "CHF 1’200 – 1’600"
-          },
-          "sets": {
-            "MONTHLY_RENT": "1400"
-          }
-        },
-        {
-          "id": "r3",
-          "labelKey": "q_rent_r3",
-          "label": {
-            "EN": "CHF 1’600 – 2’000",
-            "ES": "CHF 1’600 – 2’000"
-          },
-          "sets": {
-            "MONTHLY_RENT": "1800"
-          }
-        },
-        {
-          "id": "r4",
-          "labelKey": "q_rent_r4",
-          "label": {
-            "EN": "CHF 2’000 – 2’600",
-            "ES": "CHF 2’000 – 2’600"
-          },
-          "sets": {
-            "MONTHLY_RENT": "2250"
-          }
-        },
-        {
-          "id": "r5",
-          "labelKey": "q_rent_r5",
-          "label": {
-            "EN": "More than CHF 2’600",
-            "ES": "Más de CHF 2’600"
-          },
-          "sets": {
-            "MONTHLY_RENT": "2850"
-          }
-        },
-        {
-          "id": "rdk",
-          "labelKey": "q_rent_rdk",
+          "id": "dk",
+          "labelKey": "q_rent_dk",
           "label": {
             "EN": "I don’t know",
             "ES": "No lo sé"
           },
           "sets": {}
         }
-      ]
+      ],
+      "input": {
+        "field": "MONTHLY_RENT",
+        "min": 0,
+        "max": 3950,
+        "step": 50,
+        "unit": "CHF_MONTH",
+        "typical": 1950
+      }
     },
     {
       "id": "cash",
       "textKey": "q_cash",
       "text": {
-        "EN": "How much cash do you have saved?",
-        "ES": "¿Cuánto dinero tienes ahorrado en efectivo?"
+        "EN": "How much cash do you have saved (current and savings accounts)?",
+        "ES": "¿Cuánto dinero tienes ahorrado (cuentas corrientes y de ahorro)?"
       },
       "options": [
         {
-          "id": "c1",
-          "labelKey": "q_cash_c1",
-          "label": {
-            "EN": "Less than CHF 5’000",
-            "ES": "Menos de CHF 5’000"
-          },
-          "sets": {
-            "OPENING_CASH": "2500"
-          }
-        },
-        {
-          "id": "c2",
-          "labelKey": "q_cash_c2",
-          "label": {
-            "EN": "CHF 5’000 – 15’000",
-            "ES": "CHF 5’000 – 15’000"
-          },
-          "sets": {
-            "OPENING_CASH": "9000"
-          }
-        },
-        {
-          "id": "c3",
-          "labelKey": "q_cash_c3",
-          "label": {
-            "EN": "CHF 15’000 – 40’000",
-            "ES": "CHF 15’000 – 40’000"
-          },
-          "sets": {
-            "OPENING_CASH": "28000"
-          }
-        },
-        {
-          "id": "c4",
-          "labelKey": "q_cash_c4",
-          "label": {
-            "EN": "CHF 40’000 – 80’000",
-            "ES": "CHF 40’000 – 80’000"
-          },
-          "sets": {
-            "OPENING_CASH": "53000"
-          }
-        },
-        {
-          "id": "c5",
-          "labelKey": "q_cash_c5",
-          "label": {
-            "EN": "More than CHF 80’000",
-            "ES": "Más de CHF 80’000"
-          },
-          "sets": {
-            "OPENING_CASH": "116000"
-          }
-        },
-        {
-          "id": "cdk",
-          "labelKey": "q_cash_cdk",
+          "id": "dk",
+          "labelKey": "q_cash_dk",
           "label": {
             "EN": "I don’t know",
             "ES": "No lo sé"
           },
           "sets": {}
         }
-      ]
+      ],
+      "input": {
+        "field": "OPENING_CASH",
+        "min": 0,
+        "max": 150000,
+        "step": 500,
+        "unit": "CHF",
+        "typical": 53000
+      }
+    },
+    {
+      "id": "investments",
+      "textKey": "q_investments",
+      "text": {
+        "EN": "How much do you have invested (funds, shares, pension savings you can access)?",
+        "ES": "¿Cuánto tienes invertido (fondos, acciones, ahorro para la jubilación disponible)?"
+      },
+      "options": [
+        {
+          "id": "dk",
+          "labelKey": "q_investments_dk",
+          "label": {
+            "EN": "I don’t know",
+            "ES": "No lo sé"
+          },
+          "sets": {}
+        }
+      ],
+      "input": {
+        "field": "INVESTMENTS",
+        "min": 0,
+        "max": 163500,
+        "step": 500,
+        "unit": "CHF",
+        "typical": 32000
+      }
+    },
+    {
+      "id": "debt",
+      "textKey": "q_debt",
+      "text": {
+        "EN": "How much do you still owe on loans (personal loan, car, studies)?",
+        "ES": "¿Cuánto debes todavía en préstamos (personal, coche, estudios)?"
+      },
+      "options": [
+        {
+          "id": "dk",
+          "labelKey": "q_debt_dk",
+          "label": {
+            "EN": "I don’t know",
+            "ES": "No lo sé"
+          },
+          "sets": {}
+        }
+      ],
+      "input": {
+        "field": "DEBT",
+        "min": 0,
+        "max": 65000,
+        "step": 500,
+        "unit": "CHF",
+        "typical": 0
+      }
     },
     {
       "id": "goal",
@@ -764,66 +618,18 @@
       "id": "mincash",
       "textKey": "q_mincash",
       "text": {
-        "EN": "What is the minimum cash cushion you want to keep?",
-        "ES": "¿Qué colchón mínimo de efectivo quieres mantener?"
+        "EN": "What is the minimum cash cushion you want to keep? (one month of expenses is typical)",
+        "ES": "¿Qué colchón mínimo de efectivo quieres mantener? (lo habitual es un mes de gastos)"
       },
-      "options": [
-        {
-          "id": "m1",
-          "labelKey": "q_mincash_m1",
-          "label": {
-            "EN": "No minimum",
-            "ES": "Sin mínimo"
-          },
-          "sets": {
-            "MIN_CASH": "0"
-          }
-        },
-        {
-          "id": "m2",
-          "labelKey": "q_mincash_m2",
-          "label": {
-            "EN": "CHF 1’500 (about 0.5 months of expenses)",
-            "ES": "CHF 1’500 (unos 0.5 meses de gastos)"
-          },
-          "sets": {
-            "MIN_CASH": "1500"
-          }
-        },
-        {
-          "id": "m3",
-          "labelKey": "q_mincash_m3",
-          "label": {
-            "EN": "CHF 3’500 (about 1 month of expenses)",
-            "ES": "CHF 3’500 (unos 1 mes de gastos)"
-          },
-          "sets": {
-            "MIN_CASH": "3500"
-          }
-        },
-        {
-          "id": "m4",
-          "labelKey": "q_mincash_m4",
-          "label": {
-            "EN": "CHF 10’500 (about 3 months of expenses)",
-            "ES": "CHF 10’500 (unos 3 meses de gastos)"
-          },
-          "sets": {
-            "MIN_CASH": "10500"
-          }
-        },
-        {
-          "id": "m5",
-          "labelKey": "q_mincash_m5",
-          "label": {
-            "EN": "CHF 21’000 (about 6 months of expenses)",
-            "ES": "CHF 21’000 (unos 6 meses de gastos)"
-          },
-          "sets": {
-            "MIN_CASH": "21000"
-          }
-        }
-      ]
+      "options": [],
+      "input": {
+        "field": "MIN_CASH",
+        "min": 0,
+        "max": 42000,
+        "step": 500,
+        "unit": "CHF",
+        "typical": 3500
+      }
     }
   ]
 }

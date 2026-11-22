@@ -4,7 +4,6 @@ import com.lauzhack.twin.ui.components.TracePanel
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import com.lauzhack.twin.resources.Res
 import com.lauzhack.twin.resources.map_hint
 import com.lauzhack.twin.resources.map_title
@@ -25,22 +24,21 @@ fun MapScreen(actions: TopBarActions, panel: PanelData?, state: AppState) {
     }
 }
 
-/** The map card: computes every possible life in the background the first time, then shows the tree. */
+/** The map card: every moment the user decided, as a tree. */
 @Composable
 fun LifeMapSection(state: AppState) {
     val tree = state.tree ?: return
-    LaunchedEffect(tree.root) { state.prepareMap() }
     SectionCard(stringResource(Res.string.map_title), icon = TwinIcons.Tree) {
         Text(stringResource(Res.string.map_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         LifeMap(
             tree = tree,
-            complete = state.mapReady,
             playedKey = state.playedKey,
             monthsPerTurn = state.config.monthsPerTurn,
-            eventById = state::eventById,
+            catalog = state.catalog,
             onOpen = state::open,
+            onDecideAt = state::decideAgainAt,
             onChat = state::chatAt,
-            explain = { key -> state.traceAt(key)?.let { TracePanel(it, state::eventById, state.facts, state.assumptions) } },
+            explain = { key -> state.traceAt(key)?.let { TracePanel(it, state.catalog, state.facts, state.assumptions) } },
         )
     }
 }

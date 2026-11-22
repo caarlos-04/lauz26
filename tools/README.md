@@ -9,16 +9,16 @@ python tools/flow_model.py                         # -> out/flow-model.json + ou
 python tools/macro.py                              # -> out/macro.json (Swiss trends; needs data/download.sh first)
 python tools/assumptions.py --build                # dataset + out/macro.json -> content/assumptions.json (--check to validate)
 python tools/ship_resources.py --from-out         # out/{flow-model,macro}.json -> content/ -> app resources (--check)
-python tools/chronicle.py --play P00001 --choices A,B --lang ES   # a whole game told with content/chronicle.json (--check)
+python tools/chronicle.py --play P00001 --path A-master,NOTHING --lang ES   # a life told with content/chronicle.json (--check)
 python tools/event_data.py                         # -> out/event-data.json (every number the events use, with sources)
-python tools/golden.py                             # -> out/golden/*.json (games the Kotlin engine must reproduce)
+python tools/golden.py                             # -> out/golden/*.json (lives the Kotlin engine must reproduce)
 python tools/simulate.py --profile P00001          # opening statement -> 120 simulated months
 python tools/simulate.py --validate                # every dataset profile, 24 months, accounting identities
 python tools/simulate.py --profile P00001 --dump out/simulated-P00001.json   # for SimulationContractTest (Kotlin)
 python tools/interview.py --build                  # CSVs -> content/interview.json + interview-defaults.json (--check, --demo N, --strings DIR)
 python tools/validate_events.py                    # validate content/events.json + content/facts.json
-python tools/validate_events.py --preview P00001   # each option x case of the eligible events, 10 years
-python tools/validate_events.py --play P00001 --choices A,B --luck 0.5,0.5   # whole game: life line + attribution
+python tools/validate_events.py --preview P00001   # each action x case available at the start, 10 years
+python tools/validate_events.py --play P00001 --path A-master,NOTHING --mode FULL_RANDOM   # a life: life line + attribution
 cd tools && python -m unittest -v
 ```
 
@@ -39,10 +39,10 @@ The CSVs live outside this repo. By default the scripts look in `../ai-financial
 | `ship_resources.py` | Ships the app data: copies `out/flow-model.json` and `out/macro.json` to `content/` (`--from-out`) and every `content/*.json` to `shared/src/commonMain/composeResources/files/`; `--check` verifies the copies and that no dataset row identifier leaves the dataset |
 | `simulate.py` | One monthly step `statement(t) -> statement(t+1)`: pending changes, monthly trends, learned flows, loan, accounting |
 | `event_data.py` | Every number of `content/events.json` computed from the data (pay ratios by work status, starting salaries, promotion ratios, tuition, loan rates), with its source |
-| `golden.py` | Plays 13 reference games (every event at least once) for `GoldenGameTest` in Kotlin |
-| `game.py` | Game loop on statements: event effects, event choice by `requires`, luck -> case, life line (beats), attribution, preview |
+| `golden.py` | Plays 16 reference lives (every action, branches from the same nodes, both luck modes, job losses) for `GoldenGameTest` in Kotlin |
+| `game.py` | The tree of decisions on statements (`docs/decision-tree.md`): the pool of actions by `requires`, luck modes, shocks, effects, life line (beats), attribution, preview |
 | `interview.py` | The start-of-app interview: builds `content/interview.json` and `interview-defaults.json` from the dataset, validates them, turns answers into the opening statement (`person_from_fields`, mirrored by `InterviewBuilder.kt`) and exports the UI strings |
-| `validate_events.py` | Validates the content contract (`docs/README.md` 5.3) and runs `--preview` / `--play` with `game.py` |
+| `validate_events.py` | Validates the pool of actions and the shocks (`docs/decision-tree.md`) and runs `--preview` / `--play` with `game.py` |
 | `test_*.py`, `test_support.py` | Tests; `test_support.py` holds small hand-written models so tests need neither the dataset nor `out/` |
 
 ## Generated files

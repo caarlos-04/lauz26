@@ -23,6 +23,14 @@
       1042,
       150000
     ],
+    "investmentsChf": [
+      0,
+      163443
+    ],
+    "debtChf": [
+      0,
+      64655
+    ],
     "goalTargetChf": [
       10000,
       240000
@@ -379,6 +387,46 @@
   "cashOverall": {
     "chf": 53120,
     "n": 1200
+  },
+  "investmentsByAgeBand": [
+    {
+      "chf": 2370,
+      "n": 143
+    },
+    {
+      "chf": 16070,
+      "n": 201
+    },
+    {
+      "chf": 29860,
+      "n": 207
+    },
+    {
+      "chf": 45390,
+      "n": 198
+    },
+    {
+      "chf": 66350,
+      "n": 195
+    },
+    {
+      "chf": 78460,
+      "n": 256
+    }
+  ],
+  "investmentsOverall": {
+    "chf": 31940,
+    "n": 1200
+  },
+  "debtOverall": {
+    "chf": 0,
+    "n": 1200
+  },
+  "loan": {
+    "annualRate": 0.0582,
+    "termMonths": 60,
+    "n": 283,
+    "note": "median rate of synthetic-liabilities.csv; the term is an assumption (the dataset never pays its loans)"
   },
   "goals": {
     "Career transition": {

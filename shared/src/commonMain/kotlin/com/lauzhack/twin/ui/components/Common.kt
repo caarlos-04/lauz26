@@ -31,7 +31,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.lauzhack.twin.model.CaseType
 import com.lauzhack.twin.model.FinancialStatement
 import com.lauzhack.twin.resources.Res
 import com.lauzhack.twin.resources.state_cash
@@ -125,15 +124,18 @@ fun DeltaPill(value: Double, text: String = formatChf(value, signed = true)) {
     }
 }
 
-/** Case name with a small square of its colour. */
+/** The luck of a decision: bad / average / good and its percentile, with a small square of its colour. */
 @Composable
-fun CaseBadge(case: CaseType, @Suppress("UNUSED_PARAMETER") selected: Boolean = true) {
-    val color = caseColor(case)
+fun LuckBadge(luck: Double) {
+    val color = luckColor(luck)
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Box(Modifier.size(8.dp).clip(RoundedCornerShape(2.dp)).background(color))
-        Text(caseName(case), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
+        Text(luckName(luck) + " · p" + kotlin.math.round(luck * 100).toInt(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
     }
 }
+
+/** Bad (below p35), average or good (above p65) luck. */
+fun luckLevel(luck: Double): String = if (luck < 0.35) "BAD" else if (luck > 0.65) "GOOD" else "AVERAGE"
 
 /** Thin progress bar (0..1) on a hairline track. */
 @Composable
@@ -150,17 +152,17 @@ fun signColor(value: Double): Color {
 }
 
 @Composable
-fun caseColor(case: CaseType): Color {
+fun luckColor(luck: Double): Color {
     val c = LocalTwinColors.current
-    return when (case) {
-        CaseType.PESSIMISTIC -> c.pessimistic
-        CaseType.NEUTRAL -> c.neutral
-        CaseType.OPTIMISTIC -> c.optimistic
+    return when (luckLevel(luck)) {
+        "BAD" -> c.pessimistic
+        "GOOD" -> c.optimistic
+        else -> c.neutral
     }
 }
 
 @Composable
-fun caseName(case: CaseType): String = keyString("case_${case.name}")
+fun luckName(luck: Double): String = keyString("luck_${luckLevel(luck)}")
 
 /** Compact summary of a financial state: cash, net worth and monthly balance. */
 @Composable

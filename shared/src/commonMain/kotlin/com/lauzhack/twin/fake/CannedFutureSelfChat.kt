@@ -9,9 +9,8 @@ import com.lauzhack.twin.chronicle.Chronicle
 import com.lauzhack.twin.chronicle.ChronicleTemplates
 import com.lauzhack.twin.model.ChatMessage
 import com.lauzhack.twin.model.ChatRole
-import com.lauzhack.twin.model.EventCatalog
+import com.lauzhack.twin.model.ActionCatalog
 import com.lauzhack.twin.model.Lang
-import com.lauzhack.twin.model.ParallelKind
 import com.lauzhack.twin.model.Persona
 import kotlinx.coroutines.delay
 
@@ -23,7 +22,7 @@ class CannedFutureSelfChat(
     private val latencyMs: Long = 600,
     /** With the content templates and events, the offline chronicle tells the life line beat by beat (#18). */
     private val templates: ChronicleTemplates? = null,
-    private val events: EventCatalog? = null,
+    private val events: ActionCatalog? = null,
 ) : FutureSelfChat {
 
     override suspend fun ask(context: ChatContext, persona: Persona, history: List<ChatMessage>, question: String): ChatMessage {
@@ -32,17 +31,10 @@ class CannedFutureSelfChat(
         val es = context.language == Lang.ES
         val r = context.result
         val s = r.stats
-        val other = r.parallelLives.firstOrNull { it.kind == ParallelKind.OTHER_FIRST_CHOICE }
         // In the middle of a life (a node of the tree) the self only knows the years lived so far.
         val complete = r.session.isOver
         val now = r.session.turns.lastOrNull()?.stateAfter ?: r.session.initial
         val text = when {
-            persona == Persona.PARALLEL_SELF && other != null ->
-                if (es) "Soy tu yo paralelo: en la primera decisión elegí lo contrario. Terminé con ${chf(other.stats.finalNetWorth)} " +
-                    "de patrimonio y pasé ${other.stats.monthsNegativeCash} meses en negativo. Es una simulación, no una predicción."
-                else "I'm your parallel self: at the first decision I chose the other option. I ended with ${chf(other.stats.finalNetWorth)} " +
-                    "of net worth and spent ${other.stats.monthsNegativeCash} months below zero. It is a simulation, not a prediction."
-
             listOf("risk", "riesgo", "negative", "negativ", "debt", "deuda").any { it in q } ->
                 if (es) "Mi caja más baja fue ${chf(s.minCash)} en el mes ${s.monthOfMinCash}; pasé ${s.monthsNegativeCash} meses en negativo " +
                     "y ${s.monthsBelowMinCash} por debajo de mi colchón. Financiar la caja negativa me costó ${chf(s.financingCostChf)}."
@@ -57,12 +49,6 @@ class CannedFutureSelfChat(
                 if (es) "Alcancé ${s.goalsReached.size} de ${s.goalsReached.size + s.goalsMissed.size} metas. Recuerda: es una simulación, no una predicción."
                 else "I reached ${s.goalsReached.size} of ${s.goalsReached.size + s.goalsMissed.size} goals. Remember: this is a simulation, not a prediction."
 
-            other != null && listOf("other", "otro", "otra", "altern", "differ", "diferen").any { it in q } ->
-                if (es) "Si hubiera elegido lo contrario en la primera decisión, habría terminado con ${chf(other.stats.finalNetWorth)} " +
-                    "en vez de ${chf(s.finalNetWorth)} (diferencia: ${chf(s.finalNetWorth - other.stats.finalNetWorth, true)})."
-                else "Had I chosen the other option at the first decision, I would have ended with ${chf(other.stats.finalNetWorth)} " +
-                    "instead of ${chf(s.finalNetWorth)} (difference: ${chf(s.finalNetWorth - other.stats.finalNetWorth, true)})."
-
             !complete ->
                 if (es) "Hola, soy tú a los ${now.person.age} años. Ahora mismo mi patrimonio neto es ${chf(now.netWorthChf())} y tengo ${chf(now.cashChf)} en caja. " +
                     "Pregúntame por lo que he vivido hasta aquí; lo que viene después aún no lo sé. No es asesoramiento financiero."
@@ -71,7 +57,7 @@ class CannedFutureSelfChat(
 
             else ->
                 if (es) "Hola, soy tú dentro de 10 años. Mi patrimonio neto final es ${chf(s.finalNetWorth)}. " +
-                    "Pregúntame por el riesgo, las metas o la otra vida. No es asesoramiento financiero."
+                    "Pregúntame por el riesgo o las metas. No es asesoramiento financiero."
                 else "Hi, I'm you in 10 years. My final net worth is ${chf(s.finalNetWorth)}. " +
                     "Ask me about risk, goals or the other life. This is not financial advice."
         }
@@ -93,7 +79,7 @@ class CannedFutureSelfChat(
             return story + "\n\n" + if (es) "Es una simulación con datos sintéticos, no una predicción." else "It is a simulation with synthetic data, not a prediction."
         }
         val s = r.stats
-        val decisions = r.session.turns.count { it.eventId != null }
+        val decisions = r.session.turns.count { it.actionId != com.lauzhack.twin.model.NOTHING }
         val quiet = r.session.turns.size - decisions
         return if (es)
             "En diez años tomé $decisions decisiones importantes y viví $quiet periodos tranquilos. " +

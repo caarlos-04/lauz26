@@ -3,10 +3,10 @@ package com.lauzhack.twin.ui
 import com.lauzhack.twin.ai.ChatContext
 import com.lauzhack.twin.ai.FutureSelfChat
 import com.lauzhack.twin.fake.FakeData
-import com.lauzhack.twin.fake.FakeGameEngine
 import com.lauzhack.twin.fake.FakeTwinFactory
 import com.lauzhack.twin.model.ChatMessage
 import com.lauzhack.twin.model.ChatRole
+import com.lauzhack.twin.model.NOTHING
 import com.lauzhack.twin.model.Persona
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -29,12 +29,12 @@ class AppStateChatTest {
     }
 
     private fun state(chat: FutureSelfChat) = AppState(
-        engine = FakeGameEngine(FakeData.events, FakeData.assumptions),
+        engine = FakeData.engine(),
         twins = FakeTwinFactory(),
         chat = chat,
         assumptions = FakeData.assumptions,
         facts = FakeData.facts,
-        catalog = FakeData.events,
+        catalog = Catalog(FakeData.events),
         interview = FakeData.interview,
     )
 
@@ -52,13 +52,12 @@ class AppStateChatTest {
         val chat = RecordingChat()
         val s = state(chat)
         s.startDemo()
-        s.choose("A")
+        s.choose("A-master")
         s.openChat()
         assertEquals(Screen.CHAT, s.screen)
         s.ask("How are you?")
         val ctx = chat.contexts.single()
         assertEquals(1, ctx.result.session.turns.size)
-        assertTrue(ctx.result.parallelLives.isEmpty(), "no other lives mid-life: they describe years not lived")
         assertNull(ctx.noiseBand)
         s.closeChat()
         assertEquals(Screen.RESOLUTION, s.screen)
@@ -68,45 +67,51 @@ class AppStateChatTest {
     fun eachMomentKeepsItsOwnConversation() = runTest {
         val s = state(RecordingChat())
         s.startDemo()
-        s.choose("A")
+        s.choose("A-master")
         s.openChat()
-        s.ask("Hi from A")
+        s.ask("Hi from the master's")
         assertEquals(2, s.chatHistory.size)
+        s.closeChat()
 
-        s.chatAt("B")                                  // the other option of the same turn
-        assertEquals("B", s.tree?.cursor)
-        assertEquals(Screen.CHAT, s.screen)
+        s.decideAgain()                                // back to the start: another decision there
+        assertEquals(Screen.DILEMMA, s.screen)
+        assertEquals("", s.tree?.cursor)
+        assertTrue("A-master" in s.explored)
+        s.choose("A-start-working")
+        s.openChat()
+        assertEquals("A-start-working", s.tree?.cursor)
         assertTrue(s.chatHistory.isEmpty())
 
-        s.chatAt("A")
-        assertEquals(listOf("Hi from A", "turns=1"), s.chatHistory.map { it.message.text })
+        s.chatAt("A-master")
+        assertEquals(listOf("Hi from the master's", "turns=1"), s.chatHistory.map { it.message.text })
     }
 
     @Test
-    fun theParallelSelfOnlyExistsForACompleteLife() {
-        val s = state(RecordingChat())
-        s.startDemo()
-        s.choose("A")
-        s.openChat()
-        s.choosePersona(Persona.PARALLEL_SELF)
-        assertEquals(Persona.FUTURE_SELF, s.persona)
-    }
-
-    @Test
-    fun aCompleteLifeKeepsTheOtherLives() = runTest {
+    fun aCompleteLifeKnowsItsWholeStory() = runTest {
         val chat = RecordingChat()
         val s = state(chat)
         s.startDemo()
-        while (s.screen != Screen.RESULTS) if (s.screen == Screen.DILEMMA) s.choose("A") else s.nextTurn()
+        while (s.screen != Screen.RESULTS) if (s.screen == Screen.DILEMMA) s.choose(NOTHING) else s.nextTurn()
         s.openChat()
         s.ask("How did it end?")
-        assertTrue(chat.contexts.single().result.parallelLives.isNotEmpty())
-        s.choosePersona(Persona.PARALLEL_SELF)
-        assertEquals(Persona.PARALLEL_SELF, s.persona)
+        assertEquals(5, chat.contexts.single().result.session.turns.size)
+        assertTrue(chat.contexts.single().noiseBand != null)
+    }
+
+    @Test
+    fun goingBackToAnEarlierDecision() {
+        val s = state(RecordingChat())
+        s.startDemo()
+        while (s.screen != Screen.RESULTS) if (s.screen == Screen.DILEMMA) s.choose(NOTHING) else s.nextTurn()
+        s.switchAt(2)                                  // the third decision of this life
+        assertEquals(Screen.DILEMMA, s.screen)
+        assertEquals("NOTHING/NOTHING", s.tree?.cursor)
+        assertTrue(NOTHING in s.explored)
+        assertTrue(s.available.isNotEmpty())
     }
 
     /** Counts the engine's heavy calls, to check they are cached per node. */
-    private class CountingEngine(private val e: FakeGameEngine) : com.lauzhack.twin.engine.GameEngine by e {
+    private class CountingEngine(private val e: com.lauzhack.twin.engine.GameEngine) : com.lauzhack.twin.engine.GameEngine by e {
         var finishes = 0
         var bands = 0
         override fun finish(session: com.lauzhack.twin.model.GameSession) = e.finish(session).also { finishes++ }
@@ -115,10 +120,10 @@ class AppStateChatTest {
 
     @Test
     fun resultsAndNoiseBandAreComputedOncePerNode() = runTest {
-        val engine = CountingEngine(FakeGameEngine(FakeData.events, FakeData.assumptions))
-        val s = AppState(engine, FakeTwinFactory(), RecordingChat(), FakeData.assumptions, FakeData.facts, FakeData.events, FakeData.interview)
+        val engine = CountingEngine(FakeData.engine())
+        val s = AppState(engine, FakeTwinFactory(), RecordingChat(), FakeData.assumptions, FakeData.facts, Catalog(FakeData.events), FakeData.interview)
         s.startDemo()
-        while (s.screen != Screen.RESULTS) if (s.screen == Screen.DILEMMA) s.choose("A") else s.nextTurn()
+        while (s.screen != Screen.RESULTS) if (s.screen == Screen.DILEMMA) s.choose(NOTHING) else s.nextTurn()
         assertNull(s.results)                         // nothing heavy runs until the screen asks for it
         repeat(3) { s.prepareResults(); s.prepareNoiseBand() }
         s.ask("How did it end?")                      // the chat reuses the same results and band
