@@ -149,10 +149,10 @@ private fun ContentArea(
 
 @Composable
 private fun TopBar(actions: TopBarActions, panel: PanelData?, onBack: (() -> Unit)?, compact: Boolean) {
-    Surface(color = MaterialTheme.colorScheme.surface) {
+    Surface(color = MaterialTheme.colorScheme.background) {
         Column {
             Row(
-                Modifier.fillMaxWidth().height(64.dp).padding(horizontal = Space.l),
+                Modifier.fillMaxWidth().height(56.dp).padding(horizontal = Space.l),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(Space.m),
             ) {
@@ -205,13 +205,8 @@ private fun TopBar(actions: TopBarActions, panel: PanelData?, onBack: (() -> Uni
 
 @Composable
 fun LogoMark(size: Dp = 32.dp) {
-    Box(
-        Modifier.size(size).clip(RoundedCornerShape(size / 4)).background(LocalTwinColors.current.brand)
-            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(size / 4)),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(TwinIcons.Logo, null, tint = Color(0xFF34D399), modifier = Modifier.size(size * 0.62f))
-    }
+    // The mark is the fork of the map of lives, in the accent; no badge behind it.
+    Icon(TwinIcons.Logo, null, tint = LocalTwinColors.current.brand, modifier = Modifier.size(size * 0.7f))
 }
 
 @Composable
@@ -220,7 +215,8 @@ fun Pill(text: String, color: Color = MaterialTheme.colorScheme.secondary) {
         text,
         style = MaterialTheme.typography.labelMedium,
         color = color,
-        modifier = Modifier.clip(CircleShape).background(color.copy(alpha = 0.12f)).padding(horizontal = 10.dp, vertical = 4.dp),
+        maxLines = 1,
+        modifier = Modifier.border(1.dp, color.copy(alpha = 0.35f), RoundedCornerShape(3.dp)).padding(horizontal = 6.dp, vertical = 2.dp),
     )
 }
 
@@ -230,7 +226,7 @@ private fun panelName(panel: PanelData) = panel.name.ifBlank { stringResource(Re
 @Composable
 private fun ProfilePanel(panel: PanelData, modifier: Modifier) {
     val state = panel.state
-    Surface(modifier, color = MaterialTheme.colorScheme.surface) {
+    Surface(modifier, color = MaterialTheme.colorScheme.background) {
         Row {
             Column(
                 Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(Space.xl),
@@ -280,27 +276,28 @@ private fun ProfilePanel(panel: PanelData, modifier: Modifier) {
 @Composable
 private fun Avatar(name: String) {
     Box(
-        Modifier.size(44.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f)),
+        Modifier.size(36.dp).clip(CircleShape).border(1.dp, MaterialTheme.colorScheme.outline, CircleShape),
         contentAlignment = Alignment.Center,
     ) {
-        Text(name.take(1).uppercase(), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.secondary)
+        Text(name.take(1).uppercase(), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 
 /** Dots for each turn: done (filled), current (ring), future (empty). */
 @Composable
 fun TurnTimeline(done: Int, total: Int) {
-    val accent = MaterialTheme.colorScheme.secondary
-    val track = MaterialTheme.colorScheme.outlineVariant
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    // One segment per turn: lived (accent), the current one (outlined), the rest (track).
+    val accent = LocalTwinColors.current.chosen
+    val track = MaterialTheme.colorScheme.surfaceContainerHigh
+    Row(Modifier.width(180.dp).height(6.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
         for (i in 0 until total) {
-            val fill = when {
-                i < done -> accent
-                else -> Color.Transparent
+            val shape = RoundedCornerShape(1.dp)
+            val m = Modifier.weight(1f).fillMaxHeight().clip(shape)
+            when {
+                i < done -> Box(m.background(accent))
+                i == done -> Box(m.border(1.dp, accent, shape))
+                else -> Box(m.background(track))
             }
-            val ring = if (i <= done) accent else track
-            Box(Modifier.size(14.dp).clip(CircleShape).background(fill).border(2.dp, ring, CircleShape))
-            if (i < total - 1) Box(Modifier.width(22.dp).height(2.dp).background(if (i < done) accent else track))
         }
     }
 }

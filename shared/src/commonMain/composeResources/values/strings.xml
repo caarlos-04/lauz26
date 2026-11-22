@@ -197,7 +197,6 @@
     <string name="welcome_feature_mc_desc">Go back to any moment and take the other path. The map keeps every life, with the same luck in all of them.</string>
     <string name="welcome_feature_chat_title">Talk to your self of any moment</string>
     <string name="welcome_feature_chat_desc">Ask your self at any point of the life. Answers only use the computed figures, and every number shows where it comes from.</string>
-    <string name="welcome_preview_label">Illustration: a range of possible futures</string>
     <string name="tab_overview">Overview</string>
     <string name="tab_tree">Map of lives</string>
     <string name="tab_assumptions">Assumptions</string>

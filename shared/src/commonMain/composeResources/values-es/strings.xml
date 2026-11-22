@@ -197,7 +197,6 @@
     <string name="welcome_feature_mc_desc">Vuelve a cualquier momento y toma el otro camino. El mapa guarda cada vida, con la misma suerte en todas.</string>
     <string name="welcome_feature_chat_title">Habla con tu yo de cada momento</string>
     <string name="welcome_feature_chat_desc">Pregunta a tu yo de cualquier punto de la vida. Solo usa las cifras calculadas, y cada número muestra de dónde sale.</string>
-    <string name="welcome_preview_label">Ilustración: un rango de futuros posibles</string>
     <string name="tab_overview">Resumen</string>
     <string name="tab_tree">Mapa de vidas</string>
     <string name="tab_assumptions">Supuestos</string>

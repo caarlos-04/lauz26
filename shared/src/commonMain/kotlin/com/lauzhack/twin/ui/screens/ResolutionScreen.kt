@@ -124,7 +124,7 @@ fun ResolutionScreen(
                 Column {
                     // Colored band with the drawn case.
                     Row(
-                        Modifier.fillMaxWidth().background(color.copy(alpha = 0.14f)).padding(Space.xl),
+                        Modifier.fillMaxWidth().padding(start = Space.xl, end = Space.xl, top = Space.xl),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(Space.m),
                     ) {
@@ -132,7 +132,7 @@ fun ResolutionScreen(
                         Text(stringResource(Res.string.resolution_case_drawn, caseName(resolved)), style = MaterialTheme.typography.headlineSmall)
                     }
                     option?.cases?.get(resolved)?.narrative?.let {
-                        Text(localized(it), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(Space.xl))
+                        Text(localized(it), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(start = Space.xl, end = Space.xl, top = Space.m, bottom = Space.xl))
                     }
                 }
             }

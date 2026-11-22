@@ -1,5 +1,6 @@
 package com.lauzhack.twin.ui.screens
 
+import com.lauzhack.twin.ui.theme.figures
 import androidx.compose.ui.text.style.TextAlign
 import com.lauzhack.twin.resources.dilemma_goals_now
 import com.lauzhack.twin.resources.dilemma_goals_title
@@ -79,12 +80,10 @@ fun DilemmaScreen(
 ) {
     val state = session.turns.lastOrNull()?.stateAfter ?: session.initial
     AppShell(actions, panel = panel) {
-        SurfaceCard(padding = Space.xl) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.m)) {
-                IconBadge(TwinIcons.Calendar)
-                Overline(stringResource(Res.string.dilemma_turn, session.turns.size + 1, session.config.maxTurns, state.month))
-            }
-            Text(localized(event.title), style = MaterialTheme.typography.headlineLarge)
+        // The question on the page itself, like a headline: no card around it.
+        Column(Modifier.padding(top = Space.s), verticalArrangement = Arrangement.spacedBy(Space.s)) {
+            Overline(stringResource(Res.string.dilemma_turn, session.turns.size + 1, session.config.maxTurns, state.month))
+            Text(localized(event.title), style = MaterialTheme.typography.displaySmall)
             Text(localized(event.description), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.s)) {
@@ -147,10 +146,10 @@ private fun OptionCard(
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Row(Modifier.weight(1.3f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         CaseBadge(case)
-                        Text(formatPercent(p.prob), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
+                        Text(formatPercent(p.prob), style = MaterialTheme.typography.labelSmall.figures(), color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
                     }
-                    Text(formatChf(p.deltaNetWorth, signed = true), style = MaterialTheme.typography.labelMedium, color = signColor(p.deltaNetWorth), modifier = Modifier.weight(1f), textAlign = TextAlign.End)
-                    Text(formatChf(p.minCash), style = MaterialTheme.typography.labelMedium, color = if (p.minCash < 0) signColor(p.minCash) else Color.Unspecified, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+                    Text(formatChf(p.deltaNetWorth, signed = true), style = MaterialTheme.typography.labelMedium.figures(), color = signColor(p.deltaNetWorth), modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+                    Text(formatChf(p.minCash), style = MaterialTheme.typography.labelMedium.figures(), color = if (p.minCash < 0) signColor(p.minCash) else Color.Unspecified, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
                 }
             }
             if (now.goals.isNotEmpty()) {

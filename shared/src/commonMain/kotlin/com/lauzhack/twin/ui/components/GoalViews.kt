@@ -1,5 +1,6 @@
 package com.lauzhack.twin.ui.components
 
+import com.lauzhack.twin.ui.theme.figures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -67,8 +68,8 @@ fun GoalRow(s: GoalStatus) {
         Text(goalDetails(s), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         ThinProgress(s.progress.toFloat(), color = color)
         Row(Modifier.fillMaxWidth()) {
-            Text(formatChf(s.valueChf) + " / " + formatChf(s.goal.targetChf), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-            Text(formatPercent(s.progress), style = MaterialTheme.typography.labelMedium)
+            Text(formatChf(s.valueChf) + " / " + formatChf(s.goal.targetChf), style = MaterialTheme.typography.labelSmall.figures(), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+            Text(formatPercent(s.progress), style = MaterialTheme.typography.labelMedium.figures())
         }
     }
 }
@@ -80,7 +81,7 @@ fun GoalMini(s: GoalStatus) {
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(goalLabel(s.goal.name), style = MaterialTheme.typography.bodySmall)
-            Text(formatPercent(s.progress), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(formatPercent(s.progress), style = MaterialTheme.typography.labelMedium.figures(), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         ThinProgress(s.progress.toFloat(), color = color)
         Text(goalStageText(s) + " · " + formatChf(s.goal.targetChf) + " · " + s.goal.targetDate.take(4), style = MaterialTheme.typography.labelSmall, color = color)
@@ -112,7 +113,7 @@ fun GoalPreview(goals: List<Goal>, now: FinancialStatement, perCase: Map<CaseTyp
             }
             CaseType.entries.forEach { case ->
                 val after = perCase[case] ?: return@forEach
-                Text(formatPercent(g.progress(after)), style = MaterialTheme.typography.labelMedium, color = caseColor(case))
+                Text(formatPercent(g.progress(after)), style = MaterialTheme.typography.labelMedium.figures(), color = caseColor(case))
             }
         }
     }

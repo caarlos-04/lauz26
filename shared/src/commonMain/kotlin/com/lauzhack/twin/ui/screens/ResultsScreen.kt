@@ -176,7 +176,6 @@ fun ResultsScreen(
                     selected = tab == i,
                     onClick = { tab = i },
                     text = { Text(stringResource(label)) },
-                    icon = { Icon(icon, null, modifier = Modifier.size(18.dp)) },
                     selectedContentColor = MaterialTheme.colorScheme.onSurface,
                     unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

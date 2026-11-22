@@ -1,5 +1,6 @@
 package com.lauzhack.twin.ui.components
 
+import com.lauzhack.twin.ui.theme.figures
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -108,7 +109,7 @@ private fun TraceBody(trace: Trace, eventById: (String) -> Event?, facts: FactCa
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(categoryLabel(line.key), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
                 OriginChip(line.origin)
-                Text(formatChf(line.chf, signed = true), style = MaterialTheme.typography.labelMedium, color = signColor(line.chf))
+                Text(formatChf(line.chf, signed = true), style = MaterialTheme.typography.labelMedium.figures(), color = signColor(line.chf))
             }
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -160,7 +161,7 @@ private fun TraceBody(trace: Trace, eventById: (String) -> Event?, facts: FactCa
 private fun AmountRow(label: String, value: String, bold: Boolean = false) {
     Row(Modifier.fillMaxWidth()) {
         Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = if (bold) FontWeight.SemiBold else null, modifier = Modifier.weight(1f))
-        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = if (bold) FontWeight.SemiBold else null)
+        Text(value, style = MaterialTheme.typography.bodyMedium.figures(), fontWeight = if (bold) FontWeight.SemiBold else null)
     }
 }
 
@@ -213,7 +214,7 @@ private fun effectText(effect: Effect, turnStart: Int, facts: FactCatalog): Stri
         is Effect.SetIncome -> stringResource(Res.string.eff_set_income, formatChf(effect.monthlyChf), from)
         is Effect.IncomeDelta -> stringResource(Res.string.eff_income_delta, formatChf(effect.deltaChf, signed = true), from) + duration(effect.months)
         is Effect.IncomeFactor -> stringResource(Res.string.eff_income_factor, ((effect.factor * 1000).roundToInt() / 1000.0).toString(), from) + duration(effect.months)
-        is Effect.ExpenseDelta -> stringResource(Res.string.eff_expense, keyString("cat_event_${effect.category.name}"), formatChf(effect.deltaChf), from)   // an expense: no "+" + duration(effect.months)
+        is Effect.ExpenseDelta -> stringResource(Res.string.eff_expense, keyString("cat_event_${effect.category.name}"), formatChf(effect.deltaChf), from) + duration(effect.months)   // an expense: no "+"
         is Effect.OneOff -> stringResource(Res.string.eff_one_off, formatChf(effect.chf), from)
         is Effect.AddLiability -> stringResource(Res.string.eff_loan, formatChf(effect.principalChf), rate(effect.annualRate), effect.termMonths)
         is Effect.MarketRent -> stringResource(Res.string.eff_market_rent, (effect.quantile * 100).roundToInt(), from)
