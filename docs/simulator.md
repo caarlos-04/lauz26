@@ -181,17 +181,24 @@ policy rate, bond yields, property prices) with provider, URL and retrieval date
 Say it in the demo: the data are synthetic, so a good score means the model recovered the generator; beyond month 24
 growth comes from public macro data and explicit assumptions.
 
-## 6. What the Kotlin engine needs
+## 6. Kotlin engine
 
-- Load `flow-model.json` and `macro.json` (both small: ~48 KB and ~12 KB) with the classes in
-  `shared/src/commonMain/kotlin/com/lauzhack/twin/model/Simulation.kt` (`FlowModel`, `MacroFile`), using
-  `Json { ignoreUnknownKeys = true }`. `SimulationContractTest` checks that the files and a simulated statement dump
-  (`simulate.py --dump tools/out/simulated-P00001.json`) decode and balance.
-- Features: `FlowFeature` (every categorical and numeric field of the statement, see `Simulation.kt`).
-- `predictRaw(base, factors, unknown, features)`: product of factors; a level not in a map uses `unknown[feature]`.
-- `step(statement) → statement` in the order of section 2 (`tools/simulate.py:step` is the reference).
-- Cash-flow keys: income `salary`, `bonus`, `loan`; expenses `rent`, the learned flow keys (`groceries`, `travel`...)
-  and the event expense categories (`TUITION`, `OTHER`...).
+`shared/src/commonMain/kotlin/com/lauzhack/twin/engine/` is the engine of the app, a port of the Python reference:
+
+| File | What | Python |
+|---|---|---|
+| `Basics.kt` | Portable seeded randomness (splitmix64, the same numbers as Python), rounding, periods, goal state | `statement.py`, `game.py` |
+| `Simulator.kt` | Features of the statement, learned flows, market rent, monthly trends and career, `step` / `run` | `simulate.py`, `flow_model.py` |
+| `Events.kt` | Effects -> `pendingChanges`, requirements, event choice, luck -> case | `game.py` |
+| `Game.kt` | `GameEngine`: next event, preview, draw the case, play a turn (with the counterfactual of the other option), a whole game, story beats, attribution; `GameEngine.fromJson(...)` | `game.py` |
+
+Tests: `commonTest/.../engine/EngineTest.kt` (rules on a small hand-written model) and
+`jvmTest/.../engine/GoldenGameTest.kt`: the 13 games of `tools/golden.py` (every event at least once) are reproduced
+month by month; today the largest difference with Python is **0.00 CHF**. Randomness is portable on purpose: the luck
+of a turn and the choice between equally urgent events depend only on (seed, turn), on every platform.
+
+Inputs: `flow-model.json`, `macro.json` (`model/Simulation.kt`) and `content/events.json`, decoded with
+`Json { ignoreUnknownKeys = true }`. How the app ships them as resources: issue #14.
 
 ## 7. Rules agreed with this design
 
