@@ -9,13 +9,33 @@
 Python reference for the Kotlin engine (Dev A); tools/validate_events.py uses it for --preview / --play.
 """
 import copy
-import random
 
 from simulate import run, step
 from statement import annuity_payment, goal_state, net_worth
 
 CASE_ORDER = ["PESSIMISTIC", "NEUTRAL", "OPTIMISTIC"]   # order used to resolve the luck
 HORIZON, MONTHS_PER_TURN, MAX_TURNS = 120, 24, 5
+MASK64 = (1 << 64) - 1
+LUCK_SALT, EVENT_SALT = 1, 2
+
+
+# ---------------------------------------------------------------------------------------------- randomness
+
+def splitmix64(x: int) -> int:
+    x = (x + 0x9E3779B97F4A7C15) & MASK64
+    z = ((x ^ (x >> 30)) * 0xBF58476D1CE4E5B9) & MASK64
+    z = ((z ^ (z >> 27)) * 0x94D049BB133111EB) & MASK64
+    return z ^ (z >> 31)
+
+
+def unit(seed: int, turn: int, salt: int) -> float:
+    """A number in [0, 1) that depends only on (seed, turn, salt): the same in Python and Kotlin (engine/Rng.kt),
+    so a game is reproducible on every platform and the parallel lives get the same luck per turn."""
+    return (splitmix64((seed * 1_000_003 + turn * 31 + salt) & MASK64) >> 11) / 2 ** 53
+
+
+def turn_luck(seed: int, turn: int) -> float:
+    return unit(seed, turn, LUCK_SALT)
 
 
 # ---------------------------------------------------------------------------------------------- events
@@ -81,13 +101,15 @@ def eligible(ev: dict, s: dict, turn: int, used: set) -> bool:
     ])
 
 
-def pick_event(events: list[dict], s: dict, turn: int, used: set, rng: random.Random) -> dict | None:
+def pick_event(events: list[dict], s: dict, turn: int, used: set, seed: int) -> dict | None:
+    """The eligible event with the highest priority; ties are broken with the seeded number of this turn
+    (events in file order)."""
     cands = [e for e in events if eligible(e, s, turn, used)]
     if not cands:
         return None
     top = max(e.get("priority", 0) for e in cands)
     best = [e for e in cands if e.get("priority", 0) == top]
-    return best[0] if len(best) == 1 else rng.choice(best)
+    return best[min(int(unit(seed, turn, EVENT_SALT) * len(best)), len(best) - 1)]
 
 
 def case_from_luck(option: dict, luck: float) -> str:
@@ -190,14 +212,14 @@ def advance(s: dict, months: int, model: dict, macro: dict | None, beats: list, 
 def play(events: list[dict], s0: dict, model: dict, macro: dict | None, choices: list[str], lucks: list[float],
          seed: int, lang: str = "EN") -> dict:
     """A whole game. Returns one statement per turn (and every month), the life line and the attribution."""
-    rng, used, attribution = random.Random(seed), set(), {}
+    used, attribution = set(), {}
     beats = [beat(s0, "START", cash=round(s0["cashChf"]))]
     s, per_turn, monthly = s0, [s0], [s0]
     for turn in range(MAX_TURNS):
         before, s = s, apply_due_life_changes(s)
         beats.extend(beats_between(before, s))
-        ev = pick_event(events, s, turn, used, rng)
-        luck = lucks[turn] if turn < len(lucks) else rng.random()
+        ev = pick_event(events, s, turn, used, seed)
+        luck = lucks[turn] if turn < len(lucks) else turn_luck(seed, turn)
         if ev is None:
             beats.append(beat(s, "QUIET_PERIOD"))
         else:
