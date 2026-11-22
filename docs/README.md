@@ -100,7 +100,7 @@ Almost everything in `commonMain`:
 ```
 commonMain
 ├─ model/     data classes (section 5)                      [shared contract]
-├─ engine/    GameEngine (docs/simulator.md section 6): monthly step, effects, luck, financing, life changes,
+├─ engine/    TwinEngine (docs/simulator.md section 6) behind the UI's GameEngine interface: monthly step, effects, luck, financing, life changes,
 │             moments (StoryBeat), attribution, tree (expectimax), parallel lives, sensitivity
 ├─ events/    event catalogue and selection based on the current life
 ├─ data/      JSON loading (flow model, macro trends, events, facts, assumptions, interview)

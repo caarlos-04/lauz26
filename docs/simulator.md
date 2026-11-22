@@ -190,7 +190,7 @@ growth comes from public macro data and explicit assumptions.
 | `Basics.kt` | Portable seeded randomness (splitmix64, the same numbers as Python), rounding, periods, goal state | `statement.py`, `game.py` |
 | `Simulator.kt` | Features of the statement, learned flows, market rent, monthly trends and career, `step` / `run` | `simulate.py`, `flow_model.py` |
 | `Events.kt` | Effects -> `pendingChanges`, requirements, event choice, luck -> case | `game.py` |
-| `Game.kt` | `GameEngine`: next event, preview, draw the case, play a turn (with the counterfactual of the other option), a whole game, story beats, attribution; `GameEngine.fromJson(...)` | `game.py` |
+| `Game.kt` | `TwinEngine` (the real engine; the UI's `GameEngine` interface will be implemented on top of it): next event, preview, draw the case, play a turn (with the counterfactual of the other option), a whole game, story beats, attribution; `TwinEngine.fromJson(...)` | `game.py` |
 
 Tests: `commonTest/.../engine/EngineTest.kt` (rules on a small hand-written model) and
 `jvmTest/.../engine/GoldenGameTest.kt`: the 13 games of `tools/golden.py` (every event at least once) are reproduced

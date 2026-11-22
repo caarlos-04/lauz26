@@ -27,10 +27,10 @@ class GoldenGameTest {
         val attribution: List<AttributionItem>, val startNetWorth: Double, val endNetWorth: Double,
     )
 
-    private val engine: GameEngine? by lazy {
+    private val engine: TwinEngine? by lazy {
         val model = File(out, "flow-model.json").takeIf { it.exists() } ?: return@lazy null
         val macro = File(out, "macro.json").takeIf { it.exists() } ?: return@lazy null
-        GameEngine.fromJson(model.readText(), macro.readText(), File(root, "content/events.json").readText())
+        TwinEngine.fromJson(model.readText(), macro.readText(), File(root, "content/events.json").readText())
     }
 
     private fun goldens(): List<Golden> =
