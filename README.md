@@ -114,17 +114,6 @@ dark mode ([`docs/ui.md`](docs/ui.md)).
   behaviour; no taxes; beyond the 24 months of data, growth comes from public averages; the content has 17 actions and
   2 shocks for now. More in [`docs/how-the-simulator-learns.md`](docs/how-the-simulator-learns.md#13-limits-said-honestly).
 
-## Team
-
-| Role | GitHub |
-|---|---|
-| Engine, model and integration | [@polma7](https://github.com/polma7) |
-| UI/UX | [@OriolVines](https://github.com/OriolVines) |
-| Data, content, AI and front end | [@caarlos-04](https://github.com/caarlos-04) |
-
-Challenge materials (Stefania Stan, UBS × LauzHack) are used only to take part, under their terms. Fonts: IBM Plex
-(SIL Open Font License, [`licenses/`](licenses/)).
-
 ## References
 
 Research behind the main design choices.
