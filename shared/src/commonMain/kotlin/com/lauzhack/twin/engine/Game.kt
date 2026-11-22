@@ -20,9 +20,11 @@ import kotlinx.serialization.json.Json
 import kotlin.math.round
 
 // The game loop on statements: events change fields, the simulator moves time. Python reference: tools/game.py.
+// TwinEngine is the real engine; the UI talks to the GameEngine interface (engine/GameEngine.kt on the UI side),
+// which an adapter implements on top of TwinEngine.
 
 /** Everything the engine needs, loaded once (flow-model.json, macro.json, content/events.json). */
-class GameEngine(
+class TwinEngine(
     val simulator: Simulator,
     val events: List<Event>,
     val config: GameConfig = GameConfig(),
@@ -33,8 +35,8 @@ class GameEngine(
         /** The engine from the texts of flow-model.json, macro.json and content/events.json (however the platform
          *  loads them). `macroJson = null` runs without trends (no growth of wages, rents or prices). */
         fun fromJson(flowModelJson: String, macroJson: String?, eventsJson: String,
-                     rules: EngineRules = EngineRules(), config: GameConfig = GameConfig()): GameEngine =
-            GameEngine(
+                     rules: EngineRules = EngineRules(), config: GameConfig = GameConfig()): TwinEngine =
+            TwinEngine(
                 Simulator(json.decodeFromString<FlowModel>(flowModelJson),
                           macroJson?.let { json.decodeFromString<MacroFile>(it) }, rules),
                 json.decodeFromString<EventCatalog>(eventsJson).events,
