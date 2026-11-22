@@ -74,7 +74,7 @@ class BriefingMapper(
                 ParallelLine(
                     title = when (life.kind) {
                         ParallelKind.OTHER_FIRST_CHOICE -> "Other first choice"
-                        ParallelKind.OPTIMAL_STRATEGY -> "Best strategy (computed)"
+                        ParallelKind.OPTIMAL_STRATEGY -> "Turn-by-turn strategy (the best expected result at each turn; a heuristic, not an exact optimum)"
                     },
                     choices = life.turns.mapNotNull { t -> choiceLine(t, lang) },
                     finalNetWorthChf = life.stats.finalNetWorth,

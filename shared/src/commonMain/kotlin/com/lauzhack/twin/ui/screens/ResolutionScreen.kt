@@ -149,7 +149,7 @@ fun ResolutionScreen(
                             icon = TwinIcons.TrendUp, delta = nwDelta,
                             caption = stringResource(Res.string.resolution_before) + ": " + formatChf(before.netWorth),
                         )
-                        KpiTile(
+                        if (kotlin.math.abs(turn.stateAfter.cash - turn.stateAfter.netWorth) >= 1.0) KpiTile(
                             stringResource(Res.string.state_cash), turn.stateAfter.cash, m,
                             icon = TwinIcons.Wallet, delta = cashDelta,
                             caption = stringResource(Res.string.resolution_after, monthsPerTurn),

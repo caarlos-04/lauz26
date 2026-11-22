@@ -8,7 +8,6 @@
     <string name="theme_dark">Dark</string>
     <string name="theme_light">Light</string>
     <string name="lang_toggle">ES</string>
-    <string name="months_value">%1$d months</string>
     <string name="month_value">Month %1$d</string>
     <string name="disclaimer">This is a simulation with synthetic data, not a prediction and not financial advice. Amounts in CHF, no taxes.</string>
 
@@ -122,9 +121,7 @@
     <string name="state_cash">Cash</string>
     <string name="state_net_worth">Net worth</string>
     <string name="state_monthly_net">Monthly balance</string>
-    <string name="state_age">Age</string>
     <string name="state_age_value">%1$d years</string>
-    <string name="state_status">Status</string>
 
     <!-- Dilemma -->
     <string name="dilemma_turn">Turn %1$d of %2$d · month %3$d</string>
@@ -150,31 +147,20 @@
 
     <!-- Results -->
     <string name="results_title">Your next 10 years</string>
-    <string name="chart_cash">Cash over time</string>
-    <string name="chart_net_worth">Net worth over time</string>
     <string name="chart_calibrated">Calibrated with data</string>
     <string name="chart_assumptions">Assumptions only</string>
     <string name="legend_band">p10–p90 range</string>
     <string name="legend_median">Median (chosen path)</string>
     <string name="legend_alternative">Median (alternative path)</string>
-    <string name="stats_title">Key figures</string>
     <string name="stat_final_net_worth">Final net worth</string>
     <string name="stat_min_cash">Lowest cash</string>
-    <string name="stat_min_cash_value">%1$s (month %2$d)</string>
     <string name="stat_months_negative">Months with negative cash</string>
-    <string name="stat_prob_negative">Chance of negative cash</string>
     <string name="goals_title">Goals</string>
     <string name="goal_target">%1$s by month %2$d</string>
     <string name="goal_reached">Reached</string>
     <string name="goal_missed">Missed</string>
     <string name="goal_prob">Probability: %1$s</string>
     <string name="goal_median_month">Typically reached in month %1$d</string>
-    <string name="compare_title">Chosen path vs alternative</string>
-    <string name="compare_chosen">Chosen</string>
-    <string name="compare_alternative">Alternative</string>
-    <string name="compare_delta">Difference in final net worth</string>
-    <string name="compare_reasons">Decisions that explain the difference (largest first)</string>
-    <string name="compare_reason_line">%1$s → %2$s at that turn</string>
     <string name="assumptions_title">Assumptions</string>
     <string name="limitations_title">Limitations</string>
     <string name="limitation_1">The dataset covers only 24 months; beyond that the curves rely on explicit assumptions.</string>
@@ -188,7 +174,6 @@
     <string name="chat_intro">Ask your future self about your results. Answers only use the numbers computed by the simulation.</string>
     <string name="chat_placeholder">Ask something…</string>
     <string name="chat_send">Send</string>
-    <string name="chat_thinking">Thinking…</string>
     <string name="chat_suggestion_risk">What was my biggest risk?</string>
     <string name="chat_suggestion_goals">Did I reach my goals?</string>
     <string name="chat_suggestion_other">What if I had chosen the other options?</string>
@@ -196,18 +181,8 @@
     <!-- Events -->
 
     <!-- Decision tree (what-if) -->
-    <string name="tree_title">Your decision tree</string>
-    <string name="tree_hint">Tap the other branch of any turn to live that other life. Luck is the same in every branch: only your decision changes. Lives you already explored are kept.</string>
-    <string name="tree_start">Start · net worth %1$s</string>
-    <string name="tree_level">Turn %1$d · month %2$d</string>
-    <string name="tree_net_worth_after">Net worth after</string>
-    <string name="tree_would_be">Would be</string>
-    <string name="tree_edited">edited</string>
     <string name="tree_reset">Back to the path I played</string>
     <string name="chat_edited_notice">You are exploring an edited path: answers use its numbers.</string>
-    <string name="tree_pending_level">Turn %1$d · month %2$d · new question</string>
-    <string name="tree_new_question">new question</string>
-    <string name="results_incomplete">Path incomplete: answer the new question in the tree to see the full 10 years. Figures below assume no further decisions.</string>
 
     <!-- Redesign -->
     <string name="nav_year">Year %1$d / %2$d</string>
@@ -218,15 +193,14 @@
     <string name="welcome_badge">AI Financial Twin · LauzHack 2026</string>
     <string name="welcome_feature_cases_title">Three cases per decision</string>
     <string name="welcome_feature_cases_desc">Every choice shows a pessimistic, neutral and optimistic outcome before you commit.</string>
-    <string name="welcome_feature_mc_title">Explore every branch</string>
-    <string name="welcome_feature_mc_desc">An exact decision tree and parallel lives show what each decision changed, with the same luck.</string>
-    <string name="welcome_feature_chat_title">Talk to your future self</string>
-    <string name="welcome_feature_chat_desc">Ask questions about your results; answers only use the numbers the simulation computed.</string>
+    <string name="welcome_feature_mc_title">Explore your 32 lives</string>
+    <string name="welcome_feature_mc_desc">Go back to any moment and take the other path. The map keeps every life, with the same luck in all of them.</string>
+    <string name="welcome_feature_chat_title">Talk to your self of any moment</string>
+    <string name="welcome_feature_chat_desc">Ask your self at any point of the life. Answers only use the computed figures, and every number shows where it comes from.</string>
     <string name="welcome_preview_label">Illustration: a range of possible futures</string>
     <string name="tab_overview">Overview</string>
-    <string name="tab_tree">Decision tree</string>
+    <string name="tab_tree">Map of lives</string>
     <string name="tab_assumptions">Assumptions</string>
-    <string name="kpi_vs_alternative">vs. the alternative path</string>
     <string name="goals_reached_value">%1$d of %2$d</string>
     <string name="results_headline">Where your decisions lead</string>
     <string name="chat_cta_desc">Ask about risks, goals or what would have happened otherwise.</string>
@@ -237,16 +211,10 @@
     <string name="quiet_title">A quiet period</string>
     <string name="quiet_desc">No big decision these %1$d months: life goes on and your finances evolve on their own.</string>
     <string name="quiet_node">Quiet period</string>
-    <string name="pl_title">Parallel lives</string>
-    <string name="pl_subtitle">Same luck, different choices, computed by the engine</string>
     <string name="pl_other_first">Other first choice</string>
-    <string name="pl_optimal">Best strategy</string>
-    <string name="pl_vs">vs you: %1$s</string>
     <string name="kpi_below_cushion">Months below cushion</string>
     <string name="kpi_financing_cost">Financing cost</string>
     <string name="drivers_title">What moved your net worth</string>
-    <string name="driver_income">Income</string>
-    <string name="driver_expense">Spending</string>
     <string name="driver_debt">Loan interest</string>
     <string name="driver_financing">Cost of negative cash</string>
     <string name="driver_investment">Investment growth</string>
@@ -259,7 +227,7 @@
     <string name="persona_parallel">Parallel self</string>
     <string name="chat_parallel_intro">Talk with the you who took the other option at the first decision.</string>
     <string name="cash_band_title">Cash: month-to-month noise</string>
-    <string name="cash_band_desc">How much the monthly ups and downs move your cash (p10–p90), with your choices and luck fixed. The analysis is in the decision tree and the parallel lives.</string>
+    <string name="cash_band_desc">How much the monthly ups and downs move your cash (p10–p90), with your choices and luck fixed. It is not the analysis: that is the map of lives.</string>
     <string name="lifeline_title">Your life line</string>
     <string name="lifeline_subtitle">The moments that shaped your ten years, computed by the engine</string>
     <string name="beat_when">Month %1$d · %2$d years</string>

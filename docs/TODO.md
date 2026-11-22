@@ -68,16 +68,16 @@ on the life), and a quiet turn does not split the branch, so a game can have few
 ## 6. Analysis
 - [ ] "Your story would change if...": sensitivity of the decision to each assumption and the break-even point
 - [ ] Chart of the assumptions that move the result most
-- [ ] "Optimal strategy": real exact solution or rename it honestly (today it is greedy)
+- [x] "Optimal strategy": real exact solution or rename it honestly (renamed: "turn-by-turn strategy", a heuristic)
 - [ ] Editable assumptions in the app (some sliders) with recomputation
 - [ ] Decide what stays from the noise band (`#12`)
 
 ## 7. Front end
-- [ ] Review the whole flow screen by screen and decide what stays, what changes and what goes
+- [x] Review the whole flow screen by screen and decide what stays, what changes and what goes
 - [ ] One consistent visual design (colours, typography, spacing, components)
 - [ ] Clear navigation: always visible where you are in the life and what you can do
 - [ ] Charts readable and labelled (units in CHF, axes, legends)
-- [ ] Simplify: fewer concepts on screen at the same time
+- [x] Simplify: fewer concepts on screen at the same time
 - [ ] Good on phone and desktop sizes
 - [ ] Dark/light mode checked on every screen
 - [ ] ES/EN complete, no hard-coded strings

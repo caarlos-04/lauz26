@@ -1,5 +1,6 @@
 package com.lauzhack.twin.ui.screens
 
+import androidx.compose.ui.text.style.TextAlign
 import com.lauzhack.twin.resources.dilemma_goals_now
 import com.lauzhack.twin.resources.dilemma_goals_title
 import com.lauzhack.twin.ui.components.GoalPreview
@@ -134,20 +135,23 @@ private fun OptionCard(
             }
             Text(label, style = MaterialTheme.typography.headlineSmall)
             CaseDistributionBar(preview.perCase.mapValues { it.value.prob })
+            // One row per case: probability, change of net worth and lowest cash over the turn.
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Spacer(Modifier.weight(1.3f))
+                Text(stringResource(Res.string.delta_net_worth), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+                Text(stringResource(Res.string.min_cash), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+            }
             CaseType.entries.forEach { case ->
                 val p = preview.perCase[case] ?: return@forEach
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    CaseBadge(case)
-                    Spacer(Modifier.weight(1f))
-                    Text(formatPercent(p.prob), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(Modifier.weight(1.3f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        CaseBadge(case)
+                        Text(formatPercent(p.prob), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
+                    }
+                    Text(formatChf(p.deltaNetWorth, signed = true), style = MaterialTheme.typography.labelMedium, color = signColor(p.deltaNetWorth), modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+                    Text(formatChf(p.minCash), style = MaterialTheme.typography.labelMedium, color = if (p.minCash < 0) signColor(p.minCash) else Color.Unspecified, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
                 }
-                Text(localized(p.narrative), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(Res.string.delta_net_worth), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-                    DeltaPill(p.deltaNetWorth)
-                }
-                LabeledValue(stringResource(Res.string.min_cash), formatChf(p.minCash), if (p.minCash < 0) signColor(p.minCash) else Color.Unspecified)
             }
             if (now.goals.isNotEmpty()) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
