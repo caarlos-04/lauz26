@@ -279,4 +279,26 @@
     <string name="pl_side_desc">La misma suerte en cada turno; solo cambia la primera decisión. La diferencia es lo que aportó esa decisión.</string>
     <string name="pl_row_turn">Turno %1$d</string>
     <string name="employment_NOT_WORKING">Sin trabajo</string>
+
+    <!-- Map of lives (F2) -->
+    <string name="nav_map">Mapa</string>
+    <string name="map_title">Tu mapa de vidas</string>
+    <string name="map_hint">Cada punto es un momento de tu vida y cada bifurcación, una decisión. La suerte es la misma en todas las ramas: solo cambian tus decisiones. Toca un punto para verlo.</string>
+    <string name="map_explored">%1$d de %2$d vidas posibles exploradas</string>
+    <string name="map_loading">Calculando todas las vidas posibles…</string>
+    <string name="map_start">Inicio</string>
+    <string name="map_year">Año %1$d</string>
+    <string name="map_when">Año %1$d · %2$d años</string>
+    <string name="map_quiet">Años tranquilos: sin decisión</string>
+    <string name="map_unexplored">Aún no has vivido este momento. Su suerte es la misma que en tus otras vidas: solo cambian las decisiones.</string>
+    <string name="map_go">Ir a este momento</string>
+    <string name="map_live">Vivir esta vida</string>
+    <string name="map_other">Ver la otra opción</string>
+    <string name="map_here">Estás aquí</string>
+    <string name="map_played">Primera vida jugada</string>
+    <string name="map_legend_path">Tu vida actual</string>
+    <string name="map_legend_visited">Vivido</string>
+    <string name="map_legend_unvisited">Sin vivir</string>
+    <string name="resolution_see_other">Vivir esa otra opción</string>
+    <string name="dilemma_lived">Ya la viviste</string>
 </resources>

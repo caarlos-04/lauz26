@@ -107,7 +107,7 @@ import com.lauzhack.twin.resources.tab_tree
 import com.lauzhack.twin.resources.tree_title
 
 import com.lauzhack.twin.ui.components.AppShell
-import com.lauzhack.twin.ui.components.DecisionTree
+import com.lauzhack.twin.resources.tree_reset
 import com.lauzhack.twin.ui.components.DeltaPill
 import com.lauzhack.twin.ui.components.FanChart
 import com.lauzhack.twin.ui.components.IconBadge
@@ -152,13 +152,9 @@ fun ResultsScreen(
     assumptions: Assumptions,
     facts: FactCatalog,
     eventById: (String) -> Event?,
-    playedTurns: List<Turn>?,
     isEdited: Boolean,
-    pendingEvent: Event?,
-    pendingPreviews: List<OptionPreview>,
-    onSwitch: (index: Int) -> Unit,
-    onDecide: (optionId: String) -> Unit,
     onResetPath: () -> Unit,
+    map: @Composable () -> Unit,
     onChat: () -> Unit,
     onRestart: () -> Unit,
     chronicle: ChatBubble?,
@@ -177,13 +173,8 @@ fun ResultsScreen(
 
         KpiRow(session, results)
 
-        if (pendingEvent != null) {
-            SurfaceCard(border = MaterialTheme.colorScheme.tertiary, container = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.m)) {
-                    IconBadge(TwinIcons.Info, tint = MaterialTheme.colorScheme.tertiary)
-                    Text(stringResource(Res.string.results_incomplete), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                }
-            }
+        if (isEdited) {
+            OutlinedButton(onClick = onResetPath, shape = MaterialTheme.shapes.small) { Text(stringResource(Res.string.tree_reset)) }
         }
 
         PrimaryTabRow(selectedTabIndex = tab, containerColor = Color.Transparent) {
@@ -205,13 +196,11 @@ fun ResultsScreen(
 
         when (tab) {
             0 -> Overview(session, results, noiseBand, facts, eventById, chronicle, chronicleLoading, onWriteChronicle)
-            1 -> SectionCard(stringResource(Res.string.tree_title), icon = TwinIcons.Tree) {
-                DecisionTree(session, playedTurns, isEdited, pendingEvent, pendingPreviews, eventById, onSwitch, onDecide, onResetPath)
-            }
+            1 -> map()
             else -> AssumptionsTab(assumptions)
         }
 
-        ChatCta(enabled = pendingEvent == null, onChat = onChat)
+        ChatCta(enabled = true, onChat = onChat)
     }
 }
 

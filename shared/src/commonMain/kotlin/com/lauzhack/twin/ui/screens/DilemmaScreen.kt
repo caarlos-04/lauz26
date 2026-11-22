@@ -40,6 +40,7 @@ import com.lauzhack.twin.resources.dilemma_hint
 import com.lauzhack.twin.resources.dilemma_turn
 import com.lauzhack.twin.resources.min_cash
 import com.lauzhack.twin.resources.option_label
+import com.lauzhack.twin.resources.dilemma_lived
 import com.lauzhack.twin.ui.components.AppShell
 import com.lauzhack.twin.ui.components.CaseBadge
 import com.lauzhack.twin.ui.components.CaseDistributionBar
@@ -47,6 +48,7 @@ import com.lauzhack.twin.ui.components.DeltaPill
 import com.lauzhack.twin.ui.components.IconBadge
 import com.lauzhack.twin.ui.components.LabeledValue
 import com.lauzhack.twin.ui.components.Overline
+import com.lauzhack.twin.ui.components.Pill
 import com.lauzhack.twin.ui.components.PanelData
 import com.lauzhack.twin.ui.components.SurfaceCard
 import com.lauzhack.twin.ui.components.TopBarActions
@@ -68,6 +70,7 @@ fun DilemmaScreen(
     event: Event,
     previews: List<OptionPreview>,
     onChoose: (optionId: String) -> Unit,
+    lived: Set<String> = emptySet(),   // options whose branch the user has already lived
 ) {
     val state = session.turns.lastOrNull()?.stateAfter ?: session.initial
     AppShell(actions, panel = panel) {
@@ -90,7 +93,7 @@ fun DilemmaScreen(
             val cards: @Composable (Modifier) -> Unit = { mod ->
                 event.options.forEach { option ->
                     val preview = previews.firstOrNull { it.optionId == option.id } ?: return@forEach
-                    OptionCard(option.id, localized(option.label), preview, { onChoose(option.id) }, mod)
+                    OptionCard(option.id, localized(option.label), preview, option.id in lived, { onChoose(option.id) }, mod)
                 }
             }
             if (wide) Row(horizontalArrangement = Arrangement.spacedBy(Space.l)) { cards(Modifier.weight(1f)) }
@@ -100,7 +103,7 @@ fun DilemmaScreen(
 }
 
 @Composable
-private fun OptionCard(id: String, label: String, preview: OptionPreview, onChoose: () -> Unit, modifier: Modifier) {
+private fun OptionCard(id: String, label: String, preview: OptionPreview, lived: Boolean, onChoose: () -> Unit, modifier: Modifier) {
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
     val accent = LocalTwinColors.current.chosen
@@ -112,7 +115,10 @@ private fun OptionCard(id: String, label: String, preview: OptionPreview, onChoo
         elevation = CardDefaults.cardElevation(defaultElevation = if (hovered) 6.dp else 0.dp),
     ) {
         Column(Modifier.padding(Space.xl), verticalArrangement = Arrangement.spacedBy(Space.m)) {
-            Overline(stringResource(Res.string.option_label, id), color = accent)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.s)) {
+                Overline(stringResource(Res.string.option_label, id), color = accent)
+                if (lived) Pill(stringResource(Res.string.dilemma_lived))
+            }
             Text(label, style = MaterialTheme.typography.headlineSmall)
             CaseDistributionBar(preview.perCase.mapValues { it.value.prob })
             CaseType.entries.forEach { case ->

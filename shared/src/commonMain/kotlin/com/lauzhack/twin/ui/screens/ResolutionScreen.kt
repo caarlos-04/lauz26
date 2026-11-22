@@ -23,6 +23,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -41,6 +42,7 @@ import com.lauzhack.twin.resources.resolution_after
 import com.lauzhack.twin.resources.resolution_before
 import com.lauzhack.twin.resources.resolution_case_drawn
 import com.lauzhack.twin.resources.resolution_counterfactual
+import com.lauzhack.twin.resources.resolution_see_other
 import com.lauzhack.twin.resources.resolution_drawing
 import com.lauzhack.twin.resources.resolution_next_turn
 import com.lauzhack.twin.resources.resolution_see_results
@@ -76,6 +78,7 @@ fun ResolutionScreen(
     monthsPerTurn: Int,
     isLastTurn: Boolean,
     onNext: () -> Unit,
+    onOther: (() -> Unit)? = null,
 ) {
     var revealed by remember(turn) { mutableStateOf(false) }
     LaunchedEffect(turn) {
@@ -154,7 +157,12 @@ fun ResolutionScreen(
                 resolved?.let { turn.counterfactual[it] }?.let {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.s)) {
                         Icon(TwinIcons.Info, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
-                        Text(stringResource(Res.string.resolution_counterfactual, formatChf(it.netWorth)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(Res.string.resolution_counterfactual, formatChf(it.netWorth)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                        if (onOther != null) {
+                            OutlinedButton(onClick = onOther, shape = MaterialTheme.shapes.small) {
+                                Text(stringResource(Res.string.resolution_see_other))
+                            }
+                        }
                     }
                 }
                 Button(onClick = onNext, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth().height(48.dp)) {

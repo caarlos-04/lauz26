@@ -279,4 +279,26 @@
     <string name="pl_side_desc">Same luck in every turn; only the first decision changes. The difference is what that decision contributed.</string>
     <string name="pl_row_turn">Turn %1$d</string>
     <string name="employment_NOT_WORKING">Not working</string>
+
+    <!-- Map of lives (F2) -->
+    <string name="nav_map">Map</string>
+    <string name="map_title">Your map of lives</string>
+    <string name="map_hint">Every dot is a moment of your life and every fork, a decision. Luck is the same in every branch: only your choices change. Tap a dot to see it.</string>
+    <string name="map_explored">%1$d of %2$d possible lives explored</string>
+    <string name="map_loading">Computing every possible life…</string>
+    <string name="map_start">Start</string>
+    <string name="map_year">Year %1$d</string>
+    <string name="map_when">Year %1$d · %2$d years old</string>
+    <string name="map_quiet">Quiet years: no decision</string>
+    <string name="map_unexplored">You have not lived this moment yet. Its luck is the same as in your other lives: only the decisions change.</string>
+    <string name="map_go">Go to this moment</string>
+    <string name="map_live">Live this life</string>
+    <string name="map_other">See the other option</string>
+    <string name="map_here">You are here</string>
+    <string name="map_played">First life played</string>
+    <string name="map_legend_path">Your current life</string>
+    <string name="map_legend_visited">Lived</string>
+    <string name="map_legend_unvisited">Not lived yet</string>
+    <string name="resolution_see_other">Live that other option</string>
+    <string name="dilemma_lived">Already lived</string>
 </resources>

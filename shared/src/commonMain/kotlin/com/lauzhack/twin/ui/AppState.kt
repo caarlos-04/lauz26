@@ -26,9 +26,11 @@ import com.lauzhack.twin.model.InterviewQuestion
 import com.lauzhack.twin.model.Lang
 import com.lauzhack.twin.model.Persona
 import com.lauzhack.twin.model.Turn
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.random.Random
 
-enum class Screen { WELCOME, INTERVIEW, DILEMMA, RESOLUTION, RESULTS, CHAT }
+enum class Screen { WELCOME, INTERVIEW, DILEMMA, RESOLUTION, RESULTS, CHAT, MAP }
 
 /** A chat message as shown in the UI: [offline] = it came from the canned fallback, not the LLM. */
 data class ChatBubble(val message: ChatMessage, val offline: Boolean = false)
@@ -89,9 +91,11 @@ class AppState(
             return bandCache.getOrPut(t.cursor) { engine.noiseBand(t.current) }
         }
 
-    /** First unanswered question on the current branch after a what-if switch (the results stop there), or null. */
-    val pendingEvent: Event?
-        get() = if (screen == Screen.RESULTS && playedKey != null) currentEvent else null
+    /** True once every possible life of the game is in the tree (see [prepareMap]). */
+    var mapReady by mutableStateOf(false); private set
+
+    /** Screen to go back to when the map is closed. */
+    private var beforeMap = Screen.WELCOME
 
     val answers = mutableStateListOf<InterviewAnswer>()
     var chatLoading by mutableStateOf(false); private set
@@ -176,31 +180,81 @@ class AppState(
         get() = playedKey != null && tree?.cursor != playedKey
 
     /**
-     * Takes the other option at turn [index] of the current branch and goes down that branch as far as it was
-     * explored. The case of every turn is fixed by its luck: only the option changes.
+     * Goes to any node of the tree, explored or not (it is computed if needed: the luck is fixed, so it is the same
+     * life you would get by playing those choices). Shows that moment: the dilemma at the start, what happened in the
+     * node's last turn, or the results of a complete life.
+     */
+    fun open(key: NodeKey) {
+        var t = tree ?: return
+        for (i in key.indices) {                                  // existing nodes are reused as they are
+            val parent = key.take(i)
+            val c = key[i]
+            t = engine.withChild(t, parent, if (c == QUIET) null else c.toString()).first
+        }
+        tree = t.goTo(key)
+        showCurrent(resolution = key.isNotEmpty())
+    }
+
+    /** "What if I had chosen the other option in the turn I just played?": that same turn, the other option. */
+    fun openOther() {
+        val key = tree?.cursor ?: return
+        if (key.isEmpty() || key.last() == QUIET) return
+        open(siblingOf(key))
+    }
+
+    /**
+     * Takes the other option at turn [index] of the current branch and continues that life as far as it was already
+     * explored; then the next unanswered question, or the results. The case of every turn is fixed by its luck.
      */
     fun switchAt(index: Int) {
         val t = tree ?: return
         if (t.cursor.getOrNull(index)?.let { it == QUIET } != false) return
-        moveTo(engine.switchAt(t, index))
-    }
-
-    /** Answers the question waiting on the current branch after a switch; then goes down as far as possible. */
-    fun decidePending(optionId: String) {
-        val t = tree ?: return
-        if (currentEvent == null) return
-        moveTo(engine.descend(engine.choose(t, optionId)))
+        tree = engine.switchAt(t, index)
+        showCurrent(resolution = false)
     }
 
     fun resetToPlayed() {
-        val t = tree ?: return
-        val key = playedKey ?: return
-        moveTo(t.goTo(key))
+        open(playedKey ?: return)
     }
 
-    private fun moveTo(t: LifeTree) {
-        tree = t
-        currentEvent = engine.questionAt(t)
+    /** Shows the node at the cursor: results if the life is complete, else its last turn or its question. */
+    private fun showCurrent(resolution: Boolean) {
+        val t = tree ?: return
+        when {
+            t.current.isOver -> {
+                if (playedKey == null) playedKey = t.cursor
+                currentEvent = null
+                screen = Screen.RESULTS
+            }
+            resolution && t.current.turns.isNotEmpty() -> {
+                currentEvent = null
+                screen = Screen.RESOLUTION
+            }
+            else -> nextTurn()
+        }
+    }
+
+    // ---------- Map of lives ----------
+
+    fun openMap() {
+        if (tree == null || screen == Screen.MAP) return
+        beforeMap = screen
+        screen = Screen.MAP
+    }
+
+    fun closeMap() {
+        screen = beforeMap
+    }
+
+    /** Computes every possible life of the game (off the UI thread) so the map can show the whole tree. */
+    suspend fun prepareMap() {
+        val t = tree ?: return
+        if (mapReady) return
+        val all = withContext(Dispatchers.Default) { engine.expandAll(LifeTree.start(t.root)) }
+        val now = tree ?: return
+        if (now.root != t.root) return                  // a new game started meanwhile
+        tree = now.copy(nodes = all.nodes + now.nodes)
+        mapReady = true
     }
 
     fun openChat() { screen = Screen.CHAT }
@@ -216,6 +270,7 @@ class AppState(
         tree = null
         playedKey = null
         currentEvent = null
+        mapReady = false
         resultCache.clear()
         bandCache.clear()
         chats.clear()

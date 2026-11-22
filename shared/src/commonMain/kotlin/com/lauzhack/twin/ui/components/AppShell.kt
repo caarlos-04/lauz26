@@ -1,5 +1,7 @@
 package com.lauzhack.twin.ui.components
 
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.foundation.layout.PaddingValues
 import com.lauzhack.twin.ui.cash
 import com.lauzhack.twin.ui.netWorth
 import com.lauzhack.twin.ui.monthlyNet
@@ -53,6 +55,7 @@ import com.lauzhack.twin.resources.action_back
 import com.lauzhack.twin.resources.app_name
 import com.lauzhack.twin.resources.goals_title
 import com.lauzhack.twin.resources.lang_toggle
+import com.lauzhack.twin.resources.nav_map
 import com.lauzhack.twin.resources.nav_year
 import com.lauzhack.twin.resources.profile_you
 import com.lauzhack.twin.resources.state_age_value
@@ -76,6 +79,7 @@ data class TopBarActions(
     val isDark: Boolean,
     val onToggleLang: () -> Unit,
     val onToggleTheme: () -> Unit,
+    val onMap: (() -> Unit)? = null,   // null = no game yet, or already on the map
 )
 
 /** Data for the side panel (live finances of the person during and after the game). */
@@ -105,7 +109,7 @@ fun AppShell(
 ) {
     Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
-            TopBar(actions, panel, onBack)
+            BoxWithConstraints(Modifier.fillMaxWidth()) { TopBar(actions, panel, onBack, compact = maxWidth < 600.dp) }
             BoxWithConstraints(Modifier.fillMaxSize()) {
                 val wide = maxWidth >= 900.dp
                 if (wide && panel != null) {
@@ -143,7 +147,7 @@ private fun ContentArea(
 }
 
 @Composable
-private fun TopBar(actions: TopBarActions, panel: PanelData?, onBack: (() -> Unit)?) {
+private fun TopBar(actions: TopBarActions, panel: PanelData?, onBack: (() -> Unit)?, compact: Boolean) {
     Surface(color = MaterialTheme.colorScheme.surface) {
         Column {
             Row(
@@ -157,17 +161,33 @@ private fun TopBar(actions: TopBarActions, panel: PanelData?, onBack: (() -> Uni
                     }
                 }
                 LogoMark()
-                Text(stringResource(Res.string.app_name), style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (!compact || panel == null) {
+                    Text(stringResource(Res.string.app_name), style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
                 Spacer(Modifier.weight(1f))
                 if (panel != null) {
                     val year = panel.turnsDone * panel.monthsPerTurn / 12
                     val total = panel.maxTurns * panel.monthsPerTurn / 12
                     Pill(stringResource(Res.string.nav_year, year, total))
                 }
-                TextButton(onClick = actions.onToggleLang) {
-                    Icon(TwinIcons.Globe, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(stringResource(Res.string.lang_toggle))
+                // On phones the actions are icons only, so the bar fits in one line.
+                actions.onMap?.let { onMap ->
+                    if (compact) {
+                        IconButton(onClick = onMap) { Icon(TwinIcons.Tree, stringResource(Res.string.nav_map), tint = MaterialTheme.colorScheme.secondary) }
+                    } else {
+                        TextButton(onClick = onMap) {
+                            Icon(TwinIcons.Tree, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(stringResource(Res.string.nav_map))
+                        }
+                    }
+                }
+                TextButton(onClick = actions.onToggleLang, contentPadding = if (compact) PaddingValues(horizontal = 8.dp) else ButtonDefaults.TextButtonContentPadding) {
+                    if (!compact) {
+                        Icon(TwinIcons.Globe, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                    }
+                    Text(stringResource(Res.string.lang_toggle), maxLines = 1)
                 }
                 IconButton(onClick = actions.onToggleTheme) {
                     Icon(

@@ -30,6 +30,8 @@ import com.lauzhack.twin.ui.i18n.tag
 import com.lauzhack.twin.ui.screens.ChatScreen
 import com.lauzhack.twin.ui.screens.DilemmaScreen
 import com.lauzhack.twin.ui.screens.InterviewScreen
+import com.lauzhack.twin.ui.screens.LifeMapSection
+import com.lauzhack.twin.ui.screens.MapScreen
 import com.lauzhack.twin.ui.screens.ResolutionScreen
 import com.lauzhack.twin.ui.screens.ResultsScreen
 import com.lauzhack.twin.ui.screens.WelcomeScreen
@@ -108,6 +110,7 @@ private fun AppContentLoaded(state: AppState) {
                     isDark = dark,
                     onToggleLang = { state.lang = if (state.lang == Lang.EN) Lang.ES else Lang.EN },
                     onToggleTheme = { state.darkMode = !dark },
+                    onMap = if (state.tree != null && state.screen != Screen.MAP) state::openMap else null,
                 )
                 AnimatedContent(
                     targetState = state.screen,
@@ -146,7 +149,10 @@ private fun Router(state: AppState, screen: Screen, actions: TopBarActions) {
             val event = state.currentEvent
             if (session != null && event != null && panel != null) {
                 val previews = remember(session, event, state.lang) { state.previews(event) }
-                DilemmaScreen(actions, panel, session, event, previews, state::choose)
+                DilemmaScreen(
+                    actions, panel, session, event, previews, state::choose,
+                    lived = event.options.map { it.id }.filterTo(mutableSetOf()) { id -> state.tree?.visited?.contains(session.nodeKey + id) == true },
+                )
             }
         }
         Screen.RESOLUTION -> {
@@ -161,6 +167,7 @@ private fun Router(state: AppState, screen: Screen, actions: TopBarActions) {
                     monthsPerTurn = state.config.monthsPerTurn,
                     isLastTurn = state.isLastTurn,
                     onNext = state::nextTurn,
+                    onOther = if (turn.chosenOptionId != null) state::openOther else null,
                 )
             }
         }
@@ -176,13 +183,9 @@ private fun Router(state: AppState, screen: Screen, actions: TopBarActions) {
                     assumptions = state.assumptions,
                     facts = state.facts,
                     eventById = state::eventById,
-                    playedTurns = state.playedSession?.turns,
                     isEdited = state.isEdited,
-                    pendingEvent = state.pendingEvent,
-                    pendingPreviews = state.pendingEvent?.let { ev -> remember(session, ev, state.lang) { state.previews(ev) } }.orEmpty(),
-                    onSwitch = state::switchAt,
-                    onDecide = state::decidePending,
                     onResetPath = state::resetToPlayed,
+                    map = { LifeMapSection(state) },
                     onChat = state::openChat,
                     onRestart = state::restart,
                     chronicle = state.chronicle,
@@ -191,6 +194,7 @@ private fun Router(state: AppState, screen: Screen, actions: TopBarActions) {
                 )
             }
         }
+        Screen.MAP -> MapScreen(actions, panel, state)
         Screen.CHAT -> ChatScreen(
             actions = actions,
             panel = panel,
