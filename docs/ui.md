@@ -33,7 +33,7 @@ What the UI expects from the engine (KDoc in `engine/GameEngine.kt`, design in [
 - `actionsAt(session)`: every action available at the node, "carry on as you are" (NOTHING) first; empty at the end.
 - `preview(session, action)`: its cases after 24 months; `decide(session, actionId)`: the new turn (luck of the node by
   luck mode, maybe a shock). Pure: the same action at the same node always gives the same child.
-- `finish` / `attribution` / `noiseBand` for the life up to any node.
+- `finish` / `attribution` / `months` / `noiseBand` for the life up to any node.
 
 ## Flow
 Welcome (luck mode) → Interview (P1) → Decision (every available action with its cases) → What happened (the case, a
@@ -56,7 +56,7 @@ cards, shadows or tinted badges; sentence-case labels; figures are the protagoni
 - `ui/theme/Theme.kt`: small radii (3-14 dp), spacing scale 4-48 dp. `ui/theme/Icons.kt`: own stroke icons, used only
   where they carry meaning (navigation, actions), never as decoration.
 - `ui/components/`: `AppShell` (top bar + side panel / compact strip), `SurfaceCard` (the only card, never nested),
-  `KpiTile`, `DeltaPill`, `CaseBadge`, `CaseDistributionBar`, `LifeMap`, `GoalViews`, `TracePanel`, `FanChart`.
+  `KpiTile`, `DeltaPill`, `CaseBadge`, `CaseDistributionBar`, `LifeMap`, `GoalViews`, `ExplorePanel` (+ `MonthBars`, `Modifier.explorable`), `NetWorthChart`, `FanChart`.
 
 ## Conventions
 - UI text in `composeResources/values/strings.xml` (EN) and `values-es/strings.xml` (ES); content text (events, facts) is

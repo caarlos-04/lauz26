@@ -28,3 +28,13 @@ fun formatChfShort(value: Double): String {
 }
 
 fun formatPercent(p: Double): String = "${(p * 100).roundToLong()} %"
+
+/** An annual rate with decimals ("8.5 %", "1.17 %"): [formatPercent] rounds to whole percents. */
+fun formatRate(p: Double, decimals: Int = 1): String {
+    var scale = 1L
+    repeat(decimals) { scale *= 10 }
+    val units = (p * 100 * scale).roundToLong()
+    val sign = if (units < 0) "−" else ""
+    val whole = abs(units) / scale
+    return if (decimals == 0) "$sign$whole %" else "$sign$whole.${(abs(units) % scale).toString().padStart(decimals, '0')} %"
+}

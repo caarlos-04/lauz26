@@ -18,6 +18,7 @@ import com.lauzhack.twin.model.ChatMessage
 import com.lauzhack.twin.model.ChatRole
 import com.lauzhack.twin.model.Action
 import com.lauzhack.twin.model.FactCatalog
+import com.lauzhack.twin.model.FinancialStatement
 import com.lauzhack.twin.model.GameConfig
 import com.lauzhack.twin.model.GameResult
 import com.lauzhack.twin.model.GameSession
@@ -51,6 +52,8 @@ class AppState(
     val catalog: Catalog,
     val interview: List<InterviewQuestion>,
     initialLang: Lang = Lang.EN,
+    /** The yearly rates of macro.json the Explore panel quotes; null when the engine runs without macro trends. */
+    val trends: TrendRates? = null,
 ) {
     var screen by mutableStateOf(Screen.WELCOME); private set
     var lang by mutableStateOf(initialLang)
@@ -266,22 +269,52 @@ class AppState(
         }
     }
 
-    // ---------- Where the numbers come from ----------
+    // ---------- Where the numbers come from (the Explore panel) ----------
 
-    private val traceCache = mutableMapOf<Pair<NodeKey, NodeKey>, Trace>()
+    /** What the Explore panel shows, or null when it is closed. */
+    var inspecting by mutableStateOf<Inspect?>(null); private set
 
-    /** What happened in the last turn of node [key] (from its parent to it); null at the start. */
-    fun traceAt(key: NodeKey): Trace? {
-        val t = tree ?: return null
-        val parent = parentOf(key) ?: return null
-        if (key !in t.nodes || parent !in t.nodes) return null
-        return traceCache.getOrPut(parent to key) { engine.trace(t.nodes.getValue(parent), t.nodes.getValue(key)) }
+    // Every month of the life up to a node (replayed by the engine, pure): filled in the background by [prepareMonths].
+    private val monthsCache = mutableStateMapOf<NodeKey, List<FinancialStatement>>()
+
+    /** The monthly statements of the life up to node [key] (index = month), or null until [prepareMonths] has run. */
+    fun monthsOf(key: NodeKey): List<FinancialStatement>? = monthsCache[key]
+
+    /** Replays the life up to node [key] month by month, once, off the UI thread. */
+    suspend fun prepareMonths(key: NodeKey) {
+        val t = tree ?: return
+        if (monthsCache.containsKey(key)) return
+        val session = t.nodes[key] ?: return
+        val months = withContext(Dispatchers.Default) { engine.months(session) }
+        if (tree?.nodes?.get(key) === session) monthsCache[key] = months     // not if the game was restarted meanwhile
     }
 
-    /** The whole life up to the current node, from the opening statement. */
-    fun traceOfLife(): Trace? {
-        val t = tree ?: return null
-        return traceCache.getOrPut("" to t.cursor) { engine.trace(t.root, t.current) }
+    /** Opens the Explore panel on a figure of a node (the current one by default). */
+    fun inspect(request: InspectRequest) {
+        val t = tree ?: return
+        val key = request.key ?: t.cursor
+        val session = t.nodes[key] ?: return
+        // A complete life is read as a whole; a moment on the way, as what happened since the last decision.
+        val scope = request.scope ?: if (session.isOver) Scope.LIFE else Scope.TURN
+        inspecting = Inspect(key, request.figure, scope, request.month)
+    }
+
+    /** One level down (a row of the panel) or up (a breadcrumb): the same moment and months, another figure. */
+    fun inspectFigure(figure: Figure) {
+        inspecting = inspecting?.copy(figure = figure)
+    }
+
+    fun inspectScope(scope: Scope) {
+        inspecting = inspecting?.copy(scope = scope, month = null)
+    }
+
+    /** Narrows the panel to one month (null = the whole period again). */
+    fun inspectMonth(month: Int?) {
+        inspecting = inspecting?.copy(month = month)
+    }
+
+    fun closeInspect() {
+        inspecting = null
     }
 
     // ---------- Map of lives ----------
@@ -338,7 +371,8 @@ class AppState(
         playedKey = null
         available = emptyList()
         resultCache.clear()
-        traceCache.clear()
+        monthsCache.clear()
+        inspecting = null
         bandCache.clear()
         chats.clear()
         chronicles.clear()

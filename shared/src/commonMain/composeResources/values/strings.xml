@@ -250,13 +250,8 @@
 
     <!-- Where the numbers come from (traceability) -->
     <string name="trace_open">Where do these numbers come from?</string>
-    <string name="trace_close">Hide the calculation</string>
     <string name="trace_period">From month %1$d to month %2$d</string>
-    <string name="trace_start">Net worth at the start</string>
-    <string name="trace_end">= Net worth at the end</string>
-    <string name="trace_check_ok">✓ It adds up: start + every line = end (checked by the engine every month)</string>
     <string name="trace_check_off">Difference of %1$s (rounding)</string>
-    <string name="trace_formula">Every month: cash = previous cash + income − expenses − loan payment − interest on negative cash. Net worth = cash + investments − debt. Repaying a loan lowers cash and debt alike, so only its interest appears here.</string>
     <string name="trace_decision">What your decision set: %1$s</string>
     <string name="trace_sources">Sources of the decision's numbers</string>
     <string name="trace_origins">Where each kind of figure comes from</string>
@@ -339,4 +334,49 @@
     <string name="uncertain_pension">Pension (share of your pay)</string>
     <string name="uncertain_rate">Interest rate</string>
     <string name="trace_luck">Luck: percentile %1$d. Drawn: %2$s</string>
+    <string name="explore_title">Explore</string>
+    <string name="explore_close">Close</string>
+    <string name="explore_scope_turn">Since the last decision</string>
+    <string name="explore_scope_life">Since the start</string>
+    <string name="explore_tap_hint">Tap a bar to see that month.</string>
+    <string name="explore_all_months">Whole period</string>
+    <string name="explore_month_prev">Previous month</string>
+    <string name="explore_month_next">Next month</string>
+    <string name="explore_month_value">%1$s · %2$d years old · month %3$d</string>
+    <string name="explore_month_of">Only %1$s</string>
+    <string name="explore_start">At the start of the period</string>
+    <string name="explore_total">Total</string>
+    <string name="explore_change">Change in the period: %1$s</string>
+    <string name="explore_adds_up">✓ It adds up: the lines above sum to this figure, to the franc.</string>
+    <string name="explore_opening">This is the starting point: the balances of your profile, before anything happens. Nothing has been simulated yet.</string>
+    <string name="explore_nw_formula">Net worth = cash + investments − debt. Open each part to see what moved it.</string>
+    <string name="explore_inv_note">The return on investments is assumed to be %1$s a year, and no decision of the game invests or withdraws yet. So this balance does not move: it is a known limitation, not a result.</string>
+    <string name="explore_financing_note">While your cash is below zero you pay interest on it at %1$s a year (an assumption: the highest loan rate in the dataset). Months with negative cash in this period: %2$d of %3$d.</string>
+    <string name="explore_no_debt">No debt at this moment.</string>
+    <string name="explore_loan_rate">Interest rate (a year)</string>
+    <string name="explore_loan_payment">Monthly payment</string>
+    <string name="explore_loan_left">Months left to pay it off</string>
+    <string name="explore_loan_never">The monthly payment does not cover the interest: this loan is never paid off.</string>
+    <string name="explore_line_present">It appears in %1$d of these %2$d months.</string>
+    <string name="explore_line_absent">It does not appear in this period.</string>
+    <string name="explore_line_range">A month: %1$s the first time, %2$s the last.</string>
+    <string name="explore_trend_WAGES">It grows every month with the Swiss wage index (%1$s a year, BFS) and, while you work, along the pay curve for your age and position (BFS wage survey).</string>
+    <string name="explore_trend_RENT">While you do not move it grows with the Swiss rent index (%1$s a year, BFS).</string>
+    <string name="explore_trend_PRICES">It grows with Swiss inflation (%1$s a year, consumer price index).</string>
+    <string name="explore_trend_FIXED">It keeps the amount the decision set: it does not grow with prices.</string>
+    <string name="explore_decisions_line">Decisions that set it in this period</string>
+    <string name="explore_life_change_note">A decision of this period changed your life (work, studies, home or city). That moves this line through the rule learned from the dataset, not through an amount of its own.</string>
+    <string name="fig_investments">Investments</string>
+    <string name="fig_debt">Debt</string>
+    <string name="fig_income">Income</string>
+    <string name="fig_expenses">Expenses</string>
+    <string name="fig_loan_payments">Loan payments</string>
+    <string name="row_debt_new">New loan</string>
+    <string name="row_debt_interest">Interest charged</string>
+    <string name="row_debt_paid">Payments made</string>
+    <string name="cat_loan">Loan paid out</string>
+    <string name="networth_chart_title">Your net worth, month by month</string>
+    <string name="networth_chart_desc">Cash and investments above zero, debt below; the line is your net worth. The dashed lines are your decisions. Tap a month to explore it.</string>
+    <string name="explore_cash_formula">Every month: cash = previous cash + income − expenses − loan payment − interest on negative cash. A loan paid out is income of its month; its payments leave cash in full (interest and repayment).</string>
+    <string name="explore_origin">Where it comes from</string>
 </resources>

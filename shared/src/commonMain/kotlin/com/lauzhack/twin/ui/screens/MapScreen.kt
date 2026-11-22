@@ -1,6 +1,9 @@
 package com.lauzhack.twin.ui.screens
 
-import com.lauzhack.twin.ui.components.TracePanel
+import com.lauzhack.twin.ui.components.ExploreLink
+import com.lauzhack.twin.ui.Figure
+import com.lauzhack.twin.ui.InspectRequest
+import com.lauzhack.twin.ui.Scope
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,7 +41,7 @@ fun LifeMapSection(state: AppState) {
             onOpen = state::open,
             onDecideAt = state::decideAgainAt,
             onChat = state::chatAt,
-            explain = { key -> state.traceAt(key)?.let { TracePanel(it, state.catalog, state.facts, state.assumptions) } },
+            explain = { key -> ExploreLink(InspectRequest(Figure.NetWorth, key, Scope.TURN)) },
         )
     }
 }

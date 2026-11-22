@@ -119,6 +119,15 @@ import com.lauzhack.twin.resources.quiet_node
 import com.lauzhack.twin.ui.theme.LocalTwinColors
 import com.lauzhack.twin.ui.theme.Space
 import com.lauzhack.twin.ui.theme.TwinIcons
+import com.lauzhack.twin.model.FinancialStatement
+import com.lauzhack.twin.resources.networth_chart_desc
+import com.lauzhack.twin.resources.networth_chart_title
+import com.lauzhack.twin.ui.Figure
+import com.lauzhack.twin.ui.InspectRequest
+import com.lauzhack.twin.ui.Scope
+import com.lauzhack.twin.ui.components.LocalInspect
+import com.lauzhack.twin.ui.components.NetWorthChart
+import com.lauzhack.twin.ui.figureOf
 import org.jetbrains.compose.resources.stringResource
 
 /** P8-P11: KPIs, then tabs: overview (goals, drivers, story, chronicle, noise band), the map of decisions, assumptions. */
@@ -129,6 +138,7 @@ fun ResultsScreen(
     session: GameSession,
     results: GameResult,
     noiseBand: CashBand?,
+    months: List<FinancialStatement>?,       // every month of this life (null while replayed): the net worth chart
     assumptions: Assumptions,
     facts: FactCatalog,
     catalog: Catalog,
@@ -175,7 +185,7 @@ fun ResultsScreen(
         }
 
         when (tab) {
-            0 -> Overview(session, results, noiseBand, facts, catalog, chronicle, chronicleLoading, onWriteChronicle, explainLife)
+            0 -> Overview(session, results, noiseBand, months, facts, catalog, chronicle, chronicleLoading, onWriteChronicle, explainLife)
             1 -> map()
             else -> AssumptionsTab(assumptions)
         }
@@ -195,6 +205,7 @@ private fun KpiRow(session: GameSession, results: GameResult) {
                 KpiTile(
                     stringResource(Res.string.stat_final_net_worth), stats.finalNetWorth, m, icon = TwinIcons.TrendUp,
                     delta = stats.finalNetWorth - session.initial.netWorth,
+                    explore = InspectRequest(Figure.NetWorth, scope = Scope.LIFE),
                 )
             },
             { m ->
@@ -203,6 +214,7 @@ private fun KpiRow(session: GameSession, results: GameResult) {
                     valueColor = if (stats.minCash < 0) signColor(-1.0) else MaterialTheme.colorScheme.onSurface,
                     caption = stringResource(Res.string.month_value, stats.monthOfMinCash) + " · " +
                         stringResource(Res.string.stat_months_negative) + ": " + stats.monthsNegativeCash,
+                    explore = InspectRequest(Figure.Cash, scope = Scope.LIFE, month = stats.monthOfMinCash),   // the month it happened
                 )
             },
             { m ->
@@ -235,6 +247,7 @@ private fun Overview(
     session: GameSession,
     results: GameResult,
     noiseBand: CashBand?,
+    months: List<FinancialStatement>?,
     facts: FactCatalog,
     catalog: Catalog,
     chronicle: ChatBubble?,
@@ -242,12 +255,26 @@ private fun Overview(
     onWriteChronicle: suspend () -> Unit,
     explainLife: @Composable () -> Unit,
 ) {
+    // Net worth month by month and what it is made of; a month opens in the Explore panel.
+    if (months != null && months.size > 1) {
+        val open = LocalInspect.current
+        SectionCard(stringResource(Res.string.networth_chart_title), icon = TwinIcons.TrendUp) {
+            Text(stringResource(Res.string.networth_chart_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            NetWorthChart(
+                months = months,
+                decisionMonths = session.turns.map { it.index * session.config.monthsPerTurn },
+                onMonth = open?.let { o -> { m -> o(InspectRequest(Figure.NetWorth, scope = Scope.LIFE, month = m)) } },
+            )
+        }
+    }
+
     SectionCard(stringResource(Res.string.goals_title), icon = TwinIcons.Target) {
         session.goalStatuses().forEach { GoalRow(it) }
     }
 
     SectionCard(stringResource(Res.string.drivers_title), icon = TwinIcons.Chart) {
-        Waterfall(results.attribution, label = { categoryLabel(it) })
+        Waterfall(results.attribution, label = { categoryLabel(it) },
+                  explore = { key -> InspectRequest(key?.let { figureOf(it) } ?: Figure.NetWorth, scope = Scope.LIFE) })
         explainLife()
     }
 

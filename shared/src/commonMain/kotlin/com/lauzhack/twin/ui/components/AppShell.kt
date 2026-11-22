@@ -1,6 +1,8 @@
 package com.lauzhack.twin.ui.components
 
 import com.lauzhack.twin.ui.GoalStatus
+import com.lauzhack.twin.ui.Figure
+import com.lauzhack.twin.ui.InspectRequest
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.foundation.layout.PaddingValues
 import com.lauzhack.twin.ui.cash
@@ -249,11 +251,13 @@ private fun ProfilePanel(panel: PanelData, modifier: Modifier) {
                 // Net worth hero + other KPIs
                 Column(verticalArrangement = Arrangement.spacedBy(Space.xs)) {
                     Overline(stringResource(Res.string.state_net_worth))
-                    AnimatedMoney(state.netWorth, MaterialTheme.typography.headlineMedium)
+                    AnimatedMoney(state.netWorth, MaterialTheme.typography.headlineMedium, modifier = Modifier.explorable(InspectRequest(Figure.NetWorth)))
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(Space.s)) {
-                    LabeledValue(stringResource(Res.string.state_cash), formatChf(state.cash), if (state.cash < 0) signColor(-1.0) else Color.Unspecified)
-                    LabeledValue(stringResource(Res.string.state_monthly_net), formatChf(state.monthlyNet, signed = true), signColor(state.monthlyNet))
+                    LabeledValue(stringResource(Res.string.state_cash), formatChf(state.cash), if (state.cash < 0) signColor(-1.0) else Color.Unspecified,
+                                 explore = InspectRequest(Figure.Cash))
+                    LabeledValue(stringResource(Res.string.state_monthly_net), formatChf(state.monthlyNet, signed = true), signColor(state.monthlyNet),
+                                 explore = monthlyNetRequest(state))
                 }
 
                 // Goals: progress now, deadline and whether reached (measured as the engine does)
@@ -307,9 +311,9 @@ fun TurnTimeline(done: Int, total: Int) {
 private fun CompactPanel(panel: PanelData) {
     SurfaceCard(padding = Space.m) {
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Space.xl)) {
-            MiniKpi(stringResource(Res.string.state_net_worth), formatChf(panel.state.netWorth))
-            MiniKpi(stringResource(Res.string.state_cash), formatChf(panel.state.cash))
-            MiniKpi(stringResource(Res.string.state_monthly_net), formatChf(panel.state.monthlyNet, signed = true))
+            MiniKpi(stringResource(Res.string.state_net_worth), formatChf(panel.state.netWorth), InspectRequest(Figure.NetWorth))
+            MiniKpi(stringResource(Res.string.state_cash), formatChf(panel.state.cash), InspectRequest(Figure.Cash))
+            MiniKpi(stringResource(Res.string.state_monthly_net), formatChf(panel.state.monthlyNet, signed = true), monthlyNetRequest(panel.state))
         }
         if (panel.goals.isNotEmpty()) {
             val parts = panel.goals.map { goalLabelPlain(it) }
@@ -327,9 +331,13 @@ private fun CompactPanel(panel: PanelData) {
 private fun goalLabelPlain(s: GoalStatus): String = goalLabel(s.goal.name) + " " + formatPercent(s.progress)
 
 @Composable
-private fun MiniKpi(label: String, value: String) {
+private fun MiniKpi(label: String, value: String, explore: InspectRequest? = null) {
     Column {
         Overline(label)
-        Text(value, style = MaterialTheme.typography.titleMedium)
+        Text(value, style = MaterialTheme.typography.titleMedium, modifier = Modifier.explorable(explore))
     }
 }
+
+/** The monthly balance is the cash flow of the last simulated month: it opens the cash of that month (nothing at month 0). */
+private fun monthlyNetRequest(state: FinancialStatement): InspectRequest? =
+    if (state.month > 0) InspectRequest(Figure.Cash, month = state.month) else null

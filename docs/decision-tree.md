@@ -105,6 +105,7 @@ turn uses the same node seed with its own salts (`SHOCK_SALT`, `SHOCK_MONTH_SALT
 | `actionsAt(session)` | The actions available at the node the life reaches, NOTHING first; empty at the end |
 | `decide(session, actionId)` | The new `Turn`: luck of the node → the uncertain numbers drawn at that percentile, shock, 24 months, story moments |
 | `finish(session)` / `attribution(session)` | Stats, attribution and moments of the life up to that node |
+| `months(session)` | Every month of the life up to that node (index = month), replayed: what the Explore panel breaks down |
 | `noiseBand(session)` | Optional month-to-month noise band (sampled flows) |
 
 In the UI (`ui/LifeTree.kt`): `decide(tree, node, action)` adds the child (or returns the existing one),
@@ -122,7 +123,16 @@ before and decide something else), `decideAgainAt(node)` (the dilemma at any nod
   come from, and "Go back and decide something else".
 - **Map of lives**: only the explored nodes; for each, what was decided, its luck and shock, the money and goals, and
   the buttons "Go to this moment", "Decide what comes next" and "Decide something else here".
-- **Results and chat**: the life up to the selected node. The automatic parallel lives (other first choice, greedy
+- **Explore** ("where does this number come from?", `ui/Breakdown.kt`, `ui/components/ExplorePanel.kt`): every amount on
+  every screen has a dotted underline; clicking it opens a panel over the screen (right sheet on wide windows, bottom
+  sheet on phones) with that figure, a bar per month and the short list of pieces that add up to it. A piece opens one
+  level down and the breadcrumbs go back up: **balance** (net worth = cash + investments − debt) → **flows** (cash =
+  cash at the start + income − expenses − loan payments − interest on negative cash; one line per category) → **origin**
+  (dataset rule, public trend with its rate, the decision and its luck, or an assumption). The period is "since the
+  last decision" or "since the start", and tapping a bar narrows everything to that month. Nothing is computed in the
+  UI: the rows are sums of the engine's monthly statements and the "it adds up" line is the real residual.
+- **Results and chat**: the life up to the selected node, with the net worth month by month split into cash,
+  investments and debt (a month opens in Explore). The automatic parallel lives (other first choice, greedy
   strategy) and the "parallel self" were removed: comparisons are between branches the user explored.
 
 ## 7. Validation
@@ -133,6 +143,7 @@ before and decide something else), `decideAgainAt(node)` (the dilemma at any nod
 | `tools/golden.py` → `GoldenGameTest` | 16 lives (every action, branches from the same nodes, both luck modes, two job losses): Kotlin = Python, 0.00 CHF |
 | `RealGameEngineTest`, `LifeTreeTest`, `RealLifeTreeTest` | the UI interface reproduces the reference engine; one snapshot per decision; siblings share the luck in SAME_LEVEL and not in FULL_RANDOM |
 | `ContentTwinFactoryTest` | the app plays a whole game from the interview with the real content |
+| `BreakdownTest`, `RealBreakdownTest` | Explore: on every node of Alexia's lives (both luck modes), for the last turn, the whole life and every single month, each figure is the sum of its rows (61,817 breakdowns, residual < 0.01 CHF), one level down gives the same money, and the totals match the engine's attribution |
 
 ## 8. Open points
 

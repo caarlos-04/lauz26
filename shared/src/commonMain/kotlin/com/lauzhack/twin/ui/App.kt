@@ -3,7 +3,9 @@ package com.lauzhack.twin.ui
 import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
-import com.lauzhack.twin.ui.components.TracePanel
+import com.lauzhack.twin.ui.components.ExploreLink
+import com.lauzhack.twin.ui.components.LocalInspect
+import com.lauzhack.twin.ui.screens.ExploreHost
 import org.jetbrains.compose.resources.stringResource
 import com.lauzhack.twin.ui.i18n.localized
 import com.lauzhack.twin.resources.map_quiet
@@ -73,6 +75,7 @@ fun createAppState(content: AppContent): AppState = AppState(
     facts = content.facts,
     catalog = Catalog(content.events),
     interview = content.interview.questions,
+    trends = content.macro?.trends?.let { TrendRates(wages = it.wageGrowthAnnual.value, rent = it.rentGrowthSittingTenantAnnual.value, prices = it.priceInflationAnnual.value) },
 )
 
 /** No resources needed: the real engine on the small hand-written model of [FakeData]. Previews and UI tests. */
@@ -124,12 +127,18 @@ private fun AppContentLoaded(state: AppState) {
                     onToggleTheme = { state.darkMode = !dark },
                     onMap = if (state.tree != null && state.screen != Screen.MAP) state::openMap else null,
                 )
-                AnimatedContent(
-                    targetState = state.screen,
-                    transitionSpec = {
-                        (fadeIn(tween(260)) + slideInVertically(tween(260)) { it / 40 }) togetherWith fadeOut(tween(160))
-                    },
-                ) { screen -> Router(state, screen, actions) }
+                // Any figure on any screen can open the Explore panel, which lies over the screen it was opened from.
+                CompositionLocalProvider(LocalInspect provides if (state.tree != null) state::inspect else null) {
+                    Box(Modifier.fillMaxSize()) {
+                        AnimatedContent(
+                            targetState = state.screen,
+                            transitionSpec = {
+                                (fadeIn(tween(260)) + slideInVertically(tween(260)) { it / 40 }) togetherWith fadeOut(tween(160))
+                            },
+                        ) { screen -> Router(state, screen, actions) }
+                        ExploreHost(state)
+                    }
+                }
             }
         }
     }
@@ -193,7 +202,7 @@ private fun Router(state: AppState, screen: Screen, actions: TopBarActions) {
                     onNext = state::nextTurn,
                     onOther = state::decideAgain,
                     onChat = if (state.canChat) state::openChat else null,
-                    explain = state.tree?.cursor?.let { key -> state.traceAt(key) }?.let { tr -> { TracePanel(tr, state.catalog, state.facts, state.assumptions) } },
+                    explain = { ExploreLink(InspectRequest(Figure.NetWorth, scope = Scope.TURN)) },
                 )
             }
         }
@@ -201,6 +210,7 @@ private fun Router(state: AppState, screen: Screen, actions: TopBarActions) {
             // Results first (needed to draw the screen), then the noise band (its card is last and appears when ready).
             LaunchedEffect(state.tree?.cursor) {
                 state.prepareResults()
+                state.tree?.cursor?.let { state.prepareMonths(it) }
                 state.prepareNoiseBand()
             }
             val results = state.results
@@ -214,13 +224,14 @@ private fun Router(state: AppState, screen: Screen, actions: TopBarActions) {
                     session = session,
                     results = results,
                     noiseBand = state.noiseBand,
+                    months = state.tree?.cursor?.let { state.monthsOf(it) },
                     assumptions = state.assumptions,
                     facts = state.facts,
                     catalog = state.catalog,
                     isEdited = state.isEdited,
                     onResetPath = state::resetToPlayed,
                     map = { LifeMapSection(state) },
-                    explainLife = { state.traceOfLife()?.let { TracePanel(it, state.catalog, state.facts, state.assumptions) } },
+                    explainLife = { ExploreLink(InspectRequest(Figure.NetWorth, scope = Scope.LIFE)) },
                     onChat = state::openChat,
                     onRestart = state::restart,
                     chronicle = state.chronicle,

@@ -84,7 +84,7 @@ ends up inside that APK: use it on your own phone and never share it. Web and re
 | Kotlin engine vs Python reference (golden games) | largest difference **CHF 0.00** |
 | Every turn and every whole life in the test tree of Alexia | start + every category = end, to the cent (also shown in the app) |
 | Goals shown in the UI vs the engine (same test tree) | identical in every node |
-| Kotlin test suite | **97 tests** (engine, tree, goals, traceability, prompts, chat state, interview) |
+| Kotlin test suite | **101 tests** (engine, tree, goals, traceability, prompts, chat state, interview) |
 
 ## Kotlin Multiplatform
 

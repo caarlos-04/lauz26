@@ -65,6 +65,9 @@ import com.lauzhack.twin.resources.state_cash
 import com.lauzhack.twin.resources.state_net_worth
 import com.lauzhack.twin.ui.LifeTree
 import com.lauzhack.twin.ui.NodeKey
+import com.lauzhack.twin.ui.Figure
+import com.lauzhack.twin.ui.InspectRequest
+import com.lauzhack.twin.ui.Scope
 import com.lauzhack.twin.ui.cash
 import com.lauzhack.twin.ui.current
 import com.lauzhack.twin.ui.i18n.formatChf
@@ -287,8 +290,9 @@ private fun NodeDetail(
                      color = MaterialTheme.colorScheme.tertiary)
             }
         }
-        LabeledValue(stringResource(Res.string.state_net_worth), formatChf(state.netWorth))
-        LabeledValue(stringResource(Res.string.state_cash), formatChf(state.cash), if (state.cash < 0) signColor(-1.0) else Color.Unspecified)
+        LabeledValue(stringResource(Res.string.state_net_worth), formatChf(state.netWorth), explore = InspectRequest(Figure.NetWorth, key, Scope.TURN))
+        LabeledValue(stringResource(Res.string.state_cash), formatChf(state.cash), if (state.cash < 0) signColor(-1.0) else Color.Unspecified,
+                     explore = InspectRequest(Figure.Cash, key, Scope.TURN))
         session.goalStatuses().forEach { GoalRow(it) }
         explain?.invoke()
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

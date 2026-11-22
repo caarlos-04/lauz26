@@ -67,6 +67,9 @@ import com.lauzhack.twin.ui.i18n.formatChf
 import com.lauzhack.twin.ui.i18n.keyString
 import com.lauzhack.twin.ui.theme.Space
 import com.lauzhack.twin.ui.theme.TwinIcons
+import com.lauzhack.twin.ui.Figure
+import com.lauzhack.twin.ui.InspectRequest
+import com.lauzhack.twin.ui.Scope
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 
@@ -162,11 +165,13 @@ fun ResolutionScreen(
                             stringResource(Res.string.state_net_worth), turn.stateAfter.netWorth, m,
                             icon = TwinIcons.TrendUp, delta = nwDelta,
                             caption = stringResource(Res.string.resolution_before) + ": " + formatChf(before.netWorth),
+                            explore = InspectRequest(Figure.NetWorth, scope = Scope.TURN),
                         )
                         if (kotlin.math.abs(turn.stateAfter.cash - turn.stateAfter.netWorth) >= 1.0) KpiTile(
                             stringResource(Res.string.state_cash), turn.stateAfter.cash, m,
                             icon = TwinIcons.Wallet, delta = cashDelta,
                             caption = stringResource(Res.string.resolution_after, monthsPerTurn),
+                            explore = InspectRequest(Figure.Cash, scope = Scope.TURN),
                         )
                     }
                     if (wide) Row(horizontalArrangement = Arrangement.spacedBy(Space.l)) { tiles(Modifier.weight(1f)) }

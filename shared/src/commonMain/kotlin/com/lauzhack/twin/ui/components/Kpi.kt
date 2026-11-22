@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
+import com.lauzhack.twin.ui.InspectRequest
 import com.lauzhack.twin.ui.i18n.formatChf
 import com.lauzhack.twin.ui.theme.Space
 import com.lauzhack.twin.ui.theme.TABULAR
@@ -49,10 +50,11 @@ fun KpiTile(
     valueColor: Color = MaterialTheme.colorScheme.onSurface,
     signed: Boolean = false,
     caption: String? = null,
+    explore: InspectRequest? = null,      // the figure opens in the Explore panel
 ) {
     SurfaceCard(modifier, padding = Space.l) {   // icon: kept in the signature, not drawn
         Overline(label)
-        AnimatedMoney(value, MaterialTheme.typography.headlineSmall, valueColor, signed)
+        AnimatedMoney(value, MaterialTheme.typography.headlineSmall, valueColor, signed, Modifier.explorable(explore))
         if (delta != null) DeltaPill(delta, deltaText ?: formatChf(delta, signed = true))
         if (caption != null) Text(caption, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
