@@ -3,6 +3,7 @@
 > Owner: Dev A (`polma7`). Summary in `docs/README.md` section 7. Python reference: `tools/flow_model.py`,
 > `tools/macro.py`, `tools/simulate.py` (monthly step), `tools/game.py` (events and turns); tests in `tools/test_*.py`.
 > Kotlin input classes: `shared/src/commonMain/kotlin/com/lauzhack/twin/model/Simulation.kt`.
+> How the model is learned, explained step by step with real numbers: [`how-the-simulator-learns.md`](how-the-simulator-learns.md).
 
 ## 1. Idea
 
