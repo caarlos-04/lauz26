@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "meta": {
+    "generator": "tools/assumptions.py --build",
+    "note": "Engine rules and value judgements that do not come from the person's data. Growth of prices, wages and rents is in macro.json; the sensitivity copies its base and range so the engine and the analysis agree."
+  },
+  "investmentReturnAnnual": 0.0,
+  "financingRateAnnual": 0.085,
+  "defaultCaseProbs": {
+    "PESSIMISTIC": 0.2,
+    "NEUTRAL": 0.6,
+    "OPTIMISTIC": 0.2
+  },
+  "objectivePenalties": {
+    "GROWTH": 0.0,
+    "BALANCED": 500.0,
+    "SAFE": 3000.0
+  },
+  "sensitivity": [
+    {
+      "id": "salary_multiplier",
+      "label": {
+        "EN": "Salary after the decision (x typical)",
+        "ES": "Salario tras la decisión (x típico)"
+      },
+      "base": 1.0,
+      "low": 0.7385,
+      "high": 1.245,
+      "unit": "multiplier",
+      "origin": "OBSERVED",
+      "source": "synthetic-profiles.csv, employed (n=682): p25 / p75 of the monthly net income over the median CHF 7,738"
+    },
+    {
+      "id": "tuition_multiplier",
+      "label": {
+        "EN": "Tuition (x typical)",
+        "ES": "Matrícula (x típica)"
+      },
+      "base": 1.0,
+      "low": 0.25,
+      "high": 1.6667,
+      "unit": "multiplier",
+      "origin": "OBSERVED",
+      "source": "scenario-assumptions.csv S001 annual_tuition_chf (n=120): min / max over the median CHF 4,800"
+    },
+    {
+      "id": "living_cost_multiplier",
+      "label": {
+        "EN": "Living costs, rent excluded (x typical)",
+        "ES": "Coste de vida sin alquiler (x típico)"
+      },
+      "base": 1.0,
+      "low": 0.9141,
+      "high": 1.114,
+      "unit": "multiplier",
+      "origin": "OBSERVED",
+      "source": "synthetic-transactions, every expense except housing_rent, per person and month (n=1200): p10 / p90 over the median CHF 1,522"
+    },
+    {
+      "id": "job_search_delay_months",
+      "label": {
+        "EN": "Extra months to find a job",
+        "ES": "Meses extra para encontrar trabajo"
+      },
+      "base": 0.0,
+      "low": 0.0,
+      "high": 6.0,
+      "unit": "months",
+      "origin": "ASSUMED",
+      "source": "No data on job-search time. The events start the new job right when the studies end (startOffsetMonths 24); 0-6 extra months is our range to test how much a slower start would change the decision"
+    },
+    {
+      "id": "price_inflation_annual",
+      "label": {
+        "EN": "Inflation (per year)",
+        "ES": "Inflación (anual)"
+      },
+      "base": 0.00609,
+      "low": -0.0048,
+      "high": 0.02135,
+      "unit": "fraction per year",
+      "origin": "OBSERVED",
+      "source": "tools/out/macro.json trends.priceInflationAnnual: mean Swiss CPI inflation 2000-2025; low/high = p10/p90 of the yearly values"
+    },
+    {
+      "id": "wage_growth_annual",
+      "label": {
+        "EN": "Wage growth (per year)",
+        "ES": "Crecimiento salarial (anual)"
+      },
+      "base": 0.01173,
+      "low": 0.00575,
+      "high": 0.02075,
+      "unit": "fraction per year",
+      "origin": "OBSERVED",
+      "source": "tools/out/macro.json trends.wageGrowthAnnual: mean nominal growth of the BFS Swiss wage index 2000-2025; low/high = p10/p90"
+    },
+    {
+      "id": "rent_growth_annual",
+      "label": {
+        "EN": "Rent growth if you do not move (per year)",
+        "ES": "Subida del alquiler si no te mudas (anual)"
+      },
+      "base": 0.01393,
+      "low": 0.00565,
+      "high": 0.025,
+      "unit": "fraction per year",
+      "origin": "OBSERVED",
+      "source": "tools/out/macro.json trends.rentGrowthSittingTenantAnnual: mean yearly change of the BFS rent price index 2000-2025 (all rented dwellings: mostly sitting tenants, whose rents follow the reference mortgage rate and CPI by law); low/high = p10/p90"
+    },
+    {
+      "id": "financing_rate_annual",
+      "label": {
+        "EN": "Interest on negative cash (per year)",
+        "ES": "Interés por saldo negativo (anual)"
+      },
+      "base": 0.085,
+      "low": 0.0253,
+      "high": 0.085,
+      "unit": "fraction per year",
+      "origin": "OBSERVED",
+      "source": "synthetic-liabilities.csv annual_interest_rate (n=283): base = max (the engine's default), low = min"
+    },
+    {
+      "id": "investment_return_annual",
+      "label": {
+        "EN": "Return of investments (per year)",
+        "ES": "Rentabilidad de las inversiones (anual)"
+      },
+      "base": 0.0,
+      "low": 0.0,
+      "high": 0.0135,
+      "unit": "fraction per year",
+      "origin": "ASSUMED",
+      "source": "No return data in the dataset: base 0 (the engine's default). High = mean 10-year Confederation bond yield 2000-2025 (1.351 %, SNB via macro.json); the last 10 years averaged 0.124 %"
+    }
+  ],
+  "sourceNotes": [
+    "financingRateAnnual 0.085: interest on negative cash = the highest loan rate in synthetic-liabilities.csv (0.0848), so going negative is never cheaper than a loan.",
+    "investmentReturnAnnual 0: the dataset has portfolio values but no returns; equity returns were not downloaded (FRED failed). Conservative reference: 10-year Confederation bonds averaged 0.124 % over the last 10 years.",
+    "defaultCaseProbs 0.2 / 0.6 / 0.2: our convention for events whose cases have no data (content/README.md rule 4).",
+    "objectivePenalties CHF 0 / 500 / 3000 per month below the minimum cushion for GROWTH / BALANCED / SAFE: value judgements, shown to the user (docs/README.md section 9).",
+    "sensitivity: low/high are the data spread when there is data (see each parameter's source); ASSUMED otherwise."
+  ]
+}

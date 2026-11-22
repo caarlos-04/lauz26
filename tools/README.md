@@ -7,6 +7,8 @@ Design of the simulator: [`docs/simulator.md`](../docs/simulator.md).
 ```
 python tools/flow_model.py                         # -> out/flow-model.json + out/flow-backtest.json (learned monthly flows)
 python tools/macro.py                              # -> out/macro.json (Swiss trends; needs data/download.sh first)
+python tools/assumptions.py --build                # dataset + out/macro.json -> content/assumptions.json (--check to validate)
+python tools/chronicle.py --play P00001 --choices A,B --lang ES   # a whole game told with content/chronicle.json (--check)
 python tools/event_data.py                         # -> out/event-data.json (every number the events use, with sources)
 python tools/golden.py                             # -> out/golden/*.json (games the Kotlin engine must reproduce)
 python tools/simulate.py --profile P00001          # opening statement -> 120 simulated months
@@ -30,6 +32,8 @@ The CSVs live outside this repo. By default the scripts look in `../ai-financial
 | `statement.py` | The `FinancialStatement` contract: opening statement of a dataset profile (`dataset_opening`) or of a person from the interview (`new_person`), `check_statement` (identities), net worth and goal state (computed), initial facts, loan annuity |
 | `flow_model.py` | Learns the monthly flows from `synthetic-transactions.zip`: for each category, months, probability and amount, with the person features that matter (forward selection). 80/20 backtest |
 | `macro.py` | Swiss trends from public data: inflation, wage index, rent index, career curve by age, unemployment by age, property prices... with sources |
+| `assumptions.py` | Builds and checks `content/assumptions.json`: financing rate, investment return, case probabilities, penalties and the sensitivity ranges, each with its source (dataset, `macro.json` or ASSUMED); checks it against the Kotlin enums and the engine defaults in `simulate.py` |
+| `chronicle.py` | Tells the life line (beats) with `content/chronicle.json`, ES/EN; mirrors `chronicle/Chronicle.kt`; `--check` validates the templates against the Kotlin enums, `facts.json` and `events.json` |
 | `simulate.py` | One monthly step `statement(t) -> statement(t+1)`: pending changes, monthly trends, learned flows, loan, accounting |
 | `event_data.py` | Every number of `content/events.json` computed from the data (pay ratios by work status, starting salaries, promotion ratios, tuition, loan rates), with its source |
 | `golden.py` | Plays 13 reference games (every event at least once) for `GoldenGameTest` in Kotlin |
