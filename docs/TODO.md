@@ -41,7 +41,8 @@ on the life), and a quiet turn does not split the branch, so a game can have few
       switch between options
 - [x] Decided: each branch keeps its own events (option A of the plan): "up to 32" lives
 - [x] Every node shows which question that branch got; comparisons show the question of each life, not just "turn N"
-- [ ] Performance: computing or precomputing the 32 lives is fast on Android
+- [ ] Performance: computing or precomputing the 32 lives is fast on Android (done: off the UI thread, cached per
+      node; ~0.2 s on a laptop. Still to check on a real phone)
 - [x] Chronicle and chat available for every branch (links to section 2)
 
 ## 4. Where the numbers come from (no black box)

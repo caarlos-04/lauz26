@@ -1,5 +1,8 @@
 package com.lauzhack.twin.ui
 
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import com.lauzhack.twin.ui.components.TracePanel
 import org.jetbrains.compose.resources.stringResource
 import com.lauzhack.twin.ui.i18n.localized
@@ -98,7 +101,8 @@ private fun createChat(catalog: List<Event>, canned: CannedFutureSelfChat = Cann
 /** The app. With no [state] it first loads the packaged content (AppContent: events, interview, models...). */
 @Composable
 fun App(state: AppState? = null) {
-    val loaded by produceState(state) { if (value == null) value = createAppState(AppContent.load()) }
+    // Reading and decoding the content takes ~1 s on a laptop (more on a phone): off the UI thread, so the spinner spins.
+    val loaded by produceState(state) { if (value == null) value = withContext(Dispatchers.Default) { createAppState(AppContent.load()) } }
     val app = loaded
     if (app == null) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
@@ -197,7 +201,15 @@ private fun Router(state: AppState, screen: Screen, actions: TopBarActions) {
             }
         }
         Screen.RESULTS -> {
+            // Results first (needed to draw the screen), then the noise band (its card is last and appears when ready).
+            LaunchedEffect(state.tree?.cursor) {
+                state.prepareResults()
+                state.prepareNoiseBand()
+            }
             val results = state.results
+            if (results == null) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            }
             if (session != null && results != null && panel != null) {
                 ResultsScreen(
                     actions = actions,

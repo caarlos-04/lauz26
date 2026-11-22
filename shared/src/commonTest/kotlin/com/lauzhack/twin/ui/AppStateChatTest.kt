@@ -104,4 +104,26 @@ class AppStateChatTest {
         s.choosePersona(Persona.PARALLEL_SELF)
         assertEquals(Persona.PARALLEL_SELF, s.persona)
     }
+
+    /** Counts the engine's heavy calls, to check they are cached per node. */
+    private class CountingEngine(private val e: FakeGameEngine) : com.lauzhack.twin.engine.GameEngine by e {
+        var finishes = 0
+        var bands = 0
+        override fun finish(session: com.lauzhack.twin.model.GameSession) = e.finish(session).also { finishes++ }
+        override fun noiseBand(session: com.lauzhack.twin.model.GameSession) = e.noiseBand(session).also { bands++ }
+    }
+
+    @Test
+    fun resultsAndNoiseBandAreComputedOncePerNode() = runTest {
+        val engine = CountingEngine(FakeGameEngine(FakeData.events, FakeData.assumptions))
+        val s = AppState(engine, FakeTwinFactory(), RecordingChat(), FakeData.assumptions, FakeData.facts, FakeData.events, FakeData.interview)
+        s.startDemo()
+        while (s.screen != Screen.RESULTS) if (s.screen == Screen.DILEMMA) s.choose("A") else s.nextTurn()
+        assertNull(s.results)                         // nothing heavy runs until the screen asks for it
+        repeat(3) { s.prepareResults(); s.prepareNoiseBand() }
+        s.ask("How did it end?")                      // the chat reuses the same results and band
+        assertTrue(s.results != null)
+        assertEquals(1, engine.finishes)
+        assertEquals(1, engine.bands)
+    }
 }

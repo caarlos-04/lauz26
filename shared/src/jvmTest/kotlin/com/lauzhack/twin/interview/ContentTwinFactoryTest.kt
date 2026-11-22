@@ -59,6 +59,9 @@ class ContentTwinFactoryTest {
             if (state.screen == Screen.DILEMMA) state.choose(state.currentEvent!!.options.first().id) else state.nextTurn()
         }
         assertEquals(Screen.RESULTS, state.screen)
+        assertTrue(state.results == null, "results are computed off the UI thread, when the screen asks for them")
+        runBlocking { state.prepareResults(); state.prepareNoiseBand() }
         assertTrue(state.results != null)
+        assertTrue(state.noiseBand != null)
     }
 }
