@@ -1,5 +1,7 @@
 package com.lauzhack.twin.fake
 
+import com.lauzhack.twin.model.netWorthChf
+import com.lauzhack.twin.engine.isOver
 import com.lauzhack.twin.ai.ChatContext
 import com.lauzhack.twin.ai.FutureSelfChat
 import com.lauzhack.twin.ai.Prompts.chf
@@ -31,6 +33,9 @@ class CannedFutureSelfChat(
         val r = context.result
         val s = r.stats
         val other = r.parallelLives.firstOrNull { it.kind == ParallelKind.OTHER_FIRST_CHOICE }
+        // In the middle of a life (a node of the tree) the self only knows the years lived so far.
+        val complete = r.session.isOver
+        val now = r.session.turns.lastOrNull()?.stateAfter ?: r.session.initial
         val text = when {
             persona == Persona.PARALLEL_SELF && other != null ->
                 if (es) "Soy tu yo paralelo: en la primera decisión elegí lo contrario. Terminé con ${chf(other.stats.finalNetWorth)} " +
@@ -44,6 +49,10 @@ class CannedFutureSelfChat(
                 else "My lowest cash was ${chf(s.minCash)} in month ${s.monthOfMinCash}; I spent ${s.monthsNegativeCash} months below zero " +
                     "and ${s.monthsBelowMinCash} below my cushion. Financing negative cash cost me ${chf(s.financingCostChf)}."
 
+            !complete && listOf("goal", "meta", "objetivo").any { it in q } ->
+                if (es) "Por ahora he alcanzado ${s.goalsReached.size} de ${now.goals.size} metas. Lo que viene después aún no lo he vivido."
+                else "So far I have reached ${s.goalsReached.size} of ${now.goals.size} goals. What comes next I have not lived yet."
+
             listOf("goal", "meta", "objetivo").any { it in q } ->
                 if (es) "Alcancé ${s.goalsReached.size} de ${s.goalsReached.size + s.goalsMissed.size} metas. Recuerda: es una simulación, no una predicción."
                 else "I reached ${s.goalsReached.size} of ${s.goalsReached.size + s.goalsMissed.size} goals. Remember: this is a simulation, not a prediction."
@@ -53,6 +62,12 @@ class CannedFutureSelfChat(
                     "en vez de ${chf(s.finalNetWorth)} (diferencia: ${chf(s.finalNetWorth - other.stats.finalNetWorth, true)})."
                 else "Had I chosen the other option at the first decision, I would have ended with ${chf(other.stats.finalNetWorth)} " +
                     "instead of ${chf(s.finalNetWorth)} (difference: ${chf(s.finalNetWorth - other.stats.finalNetWorth, true)})."
+
+            !complete ->
+                if (es) "Hola, soy tú a los ${now.person.age} años. Ahora mismo mi patrimonio neto es ${chf(now.netWorthChf())} y tengo ${chf(now.cashChf)} en caja. " +
+                    "Pregúntame por lo que he vivido hasta aquí; lo que viene después aún no lo sé. No es asesoramiento financiero."
+                else "Hi, I'm you at ${now.person.age}. Right now my net worth is ${chf(now.netWorthChf())} and I have ${chf(now.cashChf)} in cash. " +
+                    "Ask me about what I have lived so far; what comes next I do not know yet. This is not financial advice."
 
             else ->
                 if (es) "Hola, soy tú dentro de 10 años. Mi patrimonio neto final es ${chf(s.finalNetWorth)}. " +

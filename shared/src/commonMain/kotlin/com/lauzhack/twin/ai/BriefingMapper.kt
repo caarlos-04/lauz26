@@ -1,5 +1,6 @@
 package com.lauzhack.twin.ai
 
+import com.lauzhack.twin.engine.isOver
 import com.lauzhack.twin.model.BeatKind
 import com.lauzhack.twin.model.CaseType
 import com.lauzhack.twin.model.Event
@@ -58,7 +59,7 @@ class BriefingMapper(
             lifeAtStart = life(session.initial, ctx.facts, lang),
             lifeAtEnd = life(end, ctx.facts, lang),
             turns = turns(session.turns, session.initial, lang, ctx.whatIfTurns),
-            moments = r.beats.mapNotNull { moment(it, ctx.facts, lang, goalNames) },
+            moments = r.beats.mapNotNull { moment(it, ctx.facts, lang, goalNames, session.isOver) },
             goals = end.goals.map { g ->
                 GoalLine(goalNames[g.name] ?: text(g.name), g.targetChf, g.targetMonth(session.initial), g.name in r.stats.goalsReached, (g.progress(end) * 100).roundToInt())
             },
@@ -82,6 +83,7 @@ class BriefingMapper(
             },
             assumptionNotes = ctx.assumptions.sourceNotes,
             isWhatIf = ctx.whatIfTurns.isNotEmpty(),
+            complete = session.isOver,
         )
     }
 
@@ -114,7 +116,7 @@ class BriefingMapper(
     }
 
     /** Short English line for a moment; the decision beats are already in TURNS. */
-    private fun moment(beat: StoryBeat, facts: FactCatalog, lang: Lang, goalNames: Map<String, String>): MomentLine? {
+    private fun moment(beat: StoryBeat, facts: FactCatalog, lang: Lang, goalNames: Map<String, String>, complete: Boolean): MomentLine? {
         val d = beat.data
         val text = when (beat.kind) {
             BeatKind.LIFE_CHANGE -> when {
@@ -129,7 +131,7 @@ class BriefingMapper(
             }
             BeatKind.CASH_NEGATIVE -> "Cash went below zero (financing needed)"
             BeatKind.CASH_RECOVERED -> "Cash was positive again"
-            BeatKind.LOW_POINT -> "Lowest cash of the ten years"
+            BeatKind.LOW_POINT -> if (complete) "Lowest cash of the ten years" else "Lowest cash so far"
             BeatKind.GOAL_REACHED -> "Goal reached: ${goalNames[d["goal"]] ?: d["goal"]}"
             BeatKind.GOAL_MISSED -> "Goal missed: ${goalNames[d["goal"]] ?: d["goal"]}"
             BeatKind.QUIET_PERIOD -> null

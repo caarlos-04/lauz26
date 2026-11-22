@@ -1,5 +1,12 @@
 package com.lauzhack.twin.ui
 
+import org.jetbrains.compose.resources.stringResource
+import com.lauzhack.twin.ui.i18n.localized
+import com.lauzhack.twin.resources.map_quiet
+import com.lauzhack.twin.resources.Res
+import com.lauzhack.twin.engine.isOver
+import com.lauzhack.twin.model.GameSession
+import com.lauzhack.twin.ui.screens.ChatMoment
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -138,6 +145,21 @@ private fun panelData(state: AppState): PanelData? {
     )
 }
 
+/** The self of the current node, for the chat header. */
+@Composable
+private fun chatMoment(session: GameSession, eventById: (String) -> Event?): ChatMoment {
+    val now = session.current
+    val turn = session.turns.lastOrNull()
+    val event = turn?.eventId?.let(eventById)
+    val option = event?.options?.firstOrNull { it.id == turn.chosenOptionId }
+    val after = when {
+        turn == null -> null
+        event == null || option == null -> stringResource(Res.string.map_quiet)
+        else -> localized(event.title) + " → " + localized(option.label)
+    }
+    return ChatMoment(now.person.age, now.month / 12, after, session.isOver)
+}
+
 @Composable
 private fun Router(state: AppState, screen: Screen, actions: TopBarActions) {
     val session = state.session
@@ -168,6 +190,7 @@ private fun Router(state: AppState, screen: Screen, actions: TopBarActions) {
                     isLastTurn = state.isLastTurn,
                     onNext = state::nextTurn,
                     onOther = if (turn.chosenOptionId != null) state::openOther else null,
+                    onChat = if (state.canChat) state::openChat else null,
                 )
             }
         }
@@ -205,7 +228,8 @@ private fun Router(state: AppState, screen: Screen, actions: TopBarActions) {
             persona = state.persona,
             onPersona = state::choosePersona,
             onAsk = state::ask,
-            onBack = state::backToResults,
+            onBack = state::closeChat,
+            moment = session?.let { chatMoment(it, state::eventById) },
         )
     }
 }

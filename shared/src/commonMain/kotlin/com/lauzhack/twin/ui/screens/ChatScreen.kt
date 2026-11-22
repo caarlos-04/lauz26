@@ -1,5 +1,10 @@
 package com.lauzhack.twin.ui.screens
 
+import com.lauzhack.twin.resources.chat_suggestion_changed
+import com.lauzhack.twin.resources.chat_moment_name
+import com.lauzhack.twin.resources.chat_moment_intro
+import com.lauzhack.twin.resources.chat_moment_after
+import com.lauzhack.twin.resources.chat_moment_title
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -73,7 +78,15 @@ import com.lauzhack.twin.ui.theme.TwinIcons
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 
-/** P10: chat with the future self. */
+/** Which self you talk to: you right after the last turn of the current node. */
+data class ChatMoment(
+    val age: Int,
+    val year: Int,
+    val after: String?,         // "Question → option" of the last turn, or the quiet-period label
+    val complete: Boolean,      // a complete life: the self ten years on, and the parallel self exists
+)
+
+/** P12: chat with your self of a moment (or of the end of a life). */
 @Composable
 fun ChatScreen(
     actions: TopBarActions,
@@ -86,7 +99,9 @@ fun ChatScreen(
     onPersona: (Persona) -> Unit,
     onAsk: suspend (String) -> Unit,
     onBack: () -> Unit,
+    moment: ChatMoment? = null,
 ) {
+    val midLife = moment != null && !moment.complete
     val scope = rememberCoroutineScope()
     var input by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
@@ -105,8 +120,21 @@ fun ChatScreen(
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.m)) {
             IconBadge(TwinIcons.Sparkle, size = 44.dp)
             Column(Modifier.weight(1f)) {
-                Text(stringResource(Res.string.chat_title), style = MaterialTheme.typography.titleLarge)
-                Text(stringResource(if (persona == Persona.PARALLEL_SELF) Res.string.chat_parallel_intro else Res.string.chat_intro), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    if (moment != null && midLife) stringResource(Res.string.chat_moment_title, moment.age, moment.year) else stringResource(Res.string.chat_title),
+                    style = MaterialTheme.typography.titleLarge,
+                )
+                moment?.after?.let { Text(stringResource(Res.string.chat_moment_after, it), style = MaterialTheme.typography.bodyMedium) }
+                Text(
+                    stringResource(
+                        when {
+                            midLife -> Res.string.chat_moment_intro
+                            persona == Persona.PARALLEL_SELF -> Res.string.chat_parallel_intro
+                            else -> Res.string.chat_intro
+                        },
+                    ),
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             Pill(
                 if (aiModel != null) stringResource(Res.string.chat_ai_badge, aiModel) else stringResource(Res.string.chat_offline_badge),
@@ -114,7 +142,7 @@ fun ChatScreen(
             )
         }
         // Persona (docs 5.8): the future self, or the parallel self who took the other first option.
-        Row(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
+        if (!midLife) Row(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
             Persona.entries.forEach { p ->
                 FilterChip(
                     selected = p == persona,
@@ -129,7 +157,11 @@ fun ChatScreen(
 
         // Conversation
         SurfaceCard(Modifier.weight(1f), padding = Space.l) {
-            val futureSelf = stringResource(if (persona == Persona.PARALLEL_SELF) Res.string.persona_parallel else Res.string.chat_future_self)
+            val futureSelf = when {
+                moment != null && midLife -> stringResource(Res.string.chat_moment_name, moment.age)
+                persona == Persona.PARALLEL_SELF -> stringResource(Res.string.persona_parallel)
+                else -> stringResource(Res.string.chat_future_self)
+            }
             LazyColumn(state = listState, modifier = Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(Space.m)) {
                 items(history) { Bubble(it, futureSelf) }
                 if (loading) item { TypingIndicator() }
@@ -140,7 +172,7 @@ fun ChatScreen(
         val suggestions = listOf(
             stringResource(Res.string.chat_suggestion_risk),
             stringResource(Res.string.chat_suggestion_goals),
-            stringResource(Res.string.chat_suggestion_other),
+            stringResource(if (midLife) Res.string.chat_suggestion_changed else Res.string.chat_suggestion_other),
         )
         FlowRow(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
             suggestions.forEach { s ->

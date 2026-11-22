@@ -1,5 +1,9 @@
 package com.lauzhack.twin.ui.components
 
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material3.Icon
+import com.lauzhack.twin.ui.theme.TwinIcons
+import com.lauzhack.twin.resources.action_chat_now
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
@@ -108,6 +112,7 @@ fun LifeMap(
     monthsPerTurn: Int,
     eventById: (String) -> Event?,
     onOpen: (NodeKey) -> Unit,
+    onChat: ((NodeKey) -> Unit)? = null,
 ) {
     var selected by remember(tree.root) { mutableStateOf(tree.cursor) }
     if (selected !in tree.nodes) selected = tree.cursor
@@ -221,6 +226,7 @@ fun LifeMap(
                 hasOther = selected.lastOrNull()?.let { it != QUIET } == true && siblingOf(selected) in tree.nodes,
                 onOther = { selected = siblingOf(selected) },
                 onOpen = { onOpen(selected) },
+                onChat = onChat?.takeIf { selected.isNotEmpty() && selected in tree.visited }?.let { chat -> { chat(selected) } },
             )
         }
     }
@@ -258,6 +264,7 @@ private fun NodeDetail(
     hasOther: Boolean,
     onOther: () -> Unit,
     onOpen: () -> Unit,
+    onChat: (() -> Unit)?,
 ) {
     val state = session.current
     SurfaceCard {
@@ -303,6 +310,13 @@ private fun NodeDetail(
             if (!isCursor) {
                 Button(onClick = onOpen, shape = MaterialTheme.shapes.small) {
                     Text(stringResource(if (visited) Res.string.map_go else Res.string.map_live))
+                }
+            }
+            if (onChat != null) {
+                OutlinedButton(onClick = onChat, shape = MaterialTheme.shapes.small) {
+                    Icon(TwinIcons.Chat, null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(Res.string.action_chat_now))
                 }
             }
             if (hasOther) {

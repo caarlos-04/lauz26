@@ -79,9 +79,11 @@ class AppState(
     val results: GameResult?
         get() {
             val t = tree ?: return null
-            if (playedKey == null) return null           // no results before the first life is complete
-            return resultCache.getOrPut(t.cursor) { engine.finish(t.current) }
+            if (playedKey == null) return null           // no results screen before the first life is complete
+            return resultAt(t, t.cursor)
         }
+
+    private fun resultAt(t: LifeTree, key: NodeKey): GameResult = resultCache.getOrPut(key) { engine.finish(t.nodes.getValue(key)) }
 
     /** Optional noise band of the current node (#12): month-to-month noise only, not the analysis. */
     val noiseBand: CashBand?
@@ -96,6 +98,9 @@ class AppState(
 
     /** Screen to go back to when the map is closed. */
     private var beforeMap = Screen.WELCOME
+
+    /** Screen to go back to when the chat is closed. */
+    private var beforeChat = Screen.RESULTS
 
     val answers = mutableStateListOf<InterviewAnswer>()
     var chatLoading by mutableStateOf(false); private set
@@ -185,14 +190,19 @@ class AppState(
      * node's last turn, or the results of a complete life.
      */
     fun open(key: NodeKey) {
-        var t = tree ?: return
-        for (i in key.indices) {                                  // existing nodes are reused as they are
-            val parent = key.take(i)
-            val c = key[i]
-            t = engine.withChild(t, parent, if (c == QUIET) null else c.toString()).first
-        }
-        tree = t.goTo(key)
+        val t = tree ?: return
+        tree = reach(t, key).goTo(key)
         showCurrent(resolution = key.isNotEmpty())
+    }
+
+    /** [t] with every node from the start down to [key] computed (existing nodes are reused as they are). */
+    private fun reach(t: LifeTree, key: NodeKey): LifeTree {
+        var out = t
+        for (i in key.indices) {
+            val c = key[i]
+            out = engine.withChild(out, key.take(i), if (c == QUIET) null else c.toString()).first
+        }
+        return out
     }
 
     /** "What if I had chosen the other option in the turn I just played?": that same turn, the other option. */
@@ -257,8 +267,36 @@ class AppState(
         mapReady = true
     }
 
-    fun openChat() { screen = Screen.CHAT }
-    fun backToResults() { screen = Screen.RESULTS }
+    // ---------- Chat with your self of a moment ----------
+
+    /** The chat needs at least one turn: the self of a moment is you right after a decision (or a quiet period). */
+    val canChat: Boolean get() = tree?.cursor?.isNotEmpty() == true
+
+    /** True when the current node is a complete life: the self is ten years older and the parallel self exists. */
+    val isCompleteLife: Boolean get() = session?.isOver == true
+
+    /** Opens the chat with your self of the current moment. */
+    fun openChat() {
+        if (!canChat || screen == Screen.CHAT) return
+        if (!isCompleteLife) persona = Persona.FUTURE_SELF
+        beforeChat = screen
+        screen = Screen.CHAT
+    }
+
+    /** Opens the chat with your self at node [key] (e.g. from the map); closing it shows that moment. */
+    fun chatAt(key: NodeKey) {
+        val t = tree ?: return
+        if (key.isEmpty()) return
+        if (key != t.cursor) {
+            tree = reach(t, key).goTo(key)
+            showCurrent(resolution = true)
+        }
+        openChat()
+    }
+
+    fun closeChat() {
+        screen = beforeChat
+    }
 
     fun restart() {
         clearGame()
@@ -282,15 +320,23 @@ class AppState(
 
     // ---------- Chat and chronicle (P11-P12) ----------
 
+    /**
+     * What the self of the current moment may know: the life up to this node. Before the end of the game the other
+     * lives and the noise band are left out (they describe years this self has not lived).
+     */
     private fun chatContext(): ChatContext? {
-        val r = results ?: return null
-        return ChatContext(r, facts, assumptions, lang, whatIfTurns(r.session), noiseBand)
+        val t = tree ?: return null
+        if (!canChat) return null
+        val r = resultAt(t, t.cursor)
+        return if (t.current.isOver) ChatContext(r, facts, assumptions, lang, whatIfTurns(r.session), noiseBand)
+        else ChatContext(r.copy(parallelLives = emptyList(), sensitivity = emptyList()), facts, assumptions, lang, whatIfTurns(r.session), null)
     }
 
     private val lastAnswerOffline: Boolean get() = (chat as? ReportsOffline)?.lastAnswerOffline == true
 
     /** Each persona has its own conversation at each node (the other self has another life). */
     fun choosePersona(p: Persona) {
+        if (p == Persona.PARALLEL_SELF && !isCompleteLife) return
         persona = p
     }
 

@@ -1,5 +1,7 @@
 package com.lauzhack.twin.ui.screens
 
+import androidx.compose.foundation.layout.Spacer
+import com.lauzhack.twin.resources.action_chat_now
 import com.lauzhack.twin.ui.cash
 import com.lauzhack.twin.ui.netWorth
 import com.lauzhack.twin.ui.i18n.localized
@@ -79,6 +81,7 @@ fun ResolutionScreen(
     isLastTurn: Boolean,
     onNext: () -> Unit,
     onOther: (() -> Unit)? = null,
+    onChat: (() -> Unit)? = null,
 ) {
     var revealed by remember(turn) { mutableStateOf(false) }
     LaunchedEffect(turn) {
@@ -163,6 +166,13 @@ fun ResolutionScreen(
                                 Text(stringResource(Res.string.resolution_see_other))
                             }
                         }
+                    }
+                }
+                if (onChat != null) {
+                    OutlinedButton(onClick = onChat, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth().height(48.dp)) {
+                        Icon(TwinIcons.Chat, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.size(Space.s))
+                        Text(stringResource(Res.string.action_chat_now))
                     }
                 }
                 Button(onClick = onNext, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth().height(48.dp)) {

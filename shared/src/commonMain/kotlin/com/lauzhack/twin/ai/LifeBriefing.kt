@@ -26,6 +26,11 @@ data class LifeBriefing(
     val assumptionNotes: List<String> = emptyList(),
     /** True when the user changed decisions or luck in the tree: this is not the life they played. */
     val isWhatIf: Boolean = false,
+    /**
+     * False for a moment in the middle of a life (a node of the tree before the end): "now" is [end], the years after
+     * it have not happened, and there are no other lives in the briefing.
+     */
+    val complete: Boolean = true,
 )
 
 @Serializable enum class ChatLanguage { EN, ES }

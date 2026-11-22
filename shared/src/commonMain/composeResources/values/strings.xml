@@ -301,4 +301,12 @@
     <string name="map_legend_unvisited">Not lived yet</string>
     <string name="resolution_see_other">Live that other option</string>
     <string name="dilemma_lived">Already lived</string>
+
+    <!-- Chat with your self of a moment (F3) -->
+    <string name="action_chat_now">Talk to my self of this moment</string>
+    <string name="chat_moment_title">You at %1$d · year %2$d</string>
+    <string name="chat_moment_intro">Your self of this moment remembers everything lived so far, but does not know what comes next. Answers only use the figures computed by the simulation.</string>
+    <string name="chat_moment_after">Right after: %1$s</string>
+    <string name="chat_moment_name">You at %1$d</string>
+    <string name="chat_suggestion_changed">What has changed since I started?</string>
 </resources>

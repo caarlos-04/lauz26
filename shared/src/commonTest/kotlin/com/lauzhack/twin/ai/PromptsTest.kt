@@ -84,4 +84,25 @@ class PromptsTest {
     fun briefingIsDeterministic() {
         assertEquals(Prompts.renderBriefing(briefing()), Prompts.renderBriefing(briefing()))
     }
+
+    @Test
+    fun aMomentInTheMiddleOfALifeDoesNotKnowTheFuture() {
+        val mid = briefing().copy(
+            end = MoneySnapshot(48, 6_000.0, 15_000.0, 400.0, 0.0, "employed"),
+            goals = listOf(GoalLine("House deposit", 50_000.0, 96, reached = false, progressPercent = 12)),
+            parallelLives = emptyList(),
+            outlook = null,
+            complete = false,
+        )
+        val system = Prompts.chatSystem(mid, Persona.PARALLEL_SELF)          // no parallel self mid-life
+        assertContains(system, "You do NOT know what happens after now")
+        assertFalse(system.contains("ten years from now"))
+        assertContains(system, "Now (you): 2029, age 26")
+        assertContains(system, "4 of 10 years lived")
+        assertContains(system, "not reached yet, the deadline has not come")
+        assertContains(Prompts.chronicleSystem(mid), "chronicle of the years lived so far")
+        assertEquals("Cuéntame la historia hasta ahora.", Prompts.chronicleRequest(ChatLanguage.ES, complete = false))
+        // A complete life keeps the future self.
+        assertContains(Prompts.chatSystem(briefing(), Persona.FUTURE_SELF), "ten years from now")
+    }
 }

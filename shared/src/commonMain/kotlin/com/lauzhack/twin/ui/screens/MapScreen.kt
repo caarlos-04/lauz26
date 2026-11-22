@@ -38,6 +38,7 @@ fun LifeMapSection(state: AppState) {
             monthsPerTurn = state.config.monthsPerTurn,
             eventById = state::eventById,
             onOpen = state::open,
+            onChat = state::chatAt,
         )
     }
 }
