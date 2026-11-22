@@ -722,7 +722,7 @@ Open questions:
 1. Which LLM provider (and who provides the key, if needed).
 2. Do we implement the "pick the case yourself" mode (`manualCaseMode`)?
 3. Is the game saved to disk or only kept in memory?
-4. Are `flow-model.json` and `macro.json` committed to the repo (dataset licences) or does everyone generate them?
+4. ~~Are `flow-model.json` and `macro.json` committed to the repo (dataset licences) or does everyone generate them?~~ **Decided (#14)**: committed in `content/` (aggregates only; sources and terms in `content/README.md`) and shipped as Compose resources (`tools/ship_resources.py`, `AppContent.load()`).
 
 ## 13. Future improvements (if time allows)
 
