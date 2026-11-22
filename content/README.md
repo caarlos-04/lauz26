@@ -4,7 +4,7 @@
 |---|---|---|
 | `events.json` | Event catalogue (dilemmas with 2 options × 3 cases) | `docs/README.md` 5.3 |
 | `facts.json` | Life facts (education, occupation, city, housing, family), milestones and initial-fact rules | `docs/README.md` 5.4 |
-| `assumptions.json` | *(pending)* inflation, wage growth, financing, penalties, sensitivity ranges | `docs/README.md` 5.7 |
+| `assumptions.json` | Engine rules without person data: financing rate, investment return, default case probabilities, penalties per objective, sensitivity ranges (every number with its source). **Generated** by `python tools/assumptions.py --build` (after `tools/macro.py`); inflation and wage/rent growth live in `macro.json` and the sensitivity copies their range | `docs/README.md` 5.7, `Assumptions` (Kotlin) |
 
 Once the KMP project exists, these files are copied into the `commonMain` resources.
 Event and fact texts are written in both languages (`{"ES": "...", "EN": "..."}`) because they are shown to the user.

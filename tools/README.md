@@ -7,6 +7,7 @@ Design of the simulator: [`docs/simulator.md`](../docs/simulator.md).
 ```
 python tools/flow_model.py                         # -> out/flow-model.json + out/flow-backtest.json (learned monthly flows)
 python tools/macro.py                              # -> out/macro.json (Swiss trends; needs data/download.sh first)
+python tools/assumptions.py --build                # dataset + out/macro.json -> content/assumptions.json (--check to validate)
 python tools/event_data.py                         # -> out/event-data.json (every number the events use, with sources)
 python tools/simulate.py --profile P00001          # opening statement -> 120 simulated months
 python tools/simulate.py --validate                # every dataset profile, 24 months, accounting identities
@@ -29,6 +30,7 @@ The CSVs live outside this repo. By default the scripts look in `../ai-financial
 | `statement.py` | The `FinancialStatement` contract: opening statement of a dataset profile (`dataset_opening`) or of a person from the interview (`new_person`), `check_statement` (identities), net worth and goal state (computed), initial facts, loan annuity |
 | `flow_model.py` | Learns the monthly flows from `synthetic-transactions.zip`: for each category, months, probability and amount, with the person features that matter (forward selection). 80/20 backtest |
 | `macro.py` | Swiss trends from public data: inflation, wage index, rent index, career curve by age, unemployment by age, property prices... with sources |
+| `assumptions.py` | Builds and checks `content/assumptions.json`: financing rate, investment return, case probabilities, penalties and the sensitivity ranges, each with its source (dataset, `macro.json` or ASSUMED); checks it against the Kotlin enums and the engine defaults in `simulate.py` |
 | `simulate.py` | One monthly step `statement(t) -> statement(t+1)`: pending changes, monthly trends, learned flows, loan, accounting |
 | `event_data.py` | Every number of `content/events.json` computed from the data (pay ratios by work status, starting salaries, promotion ratios, tuition, loan rates), with its source |
 | `game.py` | Game loop on statements: event effects, event choice by `requires`, luck -> case, life line (beats), attribution, preview |
