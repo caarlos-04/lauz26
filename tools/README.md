@@ -8,6 +8,7 @@ Design of the simulator: [`docs/simulator.md`](../docs/simulator.md).
 python tools/flow_model.py                         # -> out/flow-model.json + out/flow-backtest.json (learned monthly flows)
 python tools/macro.py                              # -> out/macro.json (Swiss trends; needs data/download.sh first)
 python tools/event_data.py                         # -> out/event-data.json (every number the events use, with sources)
+python tools/golden.py                             # -> out/golden/*.json (games the Kotlin engine must reproduce)
 python tools/simulate.py --profile P00001          # opening statement -> 120 simulated months
 python tools/simulate.py --validate                # every dataset profile, 24 months, accounting identities
 python tools/simulate.py --profile P00001 --dump out/simulated-P00001.json   # for SimulationContractTest (Kotlin)
@@ -31,6 +32,7 @@ The CSVs live outside this repo. By default the scripts look in `../ai-financial
 | `macro.py` | Swiss trends from public data: inflation, wage index, rent index, career curve by age, unemployment by age, property prices... with sources |
 | `simulate.py` | One monthly step `statement(t) -> statement(t+1)`: pending changes, monthly trends, learned flows, loan, accounting |
 | `event_data.py` | Every number of `content/events.json` computed from the data (pay ratios by work status, starting salaries, promotion ratios, tuition, loan rates), with its source |
+| `golden.py` | Plays 13 reference games (every event at least once) for `GoldenGameTest` in Kotlin |
 | `game.py` | Game loop on statements: event effects, event choice by `requires`, luck -> case, life line (beats), attribution, preview |
 | `validate_events.py` | Validates the content contract (`docs/README.md` 5.3) and runs `--preview` / `--play` with `game.py` |
 | `test_*.py`, `test_support.py` | Tests; `test_support.py` holds small hand-written models so tests need neither the dataset nor `out/` |
