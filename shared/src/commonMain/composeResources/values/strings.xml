@@ -266,7 +266,7 @@
     <string name="origin_ASSUMPTION">Assumption</string>
     <string name="origin_note_DATASET">Learned from the challenge's synthetic dataset (552,295 transactions, 1,200 profiles): the flow model, which depends on your city and on whether you study.</string>
     <string name="origin_note_PUBLIC">Salary, rent and prices also grow every month with Swiss public indices (BFS, SNB) and the career curve by age.</string>
-    <string name="origin_note_EVENT">Set by the case of a decision of the game; its sources are listed with the decision.</string>
+    <string name="origin_note_EVENT">Set by a decision of the game (the luck of that decision drew its value) or by the profile; its sources are listed with the decision.</string>
     <string name="origin_note_ASSUMPTION">A value we assumed (Assumptions tab): interest on negative cash %1$s a year, investment return %2$s a year.</string>
     <string name="eff_set_income">Salary becomes %1$s a month, from month %2$d</string>
     <string name="eff_income_delta">Income %1$s a month, from month %2$d</string>
@@ -280,7 +280,7 @@
     <string name="eff_fact">%1$s, from month %2$d</string>
     <string name="eff_flag">Milestone: %1$s</string>
     <string name="eff_duration"> · for %1$d months</string>
-    <string name="cat_salary">Salary</string>
+    <string name="cat_salary">Salary or support</string>
     <string name="cat_bonus">Bonus</string>
     <string name="cat_rent">Rent</string>
     <string name="cat_health_insurance">Health insurance</string>

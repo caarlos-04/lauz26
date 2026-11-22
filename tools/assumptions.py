@@ -133,9 +133,8 @@ def build(data_dir: Path, macro: dict) -> dict:
             f"({max(loans)}), so going negative is never cheaper than a loan.",
             "investmentReturnAnnual 0: the dataset has portfolio values but no returns; equity returns were not downloaded "
             f"(FRED failed). Conservative reference: 10-year Confederation bonds averaged {bond['mean10y']} % over the last 10 years.",
-            "objectivePenalties CHF 0 / 500 / 3000 per month below the minimum cushion for GROWTH / BALANCED / SAFE: value "
-            "judgements, shown to the user (docs/README.md section 9).",
-            "sensitivity: low/high are the data spread when there is data (see each parameter's source); ASSUMED otherwise.",
+            # objectivePenalties and sensitivity stay in the file (contract) but nothing uses them since the tree of
+            # decisions (no expectimax, no break-even analysis): no note, so the app and the chat do not mention them.
         ],
     }
 

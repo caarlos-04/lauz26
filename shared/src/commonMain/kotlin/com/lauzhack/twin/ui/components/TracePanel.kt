@@ -81,7 +81,7 @@ import kotlin.math.roundToInt
 /**
  * "Where do these numbers come from?": a collapsible explanation of a period of a life. Start net worth, every
  * category of money in and out with its origin (dataset, public data, decision, assumption), end net worth and the
- * check that it adds up; for a single turn, also what the decision set (its case and effects) and the sources.
+ * check that it adds up; for a single turn, also what the decision set (the drawn values and effects) and the sources.
  * Nothing is computed here: [trace] comes from the engine's attribution (ui/Trace.kt).
  */
 @Composable

@@ -1,5 +1,6 @@
 package com.lauzhack.twin.ai
 
+import com.lauzhack.twin.ui.i18n.goalKey
 import com.lauzhack.twin.ui.originOf
 import com.lauzhack.twin.ui.Origin
 import com.lauzhack.twin.engine.isOver
@@ -45,7 +46,7 @@ class BriefingMapper(
         val person = session.initial.person
         val lang = ctx.language
         val end = session.turns.lastOrNull()?.stateAfter ?: session.initial
-        val goalNames = (session.initial.goals + end.goals).associate { it.name to text(it.name) }
+        val goalNames = (session.initial.goals + end.goals).associate { it.name to goalName(it.name) }
 
         return LifeBriefing(
             language = if (lang == Lang.ES) ChatLanguage.ES else ChatLanguage.EN,
@@ -66,7 +67,7 @@ class BriefingMapper(
             turns = turns(session.turns, session.initial, lang, ctx.whatIfTurns),
             moments = r.beats.mapNotNull { moment(it, ctx.facts, lang, goalNames, session.isOver) },
             goals = end.goals.map { g ->
-                GoalLine(goalNames[g.name] ?: text(g.name), g.targetChf, g.targetMonth(session.initial), g.name in r.stats.goalsReached, (g.progress(end) * 100).roundToInt())
+                GoalLine(goalNames[g.name] ?: goalName(g.name), g.targetChf, g.targetMonth(session.initial), g.name in r.stats.goalsReached, (g.progress(end) * 100).roundToInt())
             },
             risk = RiskLine(r.stats.minCash, r.stats.monthOfMinCash, r.stats.monthsNegativeCash, r.stats.monthsBelowMinCash, r.stats.financingCostChf),
             outlook = ctx.noiseBand?.takeIf { it.p50.isNotEmpty() }?.let { OutlookLine(it.p10.last(), it.p50.last(), it.p90.last()) },
@@ -134,7 +135,11 @@ class BriefingMapper(
             s.person.flags.map { facts.flags[it]?.of(lang) ?: it }
 
     /** Attribution keys of docs/README.md 5.3 ("income:salary", "expense:rent", "loan_interest"...). */
+    /** A dataset goal name in the chat language ("Emergency savings" -> "Ahorro de emergencia"), or as it is. */
+    private suspend fun goalName(name: String): String = text(goalKey(name)).takeIf { it != goalKey(name) } ?: name
+
     private fun driverLabel(key: String): String = when {
+        key == "income:salary" -> "Income (salary or support: what a student lives on counts here too)"
         key.startsWith("income:") -> "Income (${key.removePrefix("income:")})"
         key.startsWith("expense:") -> "Spending (${key.removePrefix("expense:").lowercase().replace('_', ' ')})"
         key == "loan_interest" -> "Loan interest"
@@ -146,7 +151,7 @@ class BriefingMapper(
     private fun originLabel(o: Origin) = when (o) {
         Origin.DATASET -> "learned from the synthetic dataset (flow model)"
         Origin.PUBLIC -> "public Swiss data"
-        Origin.EVENT -> "set by a decision (its case); salary also grows with public wage indices"
+        Origin.EVENT -> "set by a decision (the luck of that decision drew its value) or by the profile; salary also grows with public wage indices"
         Origin.ASSUMPTION -> "an assumption (see ASSUMPTIONS AND LIMITS)"
     }
 
