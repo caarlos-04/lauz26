@@ -105,4 +105,17 @@ class PromptsTest {
         // A complete life keeps the future self.
         assertContains(Prompts.chatSystem(briefing(), Persona.FUTURE_SELF), "ten years from now")
     }
+
+    @Test
+    fun briefingSaysWhereTheNumbersComeFrom() {
+        val b = briefing().copy(
+            drivers = listOf(DriverLine("Income (salary)", 250_000.0, "set by a decision (its case)")),
+            decisionSources = listOf(SourceLine("Finish the master?", listOf("Tuition: scenario-assumptions.csv"))),
+        )
+        val text = Prompts.renderBriefing(b)
+        assertContains(text, "## WHERE THE NUMBERS COME FROM")
+        assertContains(text, "Income (salary): set by a decision (its case)")
+        assertContains(text, "Tuition: scenario-assumptions.csv")
+        assertContains(Prompts.chatSystem(b, Persona.FUTURE_SELF), "If asked where a number comes from")
+    }
 }

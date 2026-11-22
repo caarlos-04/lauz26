@@ -321,4 +321,59 @@
     <string name="goal_priority_MEDIUM">prioridad media</string>
     <string name="dilemma_goals_title">Tus metas tras %1$d meses</string>
     <string name="dilemma_goals_now">ahora %1$s</string>
+
+    <!-- Where the numbers come from (traceability) -->
+    <string name="trace_open">¿De dónde salen estos números?</string>
+    <string name="trace_close">Ocultar el cálculo</string>
+    <string name="trace_period">Del mes %1$d al mes %2$d</string>
+    <string name="trace_start">Patrimonio al inicio</string>
+    <string name="trace_end">= Patrimonio al final</string>
+    <string name="trace_check_ok">✓ Cuadra: inicio + cada línea = final (el motor lo comprueba cada mes)</string>
+    <string name="trace_check_off">Diferencia de %1$s (redondeo)</string>
+    <string name="trace_formula">Cada mes: caja = caja anterior + ingresos − gastos − cuota del préstamo − intereses por caja negativa. Patrimonio = caja + inversiones − deuda. Devolver un préstamo baja la caja y la deuda por igual, así que aquí solo aparecen sus intereses.</string>
+    <string name="trace_decision">Lo que fijó tu decisión: %1$s → %2$s</string>
+    <string name="trace_case">Caso %1$s (probabilidad %2$s), decidido por la suerte de este turno: la misma en todas las ramas.</string>
+    <string name="trace_sources">Fuentes de las cifras de la decisión</string>
+    <string name="trace_origins">De dónde sale cada tipo de cifra</string>
+    <string name="origin_DATASET">Dataset</string>
+    <string name="origin_PUBLIC">Datos públicos</string>
+    <string name="origin_EVENT">Decisión</string>
+    <string name="origin_ASSUMPTION">Supuesto</string>
+    <string name="origin_note_DATASET">Aprendido del dataset sintético del reto (552.295 transacciones, 1.200 perfiles): el modelo de flujos, que depende de tu ciudad y de si estudias.</string>
+    <string name="origin_note_PUBLIC">Sueldo, alquiler y precios crecen además cada mes con índices públicos suizos (BFS, SNB) y la curva de carrera por edad.</string>
+    <string name="origin_note_EVENT">Lo fija el caso de una decisión del juego; sus fuentes aparecen con la decisión.</string>
+    <string name="origin_note_ASSUMPTION">Un valor supuesto (pestaña Supuestos): intereses por caja negativa %1$s anual, rentabilidad de las inversiones %2$s anual.</string>
+    <string name="eff_set_income">El sueldo pasa a %1$s al mes, desde el mes %2$d</string>
+    <string name="eff_income_delta">Ingresos %1$s al mes, desde el mes %2$d</string>
+    <string name="eff_income_factor">Ingresos × %1$s, desde el mes %2$d</string>
+    <string name="eff_expense">%1$s: %2$s al mes, desde el mes %3$d</string>
+    <string name="eff_one_off">Pago único de %1$s en el mes %2$d</string>
+    <string name="eff_loan">Préstamo de %1$s al %2$s anual a %3$d meses</string>
+    <string name="eff_market_rent">Casa nueva: alquiler de mercado para tu ciudad y hogar (percentil %1$d del dataset), desde el mes %2$d</string>
+    <string name="eff_household">Hogar: %1$s, desde el mes %2$d</string>
+    <string name="eff_employment">Trabajo: %1$s, desde el mes %2$d</string>
+    <string name="eff_fact">%1$s, desde el mes %2$d</string>
+    <string name="eff_flag">Hito: %1$s</string>
+    <string name="eff_duration"> · durante %1$d meses</string>
+    <string name="cat_salary">Sueldo</string>
+    <string name="cat_bonus">Paga extra</string>
+    <string name="cat_rent">Alquiler</string>
+    <string name="cat_health_insurance">Seguro médico</string>
+    <string name="cat_groceries">Supermercado</string>
+    <string name="cat_restaurants">Restaurantes</string>
+    <string name="cat_retail">Compras</string>
+    <string name="cat_leisure">Ocio</string>
+    <string name="cat_pharmacy">Farmacia</string>
+    <string name="cat_utilities">Suministros</string>
+    <string name="cat_transport">Transporte</string>
+    <string name="cat_telecom">Teléfono e internet</string>
+    <string name="cat_tuition">Matrícula</string>
+    <string name="cat_travel">Viajes</string>
+    <string name="cat_unexpected">Imprevistos</string>
+    <string name="cat_event_RENT">Alquiler (decisión)</string>
+    <string name="cat_event_LIVING">Gastos de vida (decisión)</string>
+    <string name="cat_event_TUITION">Matrícula (decisión)</string>
+    <string name="cat_event_INSURANCE">Seguros (decisión)</string>
+    <string name="cat_event_TRAVEL">Viajes (decisión)</string>
+    <string name="cat_event_OTHER">Otros (decisión)</string>
 </resources>

@@ -321,4 +321,59 @@
     <string name="goal_priority_MEDIUM">medium priority</string>
     <string name="dilemma_goals_title">Your goals after %1$d months</string>
     <string name="dilemma_goals_now">now %1$s</string>
+
+    <!-- Where the numbers come from (traceability) -->
+    <string name="trace_open">Where do these numbers come from?</string>
+    <string name="trace_close">Hide the calculation</string>
+    <string name="trace_period">From month %1$d to month %2$d</string>
+    <string name="trace_start">Net worth at the start</string>
+    <string name="trace_end">= Net worth at the end</string>
+    <string name="trace_check_ok">✓ It adds up: start + every line = end (checked by the engine every month)</string>
+    <string name="trace_check_off">Difference of %1$s (rounding)</string>
+    <string name="trace_formula">Every month: cash = previous cash + income − expenses − loan payment − interest on negative cash. Net worth = cash + investments − debt. Repaying a loan lowers cash and debt alike, so only its interest appears here.</string>
+    <string name="trace_decision">What your decision set: %1$s → %2$s</string>
+    <string name="trace_case">%1$s case (probability %2$s), drawn by this turn's luck: the same in every branch.</string>
+    <string name="trace_sources">Sources of the decision's numbers</string>
+    <string name="trace_origins">Where each kind of figure comes from</string>
+    <string name="origin_DATASET">Dataset</string>
+    <string name="origin_PUBLIC">Public data</string>
+    <string name="origin_EVENT">Decision</string>
+    <string name="origin_ASSUMPTION">Assumption</string>
+    <string name="origin_note_DATASET">Learned from the challenge's synthetic dataset (552,295 transactions, 1,200 profiles): the flow model, which depends on your city and on whether you study.</string>
+    <string name="origin_note_PUBLIC">Salary, rent and prices also grow every month with Swiss public indices (BFS, SNB) and the career curve by age.</string>
+    <string name="origin_note_EVENT">Set by the case of a decision of the game; its sources are listed with the decision.</string>
+    <string name="origin_note_ASSUMPTION">A value we assumed (Assumptions tab): interest on negative cash %1$s a year, investment return %2$s a year.</string>
+    <string name="eff_set_income">Salary becomes %1$s a month, from month %2$d</string>
+    <string name="eff_income_delta">Income %1$s a month, from month %2$d</string>
+    <string name="eff_income_factor">Income × %1$s, from month %2$d</string>
+    <string name="eff_expense">%1$s: %2$s a month, from month %3$d</string>
+    <string name="eff_one_off">One-off %1$s in month %2$d</string>
+    <string name="eff_loan">Loan of %1$s at %2$s a year over %3$d months</string>
+    <string name="eff_market_rent">New home: market rent for your city and household (percentile %1$d of the dataset), from month %2$d</string>
+    <string name="eff_household">Household: %1$s, from month %2$d</string>
+    <string name="eff_employment">Work: %1$s, from month %2$d</string>
+    <string name="eff_fact">%1$s, from month %2$d</string>
+    <string name="eff_flag">Milestone: %1$s</string>
+    <string name="eff_duration"> · for %1$d months</string>
+    <string name="cat_salary">Salary</string>
+    <string name="cat_bonus">Bonus</string>
+    <string name="cat_rent">Rent</string>
+    <string name="cat_health_insurance">Health insurance</string>
+    <string name="cat_groceries">Groceries</string>
+    <string name="cat_restaurants">Restaurants</string>
+    <string name="cat_retail">Shopping</string>
+    <string name="cat_leisure">Leisure</string>
+    <string name="cat_pharmacy">Pharmacy</string>
+    <string name="cat_utilities">Utilities</string>
+    <string name="cat_transport">Transport</string>
+    <string name="cat_telecom">Phone and internet</string>
+    <string name="cat_tuition">Tuition</string>
+    <string name="cat_travel">Travel</string>
+    <string name="cat_unexpected">Unexpected expenses</string>
+    <string name="cat_event_RENT">Rent (decision)</string>
+    <string name="cat_event_LIVING">Living costs (decision)</string>
+    <string name="cat_event_TUITION">Tuition (decision)</string>
+    <string name="cat_event_INSURANCE">Insurance (decision)</string>
+    <string name="cat_event_TRAVEL">Travel (decision)</string>
+    <string name="cat_event_OTHER">Other (decision)</string>
 </resources>

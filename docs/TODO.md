@@ -46,13 +46,14 @@ on the life), and a quiet turn does not split the branch, so a game can have few
 
 ## 4. Where the numbers come from (no black box)
 - [ ] Any number on screen (cash, net worth, income, expenses, deltas, goal %) can be opened to see how it was computed
-- [ ] Breakdown by category over the period (salary, bonus, rent, living costs, tuition, loan, financing, investments)
-- [ ] Which event and which case changed what, and from which month (income, expenses, loans, life facts)
-- [ ] Which part comes from the data (flow model, synthetic dataset), from public data (macro trends) and from
+      (done for each turn, each node of the map and the whole life; not yet for the per-case previews of the dilemma)
+- [x] Breakdown by category over the period (salary, bonus, rent, living costs, tuition, loan, financing, investments)
+- [x] Which event and which case changed what, and from which month (income, expenses, loans, life facts)
+- [x] Which part comes from the data (flow model, synthetic dataset), from public data (macro trends) and from
       assumptions, with the source of each
-- [ ] The formula in plain words when it helps (e.g. cash = previous cash + income − expenses − loan − financing)
-- [ ] Event sources (`Event.sources`) and assumptions with their sources reachable from where they are used
-- [ ] The future self can answer "where does this number come from?" with the same breakdown
+- [x] The formula in plain words when it helps (e.g. cash = previous cash + income − expenses − loan − financing)
+- [x] Event sources (`Event.sources`) and assumptions with their sources reachable from where they are used
+- [x] The future self can answer "where does this number come from?" with the same breakdown
 
 ## 5. The person's goals
 - [x] The person's goals are visible from the start (what, how much in CHF, by when, priority)

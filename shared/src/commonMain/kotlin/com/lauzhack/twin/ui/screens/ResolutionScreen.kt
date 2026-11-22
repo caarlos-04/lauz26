@@ -82,6 +82,7 @@ fun ResolutionScreen(
     onNext: () -> Unit,
     onOther: (() -> Unit)? = null,
     onChat: (() -> Unit)? = null,
+    explain: (@Composable () -> Unit)? = null,   // "where do these numbers come from?" for this turn
 ) {
     var revealed by remember(turn) { mutableStateOf(false) }
     LaunchedEffect(turn) {
@@ -157,6 +158,7 @@ fun ResolutionScreen(
                     if (wide) Row(horizontalArrangement = Arrangement.spacedBy(Space.l)) { tiles(Modifier.weight(1f)) }
                     else Column(verticalArrangement = Arrangement.spacedBy(Space.m)) { tiles(Modifier.fillMaxWidth()) }
                 }
+                explain?.invoke()
                 resolved?.let { turn.counterfactual[it] }?.let {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.s)) {
                         Icon(TwinIcons.Info, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))

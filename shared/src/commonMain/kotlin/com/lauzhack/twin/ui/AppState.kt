@@ -244,6 +244,24 @@ class AppState(
         }
     }
 
+    // ---------- Where the numbers come from ----------
+
+    private val traceCache = mutableMapOf<Pair<NodeKey, NodeKey>, Trace>()
+
+    /** What happened in the last turn of node [key] (from its parent to it); null at the start. */
+    fun traceAt(key: NodeKey): Trace? {
+        val t = tree ?: return null
+        val parent = parentOf(key) ?: return null
+        if (key !in t.nodes || parent !in t.nodes) return null
+        return traceCache.getOrPut(parent to key) { engine.trace(t.nodes.getValue(parent), t.nodes.getValue(key)) }
+    }
+
+    /** The whole life up to the current node, from the opening statement. */
+    fun traceOfLife(): Trace? {
+        val t = tree ?: return null
+        return traceCache.getOrPut("" to t.cursor) { engine.trace(t.root, t.current) }
+    }
+
     // ---------- Map of lives ----------
 
     fun openMap() {
@@ -310,6 +328,7 @@ class AppState(
         currentEvent = null
         mapReady = false
         resultCache.clear()
+        traceCache.clear()
         bandCache.clear()
         chats.clear()
         chronicles.clear()

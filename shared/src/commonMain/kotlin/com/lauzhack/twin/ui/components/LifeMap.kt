@@ -115,6 +115,7 @@ fun LifeMap(
     eventById: (String) -> Event?,
     onOpen: (NodeKey) -> Unit,
     onChat: ((NodeKey) -> Unit)? = null,
+    explain: (@Composable (NodeKey) -> Unit)? = null,
 ) {
     var selected by remember(tree.root) { mutableStateOf(tree.cursor) }
     if (selected !in tree.nodes) selected = tree.cursor
@@ -232,6 +233,7 @@ fun LifeMap(
                 onOther = { selected = siblingOf(selected) },
                 onOpen = { onOpen(selected) },
                 onChat = onChat?.takeIf { selected.isNotEmpty() && selected in tree.visited }?.let { chat -> { chat(selected) } },
+                explain = explain?.takeIf { selected.isNotEmpty() && selected in tree.visited }?.let { e -> { e(selected) } },
             )
         }
     }
@@ -270,6 +272,7 @@ private fun NodeDetail(
     onOther: () -> Unit,
     onOpen: () -> Unit,
     onChat: (() -> Unit)?,
+    explain: (@Composable () -> Unit)?,
 ) {
     val state = session.current
     SurfaceCard {
@@ -299,6 +302,7 @@ private fun NodeDetail(
             LabeledValue(stringResource(Res.string.state_net_worth), formatChf(state.netWorth))
             LabeledValue(stringResource(Res.string.state_cash), formatChf(state.cash), if (state.cash < 0) signColor(-1.0) else Color.Unspecified)
             session.goalStatuses().forEach { GoalRow(it) }
+            explain?.invoke()
         } else {
             Text(stringResource(Res.string.map_unexplored), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }

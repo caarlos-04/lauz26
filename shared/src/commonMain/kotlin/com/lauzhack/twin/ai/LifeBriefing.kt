@@ -31,7 +31,13 @@ data class LifeBriefing(
      * it have not happened, and there are no other lives in the briefing.
      */
     val complete: Boolean = true,
+    /** Sources of the numbers of the decisions taken (Event.sources), one entry per event. */
+    val decisionSources: List<SourceLine> = emptyList(),
 )
+
+/** The sources of one decision's numbers, as written in the event catalogue. */
+@Serializable
+data class SourceLine(val question: String, val sources: List<String>)
 
 @Serializable enum class ChatLanguage { EN, ES }
 
@@ -110,7 +116,12 @@ data class OutlookLine(
 
 /** One line of the net worth attribution (start + sum of drivers = end). */
 @Serializable
-data class DriverLine(val label: String, val chf: Double)
+data class DriverLine(
+    val label: String,
+    val chf: Double,
+    /** Where this kind of figure comes from: "dataset", "decision", "assumption" (ui/Trace.kt originOf). */
+    val origin: String = "",
+)
 
 /** Another life computed by the engine with the same luck. */
 @Serializable

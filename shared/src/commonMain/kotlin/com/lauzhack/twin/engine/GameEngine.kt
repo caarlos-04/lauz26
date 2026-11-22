@@ -1,5 +1,6 @@
 package com.lauzhack.twin.engine
 
+import com.lauzhack.twin.model.Attribution
 import com.lauzhack.twin.model.CaseType
 import com.lauzhack.twin.model.Event
 import com.lauzhack.twin.model.EventOption
@@ -63,6 +64,12 @@ interface GameEngine {
 
     /** P8-P10 at the end of the game: stats, attribution, moments, parallel lives and sensitivity. */
     fun finish(session: GameSession): GameResult
+
+    /**
+     * Where the net worth of [session] comes from, from the opening statement to its last turn (start + sum of items
+     * = end). Used to explain any number: the difference between two nodes is what happened in between.
+     */
+    fun attribution(session: GameSession): Attribution = finish(session).attribution
 
     /**
      * Optional (#12, option 2): cash percentiles per month (0..horizon) replaying the played choices with the

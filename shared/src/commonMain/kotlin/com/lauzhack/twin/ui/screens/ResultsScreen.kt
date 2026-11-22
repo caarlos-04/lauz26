@@ -1,5 +1,6 @@
 package com.lauzhack.twin.ui.screens
 
+import com.lauzhack.twin.ui.components.categoryLabel
 import com.lauzhack.twin.ui.components.GoalRow
 import com.lauzhack.twin.ui.goalStatuses
 import com.lauzhack.twin.model.GameResult
@@ -157,6 +158,7 @@ fun ResultsScreen(
     isEdited: Boolean,
     onResetPath: () -> Unit,
     map: @Composable () -> Unit,
+    explainLife: @Composable () -> Unit = {},
     onChat: () -> Unit,
     onRestart: () -> Unit,
     chronicle: ChatBubble?,
@@ -197,7 +199,7 @@ fun ResultsScreen(
         }
 
         when (tab) {
-            0 -> Overview(session, results, noiseBand, facts, eventById, chronicle, chronicleLoading, onWriteChronicle)
+            0 -> Overview(session, results, noiseBand, facts, eventById, chronicle, chronicleLoading, onWriteChronicle, explainLife)
             1 -> map()
             else -> AssumptionsTab(assumptions)
         }
@@ -264,6 +266,7 @@ private fun Overview(
     chronicle: ChatBubble?,
     chronicleLoading: Boolean,
     onWriteChronicle: suspend () -> Unit,
+    explainLife: @Composable () -> Unit,
 ) {
     val final = session.current
     // #12: optional, and labelled as month-to-month noise; the analysis is the tree and the parallel lives.
@@ -313,7 +316,8 @@ private fun Overview(
     }
 
     SectionCard(stringResource(Res.string.drivers_title), icon = TwinIcons.Chart) {
-        Waterfall(results.attribution, label = { driverLabel(it) })
+        Waterfall(results.attribution, label = { categoryLabel(it) })
+        explainLife()
     }
 
     results.parallelLives.firstOrNull { it.kind == ParallelKind.OTHER_FIRST_CHOICE }?.let { other ->

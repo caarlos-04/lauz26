@@ -1,5 +1,6 @@
 package com.lauzhack.twin.ui
 
+import com.lauzhack.twin.ui.components.TracePanel
 import org.jetbrains.compose.resources.stringResource
 import com.lauzhack.twin.ui.i18n.localized
 import com.lauzhack.twin.resources.map_quiet
@@ -191,6 +192,7 @@ private fun Router(state: AppState, screen: Screen, actions: TopBarActions) {
                     onNext = state::nextTurn,
                     onOther = if (turn.chosenOptionId != null) state::openOther else null,
                     onChat = if (state.canChat) state::openChat else null,
+                    explain = state.tree?.cursor?.let { key -> state.traceAt(key) }?.let { tr -> { TracePanel(tr, state::eventById, state.facts, state.assumptions) } },
                 )
             }
         }
@@ -209,6 +211,7 @@ private fun Router(state: AppState, screen: Screen, actions: TopBarActions) {
                     isEdited = state.isEdited,
                     onResetPath = state::resetToPlayed,
                     map = { LifeMapSection(state) },
+                    explainLife = { state.traceOfLife()?.let { TracePanel(it, state::eventById, state.facts, state.assumptions) } },
                     onChat = state::openChat,
                     onRestart = state::restart,
                     chronicle = state.chronicle,

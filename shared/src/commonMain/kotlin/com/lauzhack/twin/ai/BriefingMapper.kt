@@ -1,5 +1,7 @@
 package com.lauzhack.twin.ai
 
+import com.lauzhack.twin.ui.originOf
+import com.lauzhack.twin.ui.Origin
 import com.lauzhack.twin.engine.isOver
 import com.lauzhack.twin.model.BeatKind
 import com.lauzhack.twin.model.CaseType
@@ -66,7 +68,7 @@ class BriefingMapper(
             risk = RiskLine(r.stats.minCash, r.stats.monthOfMinCash, r.stats.monthsNegativeCash, r.stats.monthsBelowMinCash, r.stats.financingCostChf),
             outlook = ctx.noiseBand?.takeIf { it.p50.isNotEmpty() }?.let { OutlookLine(it.p10.last(), it.p50.last(), it.p90.last()) },
             drivers = r.attribution.items.sortedByDescending { abs(it.chf) }.take(6).map { item ->
-                DriverLine(driverLabel(item.key), item.chf)
+                DriverLine(driverLabel(item.key), item.chf, originLabel(originOf(item.key)))
             },
             parallelLives = r.parallelLives.map { life ->
                 ParallelLine(
@@ -84,6 +86,9 @@ class BriefingMapper(
             assumptionNotes = ctx.assumptions.sourceNotes,
             isWhatIf = ctx.whatIfTurns.isNotEmpty(),
             complete = session.isOver,
+            decisionSources = session.turns.mapNotNull { it.eventId?.let(eventById) }.distinctBy { it.id }
+                .filter { it.sources.isNotEmpty() }
+                .map { SourceLine(it.title.of(lang), it.sources) },
         )
     }
 
@@ -152,6 +157,13 @@ class BriefingMapper(
         key == "financing_cost" -> "Cost of negative cash"
         key == "investment_growth" -> "Investment growth"
         else -> "Other"
+    }
+
+    private fun originLabel(o: Origin) = when (o) {
+        Origin.DATASET -> "learned from the synthetic dataset (flow model)"
+        Origin.PUBLIC -> "public Swiss data"
+        Origin.EVENT -> "set by a decision (its case); salary also grows with public wage indices"
+        Origin.ASSUMPTION -> "an assumption (see ASSUMPTIONS AND LIMITS)"
     }
 
     private fun FinancialStatement.snapshot() = MoneySnapshot(
