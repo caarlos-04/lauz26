@@ -1,0 +1,52 @@
+{
+  "meta": {
+    "generator": "tools/interview.py --build",
+    "note": "Alexia, the challenge's demo profile (20, student in Lausanne, CHF 8,000): her opening statement in the dataset (statement.dataset_opening), with BALANCED priorities and a one-month cushion."
+  },
+  "statement": {
+    "profileId": "DEMO-ALEXIA",
+    "month": 0,
+    "period": "2025-01-01",
+    "person": {
+      "displayName": "Alexia",
+      "age": 20,
+      "employment": "NOT_WORKING",
+      "household": "SINGLE",
+      "facts": {
+        "EDUCATION": "BACHELOR_IN_PROGRESS",
+        "OCCUPATION": "NONE",
+        "HOUSING": "RENTED_FLAT",
+        "FAMILY": "SINGLE",
+        "CITY": "Lausanne"
+      },
+      "flags": []
+    },
+    "cashChf": 8000.0,
+    "investmentsChf": 0,
+    "loan": null,
+    "monthlyIncomeChf": 1200.0,
+    "monthlyRentChf": 900.0,
+    "eventExpensesChf": {},
+    "cashFlow": null,
+    "goals": [
+      {
+        "name": "Emergency savings",
+        "targetChf": 12800.0,
+        "targetDate": "2029-12-31",
+        "priority": "HIGH"
+      },
+      {
+        "name": "Career transition",
+        "targetChf": 39365.95,
+        "targetDate": "2032-12-31",
+        "priority": "MEDIUM"
+      }
+    ],
+    "pendingChanges": []
+  },
+  "preferences": {
+    "objective": "BALANCED",
+    "minCashChf": 3500.0,
+    "penaltyChfPerMonthBelowMin": 500.0
+  }
+}

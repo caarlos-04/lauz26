@@ -40,6 +40,7 @@ import com.lauzhack.twin.resources.beat_when
 import com.lauzhack.twin.resources.beat_work
 import com.lauzhack.twin.resources.quiet_node
 import com.lauzhack.twin.ui.i18n.formatChf
+import com.lauzhack.twin.ui.i18n.goalLabel
 import com.lauzhack.twin.ui.i18n.keyString
 import com.lauzhack.twin.ui.i18n.localized
 import com.lauzhack.twin.ui.theme.LocalTwinColors
@@ -134,7 +135,7 @@ private fun beatText(beat: StoryBeat, facts: FactCatalog, eventById: (String) ->
         BeatKind.CASH_NEGATIVE -> stringResource(Res.string.beat_cash_negative)
         BeatKind.CASH_RECOVERED -> stringResource(Res.string.beat_cash_recovered)
         BeatKind.LOW_POINT -> stringResource(Res.string.beat_low_point, d["cash"]?.toDoubleOrNull()?.let { formatChf(it) } ?: "")
-        BeatKind.GOAL_REACHED -> stringResource(Res.string.beat_goal_reached, keyString(d["goal"].orEmpty()))
-        BeatKind.GOAL_MISSED -> stringResource(Res.string.beat_goal_missed, keyString(d["goal"].orEmpty()))
+        BeatKind.GOAL_REACHED -> stringResource(Res.string.beat_goal_reached, goalLabel(d["goal"].orEmpty()))
+        BeatKind.GOAL_MISSED -> stringResource(Res.string.beat_goal_missed, goalLabel(d["goal"].orEmpty()))
     }
 }

@@ -1,0 +1,829 @@
+{
+  "version": 1,
+  "meta": {
+    "generator": "tools/interview.py --build",
+    "source": "Options and values come from the LauzHack 2026 synthetic dataset; texts are ours (ES/EN).",
+    "note": "Each option fills fields of the person (ProfileField). Numbers are the dataset median of the people in the band (or its middle if fewer than 30 people). 'dk' options fill nothing: the value comes from interview-defaults.json. textKey / labelKey are the keys of the UI strings (python tools/interview.py --strings DIR)."
+  },
+  "questions": [
+    {
+      "id": "age",
+      "textKey": "q_age",
+      "text": {
+        "EN": "How old are you?",
+        "ES": "¿Cuántos años tienes?"
+      },
+      "options": [
+        {
+          "id": "a1",
+          "labelKey": "q_age_a1",
+          "label": {
+            "EN": "18–24",
+            "ES": "18–24"
+          },
+          "sets": {
+            "AGE": "21"
+          }
+        },
+        {
+          "id": "a2",
+          "labelKey": "q_age_a2",
+          "label": {
+            "EN": "25–34",
+            "ES": "25–34"
+          },
+          "sets": {
+            "AGE": "30"
+          }
+        },
+        {
+          "id": "a3",
+          "labelKey": "q_age_a3",
+          "label": {
+            "EN": "35–44",
+            "ES": "35–44"
+          },
+          "sets": {
+            "AGE": "40"
+          }
+        },
+        {
+          "id": "a4",
+          "labelKey": "q_age_a4",
+          "label": {
+            "EN": "45–54",
+            "ES": "45–54"
+          },
+          "sets": {
+            "AGE": "49"
+          }
+        },
+        {
+          "id": "a5",
+          "labelKey": "q_age_a5",
+          "label": {
+            "EN": "55–64",
+            "ES": "55–64"
+          },
+          "sets": {
+            "AGE": "59"
+          }
+        },
+        {
+          "id": "a6",
+          "labelKey": "q_age_a6",
+          "label": {
+            "EN": "65 or older",
+            "ES": "65 o más"
+          },
+          "sets": {
+            "AGE": "71"
+          }
+        }
+      ]
+    },
+    {
+      "id": "city",
+      "textKey": "q_city",
+      "text": {
+        "EN": "Where do you live?",
+        "ES": "¿Dónde vives?"
+      },
+      "options": [
+        {
+          "id": "basel",
+          "labelKey": "q_city_basel",
+          "label": {
+            "ES": "Basilea",
+            "EN": "Basel"
+          },
+          "sets": {
+            "CITY": "Basel"
+          }
+        },
+        {
+          "id": "bern",
+          "labelKey": "q_city_bern",
+          "label": {
+            "ES": "Berna",
+            "EN": "Bern"
+          },
+          "sets": {
+            "CITY": "Bern"
+          }
+        },
+        {
+          "id": "biel",
+          "labelKey": "q_city_biel",
+          "label": {
+            "ES": "Biel",
+            "EN": "Biel"
+          },
+          "sets": {
+            "CITY": "Biel"
+          }
+        },
+        {
+          "id": "fribourg",
+          "labelKey": "q_city_fribourg",
+          "label": {
+            "ES": "Friburgo",
+            "EN": "Fribourg"
+          },
+          "sets": {
+            "CITY": "Fribourg"
+          }
+        },
+        {
+          "id": "geneva",
+          "labelKey": "q_city_geneva",
+          "label": {
+            "ES": "Ginebra",
+            "EN": "Geneva"
+          },
+          "sets": {
+            "CITY": "Geneva"
+          }
+        },
+        {
+          "id": "lausanne",
+          "labelKey": "q_city_lausanne",
+          "label": {
+            "ES": "Lausana",
+            "EN": "Lausanne"
+          },
+          "sets": {
+            "CITY": "Lausanne"
+          }
+        },
+        {
+          "id": "lucerne",
+          "labelKey": "q_city_lucerne",
+          "label": {
+            "ES": "Lucerna",
+            "EN": "Lucerne"
+          },
+          "sets": {
+            "CITY": "Lucerne"
+          }
+        },
+        {
+          "id": "lugano",
+          "labelKey": "q_city_lugano",
+          "label": {
+            "ES": "Lugano",
+            "EN": "Lugano"
+          },
+          "sets": {
+            "CITY": "Lugano"
+          }
+        },
+        {
+          "id": "neuchatel",
+          "labelKey": "q_city_neuchatel",
+          "label": {
+            "ES": "Neuchâtel",
+            "EN": "Neuchâtel"
+          },
+          "sets": {
+            "CITY": "Neuchatel"
+          }
+        },
+        {
+          "id": "st_gallen",
+          "labelKey": "q_city_st_gallen",
+          "label": {
+            "ES": "San Galo",
+            "EN": "St Gallen"
+          },
+          "sets": {
+            "CITY": "St Gallen"
+          }
+        },
+        {
+          "id": "winterthur",
+          "labelKey": "q_city_winterthur",
+          "label": {
+            "ES": "Winterthur",
+            "EN": "Winterthur"
+          },
+          "sets": {
+            "CITY": "Winterthur"
+          }
+        },
+        {
+          "id": "zurich",
+          "labelKey": "q_city_zurich",
+          "label": {
+            "ES": "Zúrich",
+            "EN": "Zurich"
+          },
+          "sets": {
+            "CITY": "Zurich"
+          }
+        }
+      ]
+    },
+    {
+      "id": "household",
+      "textKey": "q_household",
+      "text": {
+        "EN": "Who do you live with?",
+        "ES": "¿Con quién vives?"
+      },
+      "options": [
+        {
+          "id": "single",
+          "labelKey": "q_household_single",
+          "label": {
+            "EN": "Alone",
+            "ES": "Solo/a"
+          },
+          "sets": {
+            "HOUSEHOLD": "SINGLE"
+          }
+        },
+        {
+          "id": "couple",
+          "labelKey": "q_household_couple",
+          "label": {
+            "EN": "With my partner",
+            "ES": "Con mi pareja"
+          },
+          "sets": {
+            "HOUSEHOLD": "COUPLE"
+          }
+        },
+        {
+          "id": "family",
+          "labelKey": "q_household_family",
+          "label": {
+            "EN": "With my partner and children",
+            "ES": "Con mi pareja e hijos"
+          },
+          "sets": {
+            "HOUSEHOLD": "FAMILY"
+          }
+        },
+        {
+          "id": "shared",
+          "labelKey": "q_household_shared",
+          "label": {
+            "EN": "In a shared flat",
+            "ES": "En un piso compartido"
+          },
+          "sets": {
+            "HOUSEHOLD": "SHARED_HOUSING"
+          }
+        }
+      ]
+    },
+    {
+      "id": "employment",
+      "textKey": "q_employment",
+      "text": {
+        "EN": "How do you earn your living?",
+        "ES": "¿Cómo ganas tu dinero?"
+      },
+      "options": [
+        {
+          "id": "employed",
+          "labelKey": "q_employment_employed",
+          "label": {
+            "EN": "Employed full time",
+            "ES": "Empleado/a a tiempo completo"
+          },
+          "sets": {
+            "EMPLOYMENT": "EMPLOYED"
+          }
+        },
+        {
+          "id": "part_time",
+          "labelKey": "q_employment_part_time",
+          "label": {
+            "EN": "Part time",
+            "ES": "Tiempo parcial"
+          },
+          "sets": {
+            "EMPLOYMENT": "PART_TIME"
+          }
+        },
+        {
+          "id": "self_employed",
+          "labelKey": "q_employment_self_employed",
+          "label": {
+            "EN": "Self-employed",
+            "ES": "Autónomo/a"
+          },
+          "sets": {
+            "EMPLOYMENT": "SELF_EMPLOYED"
+          }
+        },
+        {
+          "id": "unemployed",
+          "labelKey": "q_employment_unemployed",
+          "label": {
+            "EN": "Looking for a job",
+            "ES": "Buscando trabajo"
+          },
+          "sets": {
+            "EMPLOYMENT": "UNEMPLOYED"
+          }
+        },
+        {
+          "id": "not_working",
+          "labelKey": "q_employment_not_working",
+          "label": {
+            "EN": "Not working",
+            "ES": "Sin trabajar"
+          },
+          "sets": {
+            "EMPLOYMENT": "NOT_WORKING"
+          }
+        },
+        {
+          "id": "retired",
+          "labelKey": "q_employment_retired",
+          "label": {
+            "EN": "Retired",
+            "ES": "Jubilado/a"
+          },
+          "sets": {
+            "EMPLOYMENT": "RETIRED"
+          }
+        }
+      ]
+    },
+    {
+      "id": "education",
+      "textKey": "q_education",
+      "text": {
+        "EN": "And your studies?",
+        "ES": "¿Y tus estudios?"
+      },
+      "options": [
+        {
+          "id": "unknown",
+          "labelKey": "q_education_unknown",
+          "label": {
+            "EN": "Not studying, no degree to report",
+            "ES": "No estudio y no tengo título que indicar"
+          },
+          "sets": {
+            "EDUCATION": "UNKNOWN"
+          }
+        },
+        {
+          "id": "bachelor_in_progress",
+          "labelKey": "q_education_bachelor_in_progress",
+          "label": {
+            "EN": "Studying for a bachelor’s",
+            "ES": "Estudiando un grado"
+          },
+          "sets": {
+            "EDUCATION": "BACHELOR_IN_PROGRESS"
+          }
+        },
+        {
+          "id": "bachelor",
+          "labelKey": "q_education_bachelor",
+          "label": {
+            "EN": "I have a bachelor’s degree",
+            "ES": "Tengo un grado"
+          },
+          "sets": {
+            "EDUCATION": "BACHELOR"
+          }
+        },
+        {
+          "id": "master_in_progress",
+          "labelKey": "q_education_master_in_progress",
+          "label": {
+            "EN": "Studying for a master’s",
+            "ES": "Estudiando un máster"
+          },
+          "sets": {
+            "EDUCATION": "MASTER_IN_PROGRESS"
+          }
+        },
+        {
+          "id": "master",
+          "labelKey": "q_education_master",
+          "label": {
+            "EN": "I have a master’s degree",
+            "ES": "Tengo un máster"
+          },
+          "sets": {
+            "EDUCATION": "MASTER"
+          }
+        }
+      ]
+    },
+    {
+      "id": "income",
+      "textKey": "q_income",
+      "text": {
+        "EN": "What is your monthly net income?",
+        "ES": "¿Cuál es tu ingreso neto mensual?"
+      },
+      "options": [
+        {
+          "id": "i1",
+          "labelKey": "q_income_i1",
+          "label": {
+            "EN": "Less than CHF 2’500",
+            "ES": "Menos de CHF 2’500"
+          },
+          "sets": {
+            "MONTHLY_INCOME": "950"
+          }
+        },
+        {
+          "id": "i2",
+          "labelKey": "q_income_i2",
+          "label": {
+            "EN": "CHF 2’500 – 5’000",
+            "ES": "CHF 2’500 – 5’000"
+          },
+          "sets": {
+            "MONTHLY_INCOME": "4100"
+          }
+        },
+        {
+          "id": "i3",
+          "labelKey": "q_income_i3",
+          "label": {
+            "EN": "CHF 5’000 – 7’500",
+            "ES": "CHF 5’000 – 7’500"
+          },
+          "sets": {
+            "MONTHLY_INCOME": "5950"
+          }
+        },
+        {
+          "id": "i4",
+          "labelKey": "q_income_i4",
+          "label": {
+            "EN": "CHF 7’500 – 10’000",
+            "ES": "CHF 7’500 – 10’000"
+          },
+          "sets": {
+            "MONTHLY_INCOME": "8750"
+          }
+        },
+        {
+          "id": "i5",
+          "labelKey": "q_income_i5",
+          "label": {
+            "EN": "More than CHF 10’000",
+            "ES": "Más de CHF 10’000"
+          },
+          "sets": {
+            "MONTHLY_INCOME": "10750"
+          }
+        },
+        {
+          "id": "idk",
+          "labelKey": "q_income_idk",
+          "label": {
+            "EN": "I don’t know",
+            "ES": "No lo sé"
+          },
+          "sets": {}
+        }
+      ]
+    },
+    {
+      "id": "rent",
+      "textKey": "q_rent",
+      "text": {
+        "EN": "How much rent do you pay per month? (your share, if you share)",
+        "ES": "¿Cuánto alquiler pagas al mes? (tu parte, si compartes)"
+      },
+      "options": [
+        {
+          "id": "r1",
+          "labelKey": "q_rent_r1",
+          "label": {
+            "EN": "Less than CHF 1’200",
+            "ES": "Menos de CHF 1’200"
+          },
+          "sets": {
+            "MONTHLY_RENT": "1050"
+          }
+        },
+        {
+          "id": "r2",
+          "labelKey": "q_rent_r2",
+          "label": {
+            "EN": "CHF 1’200 – 1’600",
+            "ES": "CHF 1’200 – 1’600"
+          },
+          "sets": {
+            "MONTHLY_RENT": "1400"
+          }
+        },
+        {
+          "id": "r3",
+          "labelKey": "q_rent_r3",
+          "label": {
+            "EN": "CHF 1’600 – 2’000",
+            "ES": "CHF 1’600 – 2’000"
+          },
+          "sets": {
+            "MONTHLY_RENT": "1800"
+          }
+        },
+        {
+          "id": "r4",
+          "labelKey": "q_rent_r4",
+          "label": {
+            "EN": "CHF 2’000 – 2’600",
+            "ES": "CHF 2’000 – 2’600"
+          },
+          "sets": {
+            "MONTHLY_RENT": "2250"
+          }
+        },
+        {
+          "id": "r5",
+          "labelKey": "q_rent_r5",
+          "label": {
+            "EN": "More than CHF 2’600",
+            "ES": "Más de CHF 2’600"
+          },
+          "sets": {
+            "MONTHLY_RENT": "2850"
+          }
+        },
+        {
+          "id": "rdk",
+          "labelKey": "q_rent_rdk",
+          "label": {
+            "EN": "I don’t know",
+            "ES": "No lo sé"
+          },
+          "sets": {}
+        }
+      ]
+    },
+    {
+      "id": "cash",
+      "textKey": "q_cash",
+      "text": {
+        "EN": "How much cash do you have saved?",
+        "ES": "¿Cuánto dinero tienes ahorrado en efectivo?"
+      },
+      "options": [
+        {
+          "id": "c1",
+          "labelKey": "q_cash_c1",
+          "label": {
+            "EN": "Less than CHF 5’000",
+            "ES": "Menos de CHF 5’000"
+          },
+          "sets": {
+            "OPENING_CASH": "2500"
+          }
+        },
+        {
+          "id": "c2",
+          "labelKey": "q_cash_c2",
+          "label": {
+            "EN": "CHF 5’000 – 15’000",
+            "ES": "CHF 5’000 – 15’000"
+          },
+          "sets": {
+            "OPENING_CASH": "9000"
+          }
+        },
+        {
+          "id": "c3",
+          "labelKey": "q_cash_c3",
+          "label": {
+            "EN": "CHF 15’000 – 40’000",
+            "ES": "CHF 15’000 – 40’000"
+          },
+          "sets": {
+            "OPENING_CASH": "28000"
+          }
+        },
+        {
+          "id": "c4",
+          "labelKey": "q_cash_c4",
+          "label": {
+            "EN": "CHF 40’000 – 80’000",
+            "ES": "CHF 40’000 – 80’000"
+          },
+          "sets": {
+            "OPENING_CASH": "53000"
+          }
+        },
+        {
+          "id": "c5",
+          "labelKey": "q_cash_c5",
+          "label": {
+            "EN": "More than CHF 80’000",
+            "ES": "Más de CHF 80’000"
+          },
+          "sets": {
+            "OPENING_CASH": "116000"
+          }
+        },
+        {
+          "id": "cdk",
+          "labelKey": "q_cash_cdk",
+          "label": {
+            "EN": "I don’t know",
+            "ES": "No lo sé"
+          },
+          "sets": {}
+        }
+      ]
+    },
+    {
+      "id": "goal",
+      "textKey": "q_goal",
+      "text": {
+        "EN": "What is your main financial goal?",
+        "ES": "¿Cuál es tu principal meta financiera?"
+      },
+      "options": [
+        {
+          "id": "emergency_savings",
+          "labelKey": "q_goal_emergency_savings",
+          "label": {
+            "EN": "An emergency fund",
+            "ES": "Un fondo de emergencia"
+          },
+          "sets": {
+            "GOAL_TYPE": "Emergency savings"
+          }
+        },
+        {
+          "id": "long_term_financial_resilience",
+          "labelKey": "q_goal_long_term_financial_resilience",
+          "label": {
+            "EN": "Long-term financial security",
+            "ES": "Seguridad financiera a largo plazo"
+          },
+          "sets": {
+            "GOAL_TYPE": "Long-term financial resilience"
+          }
+        },
+        {
+          "id": "housing_deposit",
+          "labelKey": "q_goal_housing_deposit",
+          "label": {
+            "EN": "A deposit for a home",
+            "ES": "La entrada para una vivienda"
+          },
+          "sets": {
+            "GOAL_TYPE": "Housing deposit"
+          }
+        },
+        {
+          "id": "career_transition",
+          "labelKey": "q_goal_career_transition",
+          "label": {
+            "EN": "Changing careers",
+            "ES": "Cambiar de carrera"
+          },
+          "sets": {
+            "GOAL_TYPE": "Career transition"
+          }
+        },
+        {
+          "id": "education_flexibility",
+          "labelKey": "q_goal_education_flexibility",
+          "label": {
+            "EN": "Being able to study later",
+            "ES": "Poder estudiar más adelante"
+          },
+          "sets": {
+            "GOAL_TYPE": "Education flexibility"
+          }
+        },
+        {
+          "id": "retirement_reserve",
+          "labelKey": "q_goal_retirement_reserve",
+          "label": {
+            "EN": "A retirement reserve",
+            "ES": "Una reserva para la jubilación"
+          },
+          "sets": {
+            "GOAL_TYPE": "Retirement reserve"
+          }
+        }
+      ]
+    },
+    {
+      "id": "objective",
+      "textKey": "q_objective",
+      "text": {
+        "EN": "What matters most to you?",
+        "ES": "¿Qué es lo más importante para ti?"
+      },
+      "options": [
+        {
+          "id": "growth",
+          "labelKey": "q_objective_growth",
+          "label": {
+            "EN": "Make my money grow, accepting more risk",
+            "ES": "Hacer crecer mi dinero, aceptando más riesgo"
+          },
+          "sets": {
+            "OBJECTIVE": "GROWTH"
+          }
+        },
+        {
+          "id": "balanced",
+          "labelKey": "q_objective_balanced",
+          "label": {
+            "EN": "A balance between growth and safety",
+            "ES": "Un equilibrio entre crecer y estar seguro/a"
+          },
+          "sets": {
+            "OBJECTIVE": "BALANCED"
+          }
+        },
+        {
+          "id": "safe",
+          "labelKey": "q_objective_safe",
+          "label": {
+            "EN": "Safety first: avoid running short of cash",
+            "ES": "Seguridad ante todo: no quedarme sin liquidez"
+          },
+          "sets": {
+            "OBJECTIVE": "SAFE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mincash",
+      "textKey": "q_mincash",
+      "text": {
+        "EN": "What is the minimum cash cushion you want to keep?",
+        "ES": "¿Qué colchón mínimo de efectivo quieres mantener?"
+      },
+      "options": [
+        {
+          "id": "m1",
+          "labelKey": "q_mincash_m1",
+          "label": {
+            "EN": "No minimum",
+            "ES": "Sin mínimo"
+          },
+          "sets": {
+            "MIN_CASH": "0"
+          }
+        },
+        {
+          "id": "m2",
+          "labelKey": "q_mincash_m2",
+          "label": {
+            "EN": "CHF 1’500 (about 0.5 months of expenses)",
+            "ES": "CHF 1’500 (unos 0.5 meses de gastos)"
+          },
+          "sets": {
+            "MIN_CASH": "1500"
+          }
+        },
+        {
+          "id": "m3",
+          "labelKey": "q_mincash_m3",
+          "label": {
+            "EN": "CHF 3’500 (about 1 month of expenses)",
+            "ES": "CHF 3’500 (unos 1 mes de gastos)"
+          },
+          "sets": {
+            "MIN_CASH": "3500"
+          }
+        },
+        {
+          "id": "m4",
+          "labelKey": "q_mincash_m4",
+          "label": {
+            "EN": "CHF 10’500 (about 3 months of expenses)",
+            "ES": "CHF 10’500 (unos 3 meses de gastos)"
+          },
+          "sets": {
+            "MIN_CASH": "10500"
+          }
+        },
+        {
+          "id": "m5",
+          "labelKey": "q_mincash_m5",
+          "label": {
+            "EN": "CHF 21’000 (about 6 months of expenses)",
+            "ES": "CHF 21’000 (unos 6 meses de gastos)"
+          },
+          "sets": {
+            "MIN_CASH": "21000"
+          }
+        }
+      ]
+    }
+  ]
+}

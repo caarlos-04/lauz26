@@ -1,6 +1,9 @@
 package com.lauzhack.twin.content
 
 import com.lauzhack.twin.chronicle.ChronicleTemplates
+import com.lauzhack.twin.interview.DemoProfile
+import com.lauzhack.twin.interview.InterviewCatalog
+import com.lauzhack.twin.interview.InterviewDefaults
 import com.lauzhack.twin.model.Assumptions
 import com.lauzhack.twin.model.EventCatalog
 import com.lauzhack.twin.model.FactCatalog
@@ -19,6 +22,9 @@ data class AppContent(
     val chronicle: ChronicleTemplates,
     val flowModel: FlowModel,
     val macro: MacroFile,
+    val interview: InterviewCatalog,
+    val interviewDefaults: InterviewDefaults,
+    val alexia: DemoProfile,
 ) {
     companion object {
         // The generated files carry a `meta` block (and macro.json its public series) that the model does not decode.
@@ -34,6 +40,9 @@ data class AppContent(
             chronicle = json.decodeFromString(read("chronicle.json")),
             flowModel = json.decodeFromString(read("flow-model.json")),
             macro = json.decodeFromString(read("macro.json")),
+            interview = json.decodeFromString(read("interview.json")),
+            interviewDefaults = json.decodeFromString(read("interview-defaults.json")),
+            alexia = json.decodeFromString(read("alexia.json")),
         )
     }
 }
