@@ -6,8 +6,8 @@ import com.lauzhack.twin.model.EventCatalog
 import com.lauzhack.twin.model.FactCatalog
 import com.lauzhack.twin.model.FlowModel
 import com.lauzhack.twin.model.MacroFile
+import com.lauzhack.twin.resources.Res
 import kotlinx.serialization.json.Json
-import lauz26.shared.generated.resources.Res
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 
 // Everything the app reads at start, decoded from the JSON packaged as Compose resources (composeResources/files/,
