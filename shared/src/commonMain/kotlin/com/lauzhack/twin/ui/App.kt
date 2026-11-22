@@ -125,7 +125,7 @@ private fun panelData(state: AppState): PanelData? {
     val s = state.session ?: return null
     return PanelData(
         name = s.initial.person.displayName,
-        age = s.current.person.age,
+        age = s.current.person.age,         // already the age at the current month (the simulator ages the person)
         employment = s.current.employment,
         state = s.current,
         goals = s.current.goals,

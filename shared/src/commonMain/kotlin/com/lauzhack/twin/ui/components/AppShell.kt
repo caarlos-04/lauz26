@@ -221,7 +221,7 @@ private fun ProfilePanel(panel: PanelData, modifier: Modifier) {
                     Column {
                         Text(panelName(panel), style = MaterialTheme.typography.titleMedium)
                         Text(
-                            stringResource(Res.string.state_age_value, panel.age + state.month / 12) + " · " + keyString("employment_${state.employment.name}"),
+                            stringResource(Res.string.state_age_value, panel.age) + " · " + keyString("employment_${state.employment.name}"),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
