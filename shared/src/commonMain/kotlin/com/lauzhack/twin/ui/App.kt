@@ -1,5 +1,13 @@
 package com.lauzhack.twin.ui
 
+import com.lauzhack.twin.ui.components.TracePanel
+import org.jetbrains.compose.resources.stringResource
+import com.lauzhack.twin.ui.i18n.localized
+import com.lauzhack.twin.resources.map_quiet
+import com.lauzhack.twin.resources.Res
+import com.lauzhack.twin.engine.isOver
+import com.lauzhack.twin.model.GameSession
+import com.lauzhack.twin.ui.screens.ChatMoment
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -30,6 +38,8 @@ import com.lauzhack.twin.ui.i18n.tag
 import com.lauzhack.twin.ui.screens.ChatScreen
 import com.lauzhack.twin.ui.screens.DilemmaScreen
 import com.lauzhack.twin.ui.screens.InterviewScreen
+import com.lauzhack.twin.ui.screens.LifeMapSection
+import com.lauzhack.twin.ui.screens.MapScreen
 import com.lauzhack.twin.ui.screens.ResolutionScreen
 import com.lauzhack.twin.ui.screens.ResultsScreen
 import com.lauzhack.twin.ui.screens.WelcomeScreen
@@ -108,6 +118,7 @@ private fun AppContentLoaded(state: AppState) {
                     isDark = dark,
                     onToggleLang = { state.lang = if (state.lang == Lang.EN) Lang.ES else Lang.EN },
                     onToggleTheme = { state.darkMode = !dark },
+                    onMap = if (state.tree != null && state.screen != Screen.MAP) state::openMap else null,
                 )
                 AnimatedContent(
                     targetState = state.screen,
@@ -125,14 +136,29 @@ private fun panelData(state: AppState): PanelData? {
     val s = state.session ?: return null
     return PanelData(
         name = s.initial.person.displayName,
-        age = s.current.person.age,
+        age = s.current.person.age,         // already the age at the current month (the simulator ages the person)
         employment = s.current.employment,
         state = s.current,
-        goals = s.current.goals,
+        goals = s.goalStatuses(),
         turnsDone = s.turns.size,
         maxTurns = s.config.maxTurns,
         monthsPerTurn = s.config.monthsPerTurn,
     )
+}
+
+/** The self of the current node, for the chat header. */
+@Composable
+private fun chatMoment(session: GameSession, eventById: (String) -> Event?): ChatMoment {
+    val now = session.current
+    val turn = session.turns.lastOrNull()
+    val event = turn?.eventId?.let(eventById)
+    val option = event?.options?.firstOrNull { it.id == turn.chosenOptionId }
+    val after = when {
+        turn == null -> null
+        event == null || option == null -> stringResource(Res.string.map_quiet)
+        else -> localized(event.title) + " → " + localized(option.label)
+    }
+    return ChatMoment(now.person.age, now.month / 12, after, session.isOver)
 }
 
 @Composable
@@ -146,7 +172,10 @@ private fun Router(state: AppState, screen: Screen, actions: TopBarActions) {
             val event = state.currentEvent
             if (session != null && event != null && panel != null) {
                 val previews = remember(session, event, state.lang) { state.previews(event) }
-                DilemmaScreen(actions, panel, session, event, previews, state::choose)
+                DilemmaScreen(
+                    actions, panel, session, event, previews, state::choose,
+                    lived = event.options.map { it.id }.filterTo(mutableSetOf()) { id -> state.tree?.visited?.contains(session.nodeKey + id) == true },
+                )
             }
         }
         Screen.RESOLUTION -> {
@@ -161,6 +190,9 @@ private fun Router(state: AppState, screen: Screen, actions: TopBarActions) {
                     monthsPerTurn = state.config.monthsPerTurn,
                     isLastTurn = state.isLastTurn,
                     onNext = state::nextTurn,
+                    onOther = if (turn.chosenOptionId != null) state::openOther else null,
+                    onChat = if (state.canChat) state::openChat else null,
+                    explain = state.tree?.cursor?.let { key -> state.traceAt(key) }?.let { tr -> { TracePanel(tr, state::eventById, state.facts, state.assumptions) } },
                 )
             }
         }
@@ -176,13 +208,10 @@ private fun Router(state: AppState, screen: Screen, actions: TopBarActions) {
                     assumptions = state.assumptions,
                     facts = state.facts,
                     eventById = state::eventById,
-                    playedTurns = state.playedSession?.turns,
                     isEdited = state.isEdited,
-                    pendingEvent = state.pendingEvent,
-                    pendingPreviews = state.pendingEvent?.let { ev -> remember(session, ev, state.lang) { state.previews(ev) } }.orEmpty(),
-                    onEditTurn = state::editTurn,
-                    onDecide = state::decidePending,
                     onResetPath = state::resetToPlayed,
+                    map = { LifeMapSection(state) },
+                    explainLife = { state.traceOfLife()?.let { TracePanel(it, state::eventById, state.facts, state.assumptions) } },
                     onChat = state::openChat,
                     onRestart = state::restart,
                     chronicle = state.chronicle,
@@ -191,6 +220,7 @@ private fun Router(state: AppState, screen: Screen, actions: TopBarActions) {
                 )
             }
         }
+        Screen.MAP -> MapScreen(actions, panel, state)
         Screen.CHAT -> ChatScreen(
             actions = actions,
             panel = panel,
@@ -201,7 +231,8 @@ private fun Router(state: AppState, screen: Screen, actions: TopBarActions) {
             persona = state.persona,
             onPersona = state::choosePersona,
             onAsk = state::ask,
-            onBack = state::backToResults,
+            onBack = state::closeChat,
+            moment = session?.let { chatMoment(it, state::eventById) },
         )
     }
 }

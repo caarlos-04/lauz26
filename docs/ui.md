@@ -52,12 +52,17 @@ case re-resolves the rest of the path (`ui/PathReplay.kt`), then `finish()` reco
 Demo: buying the car with a loan sets the milestone `took_loan`, which triggers `E-car-loan`; switching to the travelcard in the
 tree replaces it with a pending `E-sabbatical`.
 
-## Design system
-- `ui/theme/Color.kt`: navy brand + emerald accent, light/dark schemes and `TwinColors` (cases, gains/losses, chart series), checked
-  with a palette validator (lightness band, colour-blind separation, contrast) in both themes; case colors always paired with their name.
-- `ui/theme/Type.kt`: Inter typography (tabular figures for money). `ui/theme/Icons.kt`: own stroke icons (no icon library).
-- `ui/components/`: `AppShell` (top bar + side panel / compact strip), `SurfaceCard`, `KpiTile`, `DeltaPill`, `CaseBadge`,
-  `CaseDistributionBar`, `FanChart` (gradient band, years axis, hover tooltip, draw-in animation), `DecisionTree`.
+## Design system ("Ink & cobalt")
+Editorial, Swiss-style look. Principles: paper and ink do the work, one accent; hairlines and spacing instead of nested
+cards, shadows or tinted badges; sentence-case labels; figures are the protagonists, in a monospaced face.
+- `ui/theme/Color.kt`: warm paper `#F5F3EE` / ink `#161514`, one cobalt accent `#2B44E0` (selection, your path, links);
+  money keeps its own meaning (green `#11774A` up, terracotta `#C2410C` down), ochre for "in progress". Dark mode: night
+  `#121110`, chalk `#ECE9E2`, light cobalt `#8C9BFF`. Contrast checked (WCAG) in both themes, numbers in the file.
+- `ui/theme/Type.kt`: IBM Plex Sans for text, IBM Plex Mono for every amount, percentage and count (`TextStyle.figures()`).
+- `ui/theme/Theme.kt`: small radii (3-14 dp), spacing scale 4-48 dp. `ui/theme/Icons.kt`: own stroke icons, used only
+  where they carry meaning (navigation, actions), never as decoration.
+- `ui/components/`: `AppShell` (top bar + side panel / compact strip), `SurfaceCard` (the only card, never nested),
+  `KpiTile`, `DeltaPill`, `CaseBadge`, `CaseDistributionBar`, `LifeMap`, `GoalViews`, `TracePanel`, `FanChart`.
 
 ## Conventions
 - UI text in `composeResources/values/strings.xml` (EN) and `values-es/strings.xml` (ES); content text (events, facts) is
@@ -65,5 +70,5 @@ tree replaces it with a pending `E-sabbatical`.
 - Money in CHF (`formatChf`, Swiss grouping `12’345 CHF`).
 
 ## Third-party assets
-- **Inter** font by The Inter Project Authors, SIL Open Font License 1.1 — `shared/src/commonMain/composeResources/font/`,
-  license in `licenses/Inter-OFL.txt`.
+- **IBM Plex Sans** and **IBM Plex Mono** fonts, © IBM Corp., SIL Open Font License 1.1 —
+  `shared/src/commonMain/composeResources/font/`, license in `licenses/IBM-Plex-OFL.txt`.

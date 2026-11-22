@@ -58,15 +58,24 @@ fun LifeLine(beats: List<StoryBeat>, facts: FactCatalog, eventById: (String) -> 
         .mapNotNull { b -> b.data["case"]?.let { c -> CaseType.entries.firstOrNull { it.name == c } }?.let { (b.eventId to b.month) to it } }
         .toMap()
     val rows = beats.filter { it.kind != BeatKind.CASE_RESOLVED }
+    // Life changes of the same month (new job, degree, milestone...) are told in one row, so the line stays short.
+    val texts = rows.map { beatText(it, facts, eventById) }
+    val merged = mutableListOf<Pair<StoryBeat, String>>()
+    rows.forEachIndexed { i, beat ->
+        val text = texts[i] ?: return@forEachIndexed
+        val prev = merged.lastOrNull()
+        if (prev != null && beat.kind == BeatKind.LIFE_CHANGE && prev.first.kind == BeatKind.LIFE_CHANGE && prev.first.month == beat.month) {
+            merged[merged.lastIndex] = prev.first to (prev.second + " · " + text)
+        } else merged += beat to text
+    }
     Column(modifier) {
-        rows.forEachIndexed { i, beat ->
-            val text = beatText(beat, facts, eventById) ?: return@forEachIndexed
+        merged.forEachIndexed { i, (beat, text) ->
             BeatRow(
                 beat = beat,
                 text = text,
                 case = cases[beat.eventId to beat.month].takeIf { beat.kind == BeatKind.DECISION },
                 first = i == 0,
-                last = i == rows.lastIndex,
+                last = i == merged.lastIndex,
             )
         }
     }

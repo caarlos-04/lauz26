@@ -1,5 +1,8 @@
 package com.lauzhack.twin.ai
 
+import com.lauzhack.twin.ui.originOf
+import com.lauzhack.twin.ui.Origin
+import com.lauzhack.twin.engine.isOver
 import com.lauzhack.twin.model.BeatKind
 import com.lauzhack.twin.model.CaseType
 import com.lauzhack.twin.model.Event
@@ -58,20 +61,20 @@ class BriefingMapper(
             lifeAtStart = life(session.initial, ctx.facts, lang),
             lifeAtEnd = life(end, ctx.facts, lang),
             turns = turns(session.turns, session.initial, lang, ctx.whatIfTurns),
-            moments = r.beats.mapNotNull { moment(it, ctx.facts, lang, goalNames) },
+            moments = r.beats.mapNotNull { moment(it, ctx.facts, lang, goalNames, session.isOver) },
             goals = end.goals.map { g ->
                 GoalLine(goalNames[g.name] ?: text(g.name), g.targetChf, g.targetMonth(session.initial), g.name in r.stats.goalsReached, (g.progress(end) * 100).roundToInt())
             },
             risk = RiskLine(r.stats.minCash, r.stats.monthOfMinCash, r.stats.monthsNegativeCash, r.stats.monthsBelowMinCash, r.stats.financingCostChf),
             outlook = ctx.noiseBand?.takeIf { it.p50.isNotEmpty() }?.let { OutlookLine(it.p10.last(), it.p50.last(), it.p90.last()) },
             drivers = r.attribution.items.sortedByDescending { abs(it.chf) }.take(6).map { item ->
-                DriverLine(driverLabel(item.key), item.chf)
+                DriverLine(driverLabel(item.key), item.chf, originLabel(originOf(item.key)))
             },
             parallelLives = r.parallelLives.map { life ->
                 ParallelLine(
                     title = when (life.kind) {
                         ParallelKind.OTHER_FIRST_CHOICE -> "Other first choice"
-                        ParallelKind.OPTIMAL_STRATEGY -> "Best strategy (computed)"
+                        ParallelKind.OPTIMAL_STRATEGY -> "Turn-by-turn strategy (the best expected result at each turn; a heuristic, not an exact optimum)"
                     },
                     choices = life.turns.mapNotNull { t -> choiceLine(t, lang) },
                     finalNetWorthChf = life.stats.finalNetWorth,
@@ -82,6 +85,10 @@ class BriefingMapper(
             },
             assumptionNotes = ctx.assumptions.sourceNotes,
             isWhatIf = ctx.whatIfTurns.isNotEmpty(),
+            complete = session.isOver,
+            decisionSources = session.turns.mapNotNull { it.eventId?.let(eventById) }.distinctBy { it.id }
+                .filter { it.sources.isNotEmpty() }
+                .map { SourceLine(it.title.of(lang), it.sources) },
         )
     }
 
@@ -114,7 +121,7 @@ class BriefingMapper(
     }
 
     /** Short English line for a moment; the decision beats are already in TURNS. */
-    private fun moment(beat: StoryBeat, facts: FactCatalog, lang: Lang, goalNames: Map<String, String>): MomentLine? {
+    private fun moment(beat: StoryBeat, facts: FactCatalog, lang: Lang, goalNames: Map<String, String>, complete: Boolean): MomentLine? {
         val d = beat.data
         val text = when (beat.kind) {
             BeatKind.LIFE_CHANGE -> when {
@@ -129,7 +136,7 @@ class BriefingMapper(
             }
             BeatKind.CASH_NEGATIVE -> "Cash went below zero (financing needed)"
             BeatKind.CASH_RECOVERED -> "Cash was positive again"
-            BeatKind.LOW_POINT -> "Lowest cash of the ten years"
+            BeatKind.LOW_POINT -> if (complete) "Lowest cash of the ten years" else "Lowest cash so far"
             BeatKind.GOAL_REACHED -> "Goal reached: ${goalNames[d["goal"]] ?: d["goal"]}"
             BeatKind.GOAL_MISSED -> "Goal missed: ${goalNames[d["goal"]] ?: d["goal"]}"
             BeatKind.QUIET_PERIOD -> null
@@ -150,6 +157,13 @@ class BriefingMapper(
         key == "financing_cost" -> "Cost of negative cash"
         key == "investment_growth" -> "Investment growth"
         else -> "Other"
+    }
+
+    private fun originLabel(o: Origin) = when (o) {
+        Origin.DATASET -> "learned from the synthetic dataset (flow model)"
+        Origin.PUBLIC -> "public Swiss data"
+        Origin.EVENT -> "set by a decision (its case); salary also grows with public wage indices"
+        Origin.ASSUMPTION -> "an assumption (see ASSUMPTIONS AND LIMITS)"
     }
 
     private fun FinancialStatement.snapshot() = MoneySnapshot(

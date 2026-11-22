@@ -1,5 +1,7 @@
 package com.lauzhack.twin.ui.screens
 
+import androidx.compose.foundation.layout.Spacer
+import com.lauzhack.twin.resources.action_chat_now
 import com.lauzhack.twin.ui.cash
 import com.lauzhack.twin.ui.netWorth
 import com.lauzhack.twin.ui.i18n.localized
@@ -23,6 +25,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -41,6 +44,7 @@ import com.lauzhack.twin.resources.resolution_after
 import com.lauzhack.twin.resources.resolution_before
 import com.lauzhack.twin.resources.resolution_case_drawn
 import com.lauzhack.twin.resources.resolution_counterfactual
+import com.lauzhack.twin.resources.resolution_see_other
 import com.lauzhack.twin.resources.resolution_drawing
 import com.lauzhack.twin.resources.resolution_next_turn
 import com.lauzhack.twin.resources.resolution_see_results
@@ -76,6 +80,9 @@ fun ResolutionScreen(
     monthsPerTurn: Int,
     isLastTurn: Boolean,
     onNext: () -> Unit,
+    onOther: (() -> Unit)? = null,
+    onChat: (() -> Unit)? = null,
+    explain: (@Composable () -> Unit)? = null,   // "where do these numbers come from?" for this turn
 ) {
     var revealed by remember(turn) { mutableStateOf(false) }
     LaunchedEffect(turn) {
@@ -117,7 +124,7 @@ fun ResolutionScreen(
                 Column {
                     // Colored band with the drawn case.
                     Row(
-                        Modifier.fillMaxWidth().background(color.copy(alpha = 0.14f)).padding(Space.xl),
+                        Modifier.fillMaxWidth().padding(start = Space.xl, end = Space.xl, top = Space.xl),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(Space.m),
                     ) {
@@ -125,7 +132,7 @@ fun ResolutionScreen(
                         Text(stringResource(Res.string.resolution_case_drawn, caseName(resolved)), style = MaterialTheme.typography.headlineSmall)
                     }
                     option?.cases?.get(resolved)?.narrative?.let {
-                        Text(localized(it), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(Space.xl))
+                        Text(localized(it), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(start = Space.xl, end = Space.xl, top = Space.m, bottom = Space.xl))
                     }
                 }
             }
@@ -142,7 +149,7 @@ fun ResolutionScreen(
                             icon = TwinIcons.TrendUp, delta = nwDelta,
                             caption = stringResource(Res.string.resolution_before) + ": " + formatChf(before.netWorth),
                         )
-                        KpiTile(
+                        if (kotlin.math.abs(turn.stateAfter.cash - turn.stateAfter.netWorth) >= 1.0) KpiTile(
                             stringResource(Res.string.state_cash), turn.stateAfter.cash, m,
                             icon = TwinIcons.Wallet, delta = cashDelta,
                             caption = stringResource(Res.string.resolution_after, monthsPerTurn),
@@ -151,10 +158,23 @@ fun ResolutionScreen(
                     if (wide) Row(horizontalArrangement = Arrangement.spacedBy(Space.l)) { tiles(Modifier.weight(1f)) }
                     else Column(verticalArrangement = Arrangement.spacedBy(Space.m)) { tiles(Modifier.fillMaxWidth()) }
                 }
+                explain?.invoke()
                 resolved?.let { turn.counterfactual[it] }?.let {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.s)) {
                         Icon(TwinIcons.Info, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
-                        Text(stringResource(Res.string.resolution_counterfactual, formatChf(it.netWorth)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(Res.string.resolution_counterfactual, formatChf(it.netWorth)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                        if (onOther != null) {
+                            OutlinedButton(onClick = onOther, shape = MaterialTheme.shapes.small) {
+                                Text(stringResource(Res.string.resolution_see_other))
+                            }
+                        }
+                    }
+                }
+                if (onChat != null) {
+                    OutlinedButton(onClick = onChat, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth().height(48.dp)) {
+                        Icon(TwinIcons.Chat, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.size(Space.s))
+                        Text(stringResource(Res.string.action_chat_now))
                     }
                 }
                 Button(onClick = onNext, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth().height(48.dp)) {

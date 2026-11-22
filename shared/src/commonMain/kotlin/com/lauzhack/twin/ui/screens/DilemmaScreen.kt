@@ -1,5 +1,11 @@
 package com.lauzhack.twin.ui.screens
 
+import com.lauzhack.twin.ui.theme.figures
+import androidx.compose.ui.text.style.TextAlign
+import com.lauzhack.twin.resources.dilemma_goals_now
+import com.lauzhack.twin.resources.dilemma_goals_title
+import com.lauzhack.twin.ui.components.GoalPreview
+import com.lauzhack.twin.model.FinancialStatement
 import com.lauzhack.twin.ui.current
 import com.lauzhack.twin.ui.i18n.localized
 import androidx.compose.foundation.BorderStroke
@@ -40,6 +46,7 @@ import com.lauzhack.twin.resources.dilemma_hint
 import com.lauzhack.twin.resources.dilemma_turn
 import com.lauzhack.twin.resources.min_cash
 import com.lauzhack.twin.resources.option_label
+import com.lauzhack.twin.resources.dilemma_lived
 import com.lauzhack.twin.ui.components.AppShell
 import com.lauzhack.twin.ui.components.CaseBadge
 import com.lauzhack.twin.ui.components.CaseDistributionBar
@@ -47,6 +54,7 @@ import com.lauzhack.twin.ui.components.DeltaPill
 import com.lauzhack.twin.ui.components.IconBadge
 import com.lauzhack.twin.ui.components.LabeledValue
 import com.lauzhack.twin.ui.components.Overline
+import com.lauzhack.twin.ui.components.Pill
 import com.lauzhack.twin.ui.components.PanelData
 import com.lauzhack.twin.ui.components.SurfaceCard
 import com.lauzhack.twin.ui.components.TopBarActions
@@ -68,15 +76,14 @@ fun DilemmaScreen(
     event: Event,
     previews: List<OptionPreview>,
     onChoose: (optionId: String) -> Unit,
+    lived: Set<String> = emptySet(),   // options whose branch the user has already lived
 ) {
     val state = session.turns.lastOrNull()?.stateAfter ?: session.initial
     AppShell(actions, panel = panel) {
-        SurfaceCard(padding = Space.xl) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.m)) {
-                IconBadge(TwinIcons.Calendar)
-                Overline(stringResource(Res.string.dilemma_turn, session.turns.size + 1, session.config.maxTurns, state.month))
-            }
-            Text(localized(event.title), style = MaterialTheme.typography.headlineLarge)
+        // The question on the page itself, like a headline: no card around it.
+        Column(Modifier.padding(top = Space.s), verticalArrangement = Arrangement.spacedBy(Space.s)) {
+            Overline(stringResource(Res.string.dilemma_turn, session.turns.size + 1, session.config.maxTurns, state.month))
+            Text(localized(event.title), style = MaterialTheme.typography.displaySmall)
             Text(localized(event.description), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.s)) {
@@ -90,7 +97,7 @@ fun DilemmaScreen(
             val cards: @Composable (Modifier) -> Unit = { mod ->
                 event.options.forEach { option ->
                     val preview = previews.firstOrNull { it.optionId == option.id } ?: return@forEach
-                    OptionCard(option.id, localized(option.label), preview, { onChoose(option.id) }, mod)
+                    OptionCard(option.id, localized(option.label), preview, option.id in lived, state, session.config.monthsPerTurn, { onChoose(option.id) }, mod)
                 }
             }
             if (wide) Row(horizontalArrangement = Arrangement.spacedBy(Space.l)) { cards(Modifier.weight(1f)) }
@@ -100,7 +107,16 @@ fun DilemmaScreen(
 }
 
 @Composable
-private fun OptionCard(id: String, label: String, preview: OptionPreview, onChoose: () -> Unit, modifier: Modifier) {
+private fun OptionCard(
+    id: String,
+    label: String,
+    preview: OptionPreview,
+    lived: Boolean,
+    now: FinancialStatement,
+    monthsPerTurn: Int,
+    onChoose: () -> Unit,
+    modifier: Modifier,
+) {
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
     val accent = LocalTwinColors.current.chosen
@@ -112,23 +128,34 @@ private fun OptionCard(id: String, label: String, preview: OptionPreview, onChoo
         elevation = CardDefaults.cardElevation(defaultElevation = if (hovered) 6.dp else 0.dp),
     ) {
         Column(Modifier.padding(Space.xl), verticalArrangement = Arrangement.spacedBy(Space.m)) {
-            Overline(stringResource(Res.string.option_label, id), color = accent)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.s)) {
+                Overline(stringResource(Res.string.option_label, id), color = accent)
+                if (lived) Pill(stringResource(Res.string.dilemma_lived))
+            }
             Text(label, style = MaterialTheme.typography.headlineSmall)
             CaseDistributionBar(preview.perCase.mapValues { it.value.prob })
+            // One row per case: probability, change of net worth and lowest cash over the turn.
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Spacer(Modifier.weight(1.3f))
+                Text(stringResource(Res.string.delta_net_worth), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+                Text(stringResource(Res.string.min_cash), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+            }
             CaseType.entries.forEach { case ->
                 val p = preview.perCase[case] ?: return@forEach
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    CaseBadge(case)
-                    Spacer(Modifier.weight(1f))
-                    Text(formatPercent(p.prob), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(Modifier.weight(1.3f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        CaseBadge(case)
+                        Text(formatPercent(p.prob), style = MaterialTheme.typography.labelSmall.figures(), color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
+                    }
+                    Text(formatChf(p.deltaNetWorth, signed = true), style = MaterialTheme.typography.labelMedium.figures(), color = signColor(p.deltaNetWorth), modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+                    Text(formatChf(p.minCash), style = MaterialTheme.typography.labelMedium.figures(), color = if (p.minCash < 0) signColor(p.minCash) else Color.Unspecified, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
                 }
-                Text(localized(p.narrative), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(Res.string.delta_net_worth), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-                    DeltaPill(p.deltaNetWorth)
-                }
-                LabeledValue(stringResource(Res.string.min_cash), formatChf(p.minCash), if (p.minCash < 0) signColor(p.minCash) else Color.Unspecified)
+            }
+            if (now.goals.isNotEmpty()) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Overline(stringResource(Res.string.dilemma_goals_title, monthsPerTurn))
+                GoalPreview(now.goals, now, preview.perCase.mapValues { it.value.stateAfter }) { stringResource(Res.string.dilemma_goals_now, it) }
             }
             Spacer(Modifier.height(Space.xs))
             Button(onClick = onChoose, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth().height(48.dp)) {

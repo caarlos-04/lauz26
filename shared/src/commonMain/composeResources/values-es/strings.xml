@@ -8,7 +8,6 @@
     <string name="theme_dark">Oscuro</string>
     <string name="theme_light">Claro</string>
     <string name="lang_toggle">EN</string>
-    <string name="months_value">%1$d meses</string>
     <string name="month_value">Mes %1$d</string>
     <string name="disclaimer">Esto es una simulación con datos sintéticos, no una predicción ni asesoramiento financiero. Importes en CHF, sin impuestos.</string>
 
@@ -122,9 +121,7 @@
     <string name="state_cash">Caja</string>
     <string name="state_net_worth">Patrimonio neto</string>
     <string name="state_monthly_net">Balance mensual</string>
-    <string name="state_age">Edad</string>
     <string name="state_age_value">%1$d años</string>
-    <string name="state_status">Situación</string>
 
     <!-- Dilemma -->
     <string name="dilemma_turn">Turno %1$d de %2$d · mes %3$d</string>
@@ -150,31 +147,20 @@
 
     <!-- Results -->
     <string name="results_title">Tus próximos 10 años</string>
-    <string name="chart_cash">Evolución de la caja</string>
-    <string name="chart_net_worth">Evolución del patrimonio neto</string>
     <string name="chart_calibrated">Calibrado con datos</string>
     <string name="chart_assumptions">Solo supuestos</string>
     <string name="legend_band">Rango p10–p90</string>
     <string name="legend_median">Mediana (camino elegido)</string>
     <string name="legend_alternative">Mediana (camino alternativo)</string>
-    <string name="stats_title">Cifras clave</string>
     <string name="stat_final_net_worth">Patrimonio final</string>
     <string name="stat_min_cash">Caja mínima</string>
-    <string name="stat_min_cash_value">%1$s (mes %2$d)</string>
     <string name="stat_months_negative">Meses con caja negativa</string>
-    <string name="stat_prob_negative">Probabilidad de caja negativa</string>
     <string name="goals_title">Metas</string>
     <string name="goal_target">%1$s antes del mes %2$d</string>
     <string name="goal_reached">Alcanzada</string>
     <string name="goal_missed">No alcanzada</string>
     <string name="goal_prob">Probabilidad: %1$s</string>
     <string name="goal_median_month">Normalmente se alcanza en el mes %1$d</string>
-    <string name="compare_title">Camino elegido vs alternativo</string>
-    <string name="compare_chosen">Elegido</string>
-    <string name="compare_alternative">Alternativo</string>
-    <string name="compare_delta">Diferencia en patrimonio final</string>
-    <string name="compare_reasons">Decisiones que explican la diferencia (de mayor a menor)</string>
-    <string name="compare_reason_line">%1$s → %2$s en ese turno</string>
     <string name="assumptions_title">Supuestos</string>
     <string name="limitations_title">Limitaciones</string>
     <string name="limitation_1">El dataset solo cubre 24 meses; más allá, las curvas dependen de supuestos explícitos.</string>
@@ -188,7 +174,6 @@
     <string name="chat_intro">Pregunta a tu yo del futuro por tus resultados. Las respuestas solo usan las cifras calculadas por la simulación.</string>
     <string name="chat_placeholder">Pregunta algo…</string>
     <string name="chat_send">Enviar</string>
-    <string name="chat_thinking">Pensando…</string>
     <string name="chat_suggestion_risk">¿Cuál fue mi mayor riesgo?</string>
     <string name="chat_suggestion_goals">¿Alcancé mis metas?</string>
     <string name="chat_suggestion_other">¿Y si hubiera elegido las otras opciones?</string>
@@ -196,18 +181,8 @@
     <!-- Events -->
 
     <!-- Decision tree (what-if) -->
-    <string name="tree_title">Tu árbol de decisiones</string>
-    <string name="tree_hint">Toca la otra rama de cualquier turno para cambiar la decisión, o elige otro caso. Las decisiones posteriores se mantienen y todo lo de abajo se recalcula.</string>
-    <string name="tree_start">Inicio · patrimonio %1$s</string>
-    <string name="tree_level">Turno %1$d · mes %2$d</string>
-    <string name="tree_net_worth_after">Patrimonio después</string>
-    <string name="tree_would_be">Sería</string>
-    <string name="tree_edited">editado</string>
     <string name="tree_reset">Volver al camino que jugué</string>
     <string name="chat_edited_notice">Estás explorando un camino editado: las respuestas usan sus cifras.</string>
-    <string name="tree_pending_level">Turno %1$d · mes %2$d · pregunta nueva</string>
-    <string name="tree_new_question">pregunta nueva</string>
-    <string name="results_incomplete">Camino incompleto: responde la pregunta nueva del árbol para ver los 10 años completos. Las cifras de abajo suponen que no hay más decisiones.</string>
 
     <!-- Redesign -->
     <string name="nav_year">Año %1$d / %2$d</string>
@@ -218,15 +193,13 @@
     <string name="welcome_badge">AI Financial Twin · LauzHack 2026</string>
     <string name="welcome_feature_cases_title">Tres casos por decisión</string>
     <string name="welcome_feature_cases_desc">Cada elección muestra un resultado pesimista, neutro y optimista antes de decidir.</string>
-    <string name="welcome_feature_mc_title">Explora cada rama</string>
-    <string name="welcome_feature_mc_desc">Un árbol de decisiones exacto y vidas paralelas muestran qué cambió cada decisión, con la misma suerte.</string>
-    <string name="welcome_feature_chat_title">Habla con tu yo del futuro</string>
-    <string name="welcome_feature_chat_desc">Pregunta por tus resultados; las respuestas solo usan las cifras calculadas por la simulación.</string>
-    <string name="welcome_preview_label">Ilustración: un rango de futuros posibles</string>
+    <string name="welcome_feature_mc_title">Explora tus 32 vidas</string>
+    <string name="welcome_feature_mc_desc">Vuelve a cualquier momento y toma el otro camino. El mapa guarda cada vida, con la misma suerte en todas.</string>
+    <string name="welcome_feature_chat_title">Habla con tu yo de cada momento</string>
+    <string name="welcome_feature_chat_desc">Pregunta a tu yo de cualquier punto de la vida. Solo usa las cifras calculadas, y cada número muestra de dónde sale.</string>
     <string name="tab_overview">Resumen</string>
-    <string name="tab_tree">Árbol de decisiones</string>
+    <string name="tab_tree">Mapa de vidas</string>
     <string name="tab_assumptions">Supuestos</string>
-    <string name="kpi_vs_alternative">vs. el camino alternativo</string>
     <string name="goals_reached_value">%1$d de %2$d</string>
     <string name="results_headline">Adónde te llevan tus decisiones</string>
     <string name="chat_cta_desc">Pregunta por los riesgos, las metas o qué habría pasado si no.</string>
@@ -237,16 +210,10 @@
     <string name="quiet_title">Un periodo tranquilo</string>
     <string name="quiet_desc">Ninguna gran decisión en estos %1$d meses: la vida sigue y tus finanzas evolucionan solas.</string>
     <string name="quiet_node">Periodo tranquilo</string>
-    <string name="pl_title">Vidas paralelas</string>
-    <string name="pl_subtitle">Misma suerte, otras decisiones, calculado por el motor</string>
     <string name="pl_other_first">Otra primera decisión</string>
-    <string name="pl_optimal">Mejor estrategia</string>
-    <string name="pl_vs">frente a ti: %1$s</string>
     <string name="kpi_below_cushion">Meses bajo el colchón</string>
     <string name="kpi_financing_cost">Coste de financiación</string>
     <string name="drivers_title">Qué movió tu patrimonio</string>
-    <string name="driver_income">Ingresos</string>
-    <string name="driver_expense">Gastos</string>
     <string name="driver_debt">Intereses del préstamo</string>
     <string name="driver_financing">Coste de la caja negativa</string>
     <string name="driver_investment">Crecimiento de inversiones</string>
@@ -259,7 +226,7 @@
     <string name="persona_parallel">Yo paralelo</string>
     <string name="chat_parallel_intro">Habla con el tú que eligió la otra opción en la primera decisión.</string>
     <string name="cash_band_title">Caja: ruido mes a mes</string>
-    <string name="cash_band_desc">Cuánto mueven tu caja los altibajos de cada mes (p10–p90), con tus decisiones y tu suerte fijas. El análisis está en el árbol de decisiones y las vidas paralelas.</string>
+    <string name="cash_band_desc">Cuánto mueven tu caja los altibajos de cada mes (p10–p90), con tus decisiones y tu suerte fijas. No es el análisis: eso es el mapa de vidas.</string>
     <string name="lifeline_title">Tu línea de vida</string>
     <string name="lifeline_subtitle">Los momentos que marcaron tus diez años, calculados por el motor</string>
     <string name="beat_when">Mes %1$d · %2$d años</string>
@@ -279,4 +246,101 @@
     <string name="pl_side_desc">La misma suerte en cada turno; solo cambia la primera decisión. La diferencia es lo que aportó esa decisión.</string>
     <string name="pl_row_turn">Turno %1$d</string>
     <string name="employment_NOT_WORKING">Sin trabajo</string>
+
+    <!-- Map of lives (F2) -->
+    <string name="nav_map">Mapa</string>
+    <string name="map_title">Tu mapa de vidas</string>
+    <string name="map_hint">Cada punto es un momento de tu vida y cada bifurcación, una decisión. La suerte es la misma en todas las ramas: solo cambian tus decisiones. Toca un punto para verlo.</string>
+    <string name="map_explored">%1$d de %2$d vidas posibles exploradas</string>
+    <string name="map_loading">Calculando todas las vidas posibles…</string>
+    <string name="map_start">Inicio</string>
+    <string name="map_year">Año %1$d</string>
+    <string name="map_when">Año %1$d · %2$d años</string>
+    <string name="map_quiet">Años tranquilos: sin decisión</string>
+    <string name="map_unexplored">Aún no has vivido este momento. Su suerte es la misma que en tus otras vidas: solo cambian las decisiones.</string>
+    <string name="map_go">Ir a este momento</string>
+    <string name="map_live">Vivir esta vida</string>
+    <string name="map_other">Ver la otra opción</string>
+    <string name="map_here">Estás aquí</string>
+    <string name="map_played">Primera vida jugada</string>
+    <string name="map_legend_path">Tu vida actual</string>
+    <string name="map_legend_visited">Vivido</string>
+    <string name="map_legend_unvisited">Sin vivir</string>
+    <string name="resolution_see_other">Vivir esa otra opción</string>
+    <string name="dilemma_lived">Ya la viviste</string>
+
+    <!-- Chat with your self of a moment (F3) -->
+    <string name="action_chat_now">Hablar con mi yo de este momento</string>
+    <string name="chat_moment_title">Tú a los %1$d años · año %2$d</string>
+    <string name="chat_moment_intro">Tu yo de este momento recuerda todo lo vivido hasta aquí, pero no sabe qué viene después. Las respuestas solo usan las cifras calculadas por la simulación.</string>
+    <string name="chat_moment_after">Justo después de: %1$s</string>
+    <string name="chat_moment_name">Tú a los %1$d</string>
+    <string name="chat_suggestion_changed">¿Qué ha cambiado desde que empecé?</string>
+
+    <!-- Goals (F4) -->
+    <string name="goal_measure_cash">se mide sobre tu caja</string>
+    <string name="goal_measure_net_worth">se mide sobre tu patrimonio neto</string>
+    <string name="goal_deadline">%1$s antes de %2$s (año %3$d)</string>
+    <string name="goal_reached_at">Alcanzada a los %1$d</string>
+    <string name="goal_missed_at">No alcanzada (a los %1$d)</string>
+    <string name="goal_in_progress">En curso</string>
+    <string name="goal_priority_HIGH">prioridad alta</string>
+    <string name="goal_priority_MEDIUM">prioridad media</string>
+    <string name="dilemma_goals_title">Tus metas tras %1$d meses</string>
+    <string name="dilemma_goals_now">ahora %1$s</string>
+
+    <!-- Where the numbers come from (traceability) -->
+    <string name="trace_open">¿De dónde salen estos números?</string>
+    <string name="trace_close">Ocultar el cálculo</string>
+    <string name="trace_period">Del mes %1$d al mes %2$d</string>
+    <string name="trace_start">Patrimonio al inicio</string>
+    <string name="trace_end">= Patrimonio al final</string>
+    <string name="trace_check_ok">✓ Cuadra: inicio + cada línea = final (el motor lo comprueba cada mes)</string>
+    <string name="trace_check_off">Diferencia de %1$s (redondeo)</string>
+    <string name="trace_formula">Cada mes: caja = caja anterior + ingresos − gastos − cuota del préstamo − intereses por caja negativa. Patrimonio = caja + inversiones − deuda. Devolver un préstamo baja la caja y la deuda por igual, así que aquí solo aparecen sus intereses.</string>
+    <string name="trace_decision">Lo que fijó tu decisión: %1$s → %2$s</string>
+    <string name="trace_case">Caso %1$s (probabilidad %2$s), decidido por la suerte de este turno: la misma en todas las ramas.</string>
+    <string name="trace_sources">Fuentes de las cifras de la decisión</string>
+    <string name="trace_origins">De dónde sale cada tipo de cifra</string>
+    <string name="origin_DATASET">Dataset</string>
+    <string name="origin_PUBLIC">Datos públicos</string>
+    <string name="origin_EVENT">Decisión</string>
+    <string name="origin_ASSUMPTION">Supuesto</string>
+    <string name="origin_note_DATASET">Aprendido del dataset sintético del reto (552.295 transacciones, 1.200 perfiles): el modelo de flujos, que depende de tu ciudad y de si estudias.</string>
+    <string name="origin_note_PUBLIC">Sueldo, alquiler y precios crecen además cada mes con índices públicos suizos (BFS, SNB) y la curva de carrera por edad.</string>
+    <string name="origin_note_EVENT">Lo fija el caso de una decisión del juego; sus fuentes aparecen con la decisión.</string>
+    <string name="origin_note_ASSUMPTION">Un valor supuesto (pestaña Supuestos): intereses por caja negativa %1$s anual, rentabilidad de las inversiones %2$s anual.</string>
+    <string name="eff_set_income">El sueldo pasa a %1$s al mes, desde el mes %2$d</string>
+    <string name="eff_income_delta">Ingresos %1$s al mes, desde el mes %2$d</string>
+    <string name="eff_income_factor">Ingresos × %1$s, desde el mes %2$d</string>
+    <string name="eff_expense">%1$s: %2$s al mes, desde el mes %3$d</string>
+    <string name="eff_one_off">Pago único de %1$s en el mes %2$d</string>
+    <string name="eff_loan">Préstamo de %1$s al %2$s anual a %3$d meses</string>
+    <string name="eff_market_rent">Casa nueva: alquiler de mercado para tu ciudad y hogar (percentil %1$d del dataset), desde el mes %2$d</string>
+    <string name="eff_household">Hogar: %1$s, desde el mes %2$d</string>
+    <string name="eff_employment">Trabajo: %1$s, desde el mes %2$d</string>
+    <string name="eff_fact">%1$s, desde el mes %2$d</string>
+    <string name="eff_flag">Hito: %1$s</string>
+    <string name="eff_duration"> · durante %1$d meses</string>
+    <string name="cat_salary">Sueldo</string>
+    <string name="cat_bonus">Paga extra</string>
+    <string name="cat_rent">Alquiler</string>
+    <string name="cat_health_insurance">Seguro médico</string>
+    <string name="cat_groceries">Supermercado</string>
+    <string name="cat_restaurants">Restaurantes</string>
+    <string name="cat_retail">Compras</string>
+    <string name="cat_leisure">Ocio</string>
+    <string name="cat_pharmacy">Farmacia</string>
+    <string name="cat_utilities">Suministros</string>
+    <string name="cat_transport">Transporte</string>
+    <string name="cat_telecom">Teléfono e internet</string>
+    <string name="cat_tuition">Matrícula</string>
+    <string name="cat_travel">Viajes</string>
+    <string name="cat_unexpected">Imprevistos</string>
+    <string name="cat_event_RENT">Alquiler (decisión)</string>
+    <string name="cat_event_LIVING">Gastos de vida (decisión)</string>
+    <string name="cat_event_TUITION">Matrícula (decisión)</string>
+    <string name="cat_event_INSURANCE">Seguros (decisión)</string>
+    <string name="cat_event_TRAVEL">Viajes (decisión)</string>
+    <string name="cat_event_OTHER">Otros (decisión)</string>
 </resources>

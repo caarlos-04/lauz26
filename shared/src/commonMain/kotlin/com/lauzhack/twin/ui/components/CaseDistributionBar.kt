@@ -20,13 +20,13 @@ import com.lauzhack.twin.model.CaseType
  */
 @Composable
 fun CaseDistributionBar(probs: Map<CaseType, Double>, modifier: Modifier = Modifier) {
-    Row(modifier.fillMaxWidth().height(8.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+    Row(modifier.fillMaxWidth().height(4.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
         CaseType.entries.forEach { case ->
             val p = probs[case] ?: 0.0
             if (p > 0) {
                 Box(
                     Modifier.weight(p.toFloat()).fillMaxHeight()
-                        .clip(RoundedCornerShape(4.dp))
+                        .clip(RoundedCornerShape(1.dp))
                         .background(caseColor(case)),
                 )
             }

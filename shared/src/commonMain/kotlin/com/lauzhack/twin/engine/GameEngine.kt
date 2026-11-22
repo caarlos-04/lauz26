@@ -1,5 +1,6 @@
 package com.lauzhack.twin.engine
 
+import com.lauzhack.twin.model.Attribution
 import com.lauzhack.twin.model.CaseType
 import com.lauzhack.twin.model.Event
 import com.lauzhack.twin.model.EventOption
@@ -57,12 +58,18 @@ interface GameEngine {
     /**
      * P7: applies the case, advances the turn's months, applies life changes, detects moments and computes the
      * counterfactual of the other option. [event] == null plays a quiet turn (then optionId and case are null).
-     * [case] may differ from the one [luck] selects: the what-if tree lets the user force the case.
+     * The UI always passes the case [luck] selects (the life tree never changes the luck of a turn).
      */
     fun playTurn(session: GameSession, event: Event?, optionId: String?, case: CaseType?, luck: Double): Turn
 
     /** P8-P10 at the end of the game: stats, attribution, moments, parallel lives and sensitivity. */
     fun finish(session: GameSession): GameResult
+
+    /**
+     * Where the net worth of [session] comes from, from the opening statement to its last turn (start + sum of items
+     * = end). Used to explain any number: the difference between two nodes is what happened in between.
+     */
+    fun attribution(session: GameSession): Attribution = finish(session).attribution
 
     /**
      * Optional (#12, option 2): cash percentiles per month (0..horizon) replaying the played choices with the

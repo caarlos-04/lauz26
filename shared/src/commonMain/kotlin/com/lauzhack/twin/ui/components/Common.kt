@@ -41,15 +41,18 @@ import com.lauzhack.twin.ui.i18n.formatChf
 import com.lauzhack.twin.ui.i18n.keyString
 import com.lauzhack.twin.ui.theme.LocalTwinColors
 import com.lauzhack.twin.ui.theme.Space
-import com.lauzhack.twin.ui.theme.TABULAR
+import com.lauzhack.twin.ui.theme.figures
 import com.lauzhack.twin.ui.theme.TwinIcons
 import org.jetbrains.compose.resources.stringResource
 
-/** Flat white card with a hairline border: the basic container of the design. */
+/**
+ * The basic container: a raised sheet of paper with a hairline border and no shadow. Use it once per section; never
+ * nest cards (group inside a card with spacing and dividers instead).
+ */
 @Composable
 fun SurfaceCard(
     modifier: Modifier = Modifier,
-    padding: Dp = Space.l,
+    padding: Dp = Space.xl,
     border: Color = MaterialTheme.colorScheme.outlineVariant,
     container: Color = MaterialTheme.colorScheme.surface,
     content: @Composable ColumnScope.() -> Unit,
@@ -59,100 +62,84 @@ fun SurfaceCard(
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = container),
         border = BorderStroke(1.dp, border),
+        elevation = CardDefaults.cardElevation(0.dp),
     ) {
         Column(Modifier.padding(padding), verticalArrangement = Arrangement.spacedBy(Space.m), content = content)
     }
 }
 
-/** Card with an icon + title header. Kept for screens that group content in sections. */
+/** A section: a title and its content in one card. [icon] is accepted for compatibility but not drawn. */
 @Composable
 fun SectionCard(
     title: String? = null,
     modifier: Modifier = Modifier,
-    icon: ImageVector? = null,
+    @Suppress("UNUSED_PARAMETER") icon: ImageVector? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     SurfaceCard(modifier) {
-        if (title != null) SectionHeader(title, icon)
+        if (title != null) SectionHeader(title)
         content()
     }
 }
 
 @Composable
-fun SectionHeader(title: String, icon: ImageVector? = null, trailing: @Composable () -> Unit = {}) {
+fun SectionHeader(title: String, @Suppress("UNUSED_PARAMETER") icon: ImageVector? = null, trailing: @Composable () -> Unit = {}) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.s)) {
-        if (icon != null) IconBadge(icon, size = 28.dp)
-        Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+        Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
         trailing()
     }
 }
 
-/** Small uppercase label used above values. */
+/** Small label above a value or a group, in sentence case (no shouting caps). */
 @Composable
 fun Overline(text: String, color: Color = MaterialTheme.colorScheme.onSurfaceVariant) {
-    Text(text.uppercase(), style = MaterialTheme.typography.labelSmall, color = color)
+    Text(text, style = MaterialTheme.typography.labelMedium, color = color)
 }
 
-/** Rounded square with a tinted background holding an icon. */
+/** An icon on its own, in the muted ink: no tinted badge behind it. */
 @Composable
-fun IconBadge(icon: ImageVector, size: Dp = 36.dp, tint: Color = MaterialTheme.colorScheme.secondary) {
-    Box(
-        Modifier.size(size).clip(RoundedCornerShape(size / 3.5f)).background(tint.copy(alpha = 0.12f)),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(size * 0.55f))
-    }
+fun IconBadge(icon: ImageVector, size: Dp = 36.dp, tint: Color = MaterialTheme.colorScheme.onSurfaceVariant) {
+    Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size((size * 0.55f).coerceAtLeast(16.dp)))
 }
 
-/** Label on the left, value on the right. */
+/** Label on the left, figure on the right. */
 @Composable
 fun LabeledValue(label: String, value: String, valueColor: Color = Color.Unspecified) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(
             value,
-            style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = TABULAR),
-            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.bodyMedium.figures(),
             color = if (valueColor == Color.Unspecified) MaterialTheme.colorScheme.onSurface else valueColor,
         )
     }
 }
 
-/** Colored pill with an up/down arrow, e.g. "▲ +1'200 CHF". Color is never the only signal (arrow + sign). */
+/** A signed change, e.g. "+1'200 CHF": coloured figures with an arrow (colour is never the only cue). */
 @Composable
 fun DeltaPill(value: Double, text: String = formatChf(value, signed = true)) {
     val color = signColor(value)
-    Row(
-        Modifier.clip(CircleShape).background(color.copy(alpha = 0.12f)).padding(horizontal = 8.dp, vertical = 3.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Icon(if (value < 0) TwinIcons.TrendDown else TwinIcons.TrendUp, null, tint = color, modifier = Modifier.size(14.dp))
-        Text(text, style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = TABULAR), color = color)
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(if (value < 0) "↓" else "↑", style = MaterialTheme.typography.labelMedium, color = color)
+        Text(text, style = MaterialTheme.typography.labelMedium.figures(), color = color)
     }
 }
 
-/** Case name in a pill with a colored dot. */
+/** Case name with a small square of its colour. */
 @Composable
-fun CaseBadge(case: CaseType, selected: Boolean = true) {
+fun CaseBadge(case: CaseType, @Suppress("UNUSED_PARAMETER") selected: Boolean = true) {
     val color = caseColor(case)
-    Row(
-        Modifier.clip(CircleShape)
-            .background(if (selected) color.copy(alpha = 0.14f) else Color.Transparent)
-            .padding(horizontal = 8.dp, vertical = 3.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Box(Modifier.size(8.dp).clip(CircleShape).background(color))
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Box(Modifier.size(8.dp).clip(RoundedCornerShape(2.dp)).background(color))
         Text(caseName(case), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 
-/** Thin rounded progress bar (0..1). */
+/** Thin progress bar (0..1) on a hairline track. */
 @Composable
 fun ThinProgress(fraction: Float, color: Color = MaterialTheme.colorScheme.secondary, modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxWidth().height(6.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant)) {
-        Box(Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).height(6.dp).clip(CircleShape).background(color))
+    Box(modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(MaterialTheme.colorScheme.surfaceContainerHigh)) {
+        Box(Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).height(4.dp).clip(RoundedCornerShape(2.dp)).background(color))
     }
 }
 

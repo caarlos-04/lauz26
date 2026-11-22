@@ -33,7 +33,7 @@ class AgentFutureSelfChat(
     override suspend fun chronicle(context: ChatContext): String =
         attempt({ fallback.chronicle(context) }) {
             val briefing = mapper.map(context)
-            generator.reply(Prompts.chronicleSystem(briefing), emptyList(), Prompts.chronicleRequest(briefing.language))
+            generator.reply(Prompts.chronicleSystem(briefing), emptyList(), Prompts.chronicleRequest(briefing.language, briefing.complete))
         }
 
     private suspend fun <T> attempt(offline: suspend () -> T, online: suspend () -> T): T =

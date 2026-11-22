@@ -84,4 +84,38 @@ class PromptsTest {
     fun briefingIsDeterministic() {
         assertEquals(Prompts.renderBriefing(briefing()), Prompts.renderBriefing(briefing()))
     }
+
+    @Test
+    fun aMomentInTheMiddleOfALifeDoesNotKnowTheFuture() {
+        val mid = briefing().copy(
+            end = MoneySnapshot(48, 6_000.0, 15_000.0, 400.0, 0.0, "employed"),
+            goals = listOf(GoalLine("House deposit", 50_000.0, 96, reached = false, progressPercent = 12)),
+            parallelLives = emptyList(),
+            outlook = null,
+            complete = false,
+        )
+        val system = Prompts.chatSystem(mid, Persona.PARALLEL_SELF)          // no parallel self mid-life
+        assertContains(system, "You do NOT know what happens after now")
+        assertFalse(system.contains("ten years from now"))
+        assertContains(system, "Now (you): 2029, age 26")
+        assertContains(system, "4 of 10 years lived")
+        assertContains(system, "not reached yet, the deadline has not come")
+        assertContains(Prompts.chronicleSystem(mid), "chronicle of the years lived so far")
+        assertEquals("Cuéntame la historia hasta ahora.", Prompts.chronicleRequest(ChatLanguage.ES, complete = false))
+        // A complete life keeps the future self.
+        assertContains(Prompts.chatSystem(briefing(), Persona.FUTURE_SELF), "ten years from now")
+    }
+
+    @Test
+    fun briefingSaysWhereTheNumbersComeFrom() {
+        val b = briefing().copy(
+            drivers = listOf(DriverLine("Income (salary)", 250_000.0, "set by a decision (its case)")),
+            decisionSources = listOf(SourceLine("Finish the master?", listOf("Tuition: scenario-assumptions.csv"))),
+        )
+        val text = Prompts.renderBriefing(b)
+        assertContains(text, "## WHERE THE NUMBERS COME FROM")
+        assertContains(text, "Income (salary): set by a decision (its case)")
+        assertContains(text, "Tuition: scenario-assumptions.csv")
+        assertContains(Prompts.chatSystem(b, Persona.FUTURE_SELF), "If asked where a number comes from")
+    }
 }

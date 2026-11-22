@@ -1,5 +1,6 @@
 package com.lauzhack.twin.ui.components
 
+import com.lauzhack.twin.ui.theme.figures
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -33,7 +34,7 @@ fun AnimatedMoney(
     LaunchedEffect(value) {
         anim.animateTo(value.toFloat(), tween(durationMillis = 600, easing = FastOutSlowInEasing))
     }
-    Text(formatChf(anim.value.toDouble(), signed), style = style.copy(fontFeatureSettings = TABULAR), color = color, modifier = modifier)
+    Text(formatChf(anim.value.toDouble(), signed), style = style.figures(), color = color, modifier = modifier)
 }
 
 /** KPI tile: overline label, big animated amount, optional delta pill and icon. */
@@ -49,12 +50,9 @@ fun KpiTile(
     signed: Boolean = false,
     caption: String? = null,
 ) {
-    SurfaceCard(modifier, padding = Space.l) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.s)) {
-            if (icon != null) IconBadge(icon, size = 28.dp)
-            Overline(label)
-        }
-        AnimatedMoney(value, MaterialTheme.typography.headlineMedium, valueColor, signed)
+    SurfaceCard(modifier, padding = Space.l) {   // icon: kept in the signature, not drawn
+        Overline(label)
+        AnimatedMoney(value, MaterialTheme.typography.headlineSmall, valueColor, signed)
         if (delta != null) DeltaPill(delta, deltaText ?: formatChf(delta, signed = true))
         if (caption != null) Text(caption, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
@@ -63,12 +61,9 @@ fun KpiTile(
 /** KPI tile for plain text values (percentages, counts). */
 @Composable
 fun KpiTextTile(label: String, value: String, modifier: Modifier = Modifier, icon: ImageVector? = null, caption: String? = null, valueColor: Color = MaterialTheme.colorScheme.onSurface) {
-    SurfaceCard(modifier, padding = Space.l) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.s)) {
-            if (icon != null) IconBadge(icon, size = 28.dp)
-            Overline(label)
-        }
-        Text(value, style = MaterialTheme.typography.headlineMedium.copy(fontFeatureSettings = TABULAR), color = valueColor)
+    SurfaceCard(modifier, padding = Space.l) {   // icon: kept in the signature, not drawn
+        Overline(label)
+        Text(value, style = MaterialTheme.typography.headlineSmall.figures(), color = valueColor)
         if (caption != null) Text(caption, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

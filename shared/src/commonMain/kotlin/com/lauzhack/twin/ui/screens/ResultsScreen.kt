@@ -1,5 +1,8 @@
 package com.lauzhack.twin.ui.screens
 
+import com.lauzhack.twin.ui.components.categoryLabel
+import com.lauzhack.twin.ui.components.GoalRow
+import com.lauzhack.twin.ui.goalStatuses
 import com.lauzhack.twin.model.GameResult
 import com.lauzhack.twin.model.ParallelKind
 import com.lauzhack.twin.ui.ChatBubble
@@ -12,18 +15,13 @@ import com.lauzhack.twin.resources.chronicle_rewrite
 import com.lauzhack.twin.resources.chronicle_title
 import com.lauzhack.twin.resources.chronicle_write
 import com.lauzhack.twin.resources.driver_debt
-import com.lauzhack.twin.resources.driver_expense
 import com.lauzhack.twin.resources.driver_financing
-import com.lauzhack.twin.resources.driver_income
 import com.lauzhack.twin.resources.driver_investment
 import com.lauzhack.twin.resources.driver_other
 import com.lauzhack.twin.resources.drivers_title
 import com.lauzhack.twin.resources.kpi_below_cushion
 import com.lauzhack.twin.resources.kpi_financing_cost
-import com.lauzhack.twin.resources.pl_optimal
 import com.lauzhack.twin.resources.pl_other_first
-import com.lauzhack.twin.resources.pl_subtitle
-import com.lauzhack.twin.resources.pl_title
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedButton
@@ -71,13 +69,7 @@ import com.lauzhack.twin.model.Turn
 import com.lauzhack.twin.resources.Res
 import com.lauzhack.twin.resources.action_restart
 import com.lauzhack.twin.resources.assumptions_title
-import com.lauzhack.twin.resources.chart_cash
-import com.lauzhack.twin.resources.chart_net_worth
 import com.lauzhack.twin.resources.chat_cta_desc
-import com.lauzhack.twin.resources.compare_alternative
-import com.lauzhack.twin.resources.compare_chosen
-import com.lauzhack.twin.resources.compare_reasons
-import com.lauzhack.twin.resources.compare_title
 import com.lauzhack.twin.resources.disclaimer
 import com.lauzhack.twin.resources.goal_median_month
 import com.lauzhack.twin.resources.goal_missed
@@ -86,7 +78,6 @@ import com.lauzhack.twin.resources.goal_reached
 import com.lauzhack.twin.resources.goal_target
 import com.lauzhack.twin.resources.goals_reached_value
 import com.lauzhack.twin.resources.goals_title
-import com.lauzhack.twin.resources.kpi_vs_alternative
 import com.lauzhack.twin.resources.limitation_1
 import com.lauzhack.twin.resources.limitation_2
 import com.lauzhack.twin.resources.limitation_3
@@ -95,19 +86,16 @@ import com.lauzhack.twin.resources.limitations_title
 import com.lauzhack.twin.resources.month_value
 import com.lauzhack.twin.resources.results_chat
 import com.lauzhack.twin.resources.results_headline
-import com.lauzhack.twin.resources.results_incomplete
 import com.lauzhack.twin.resources.results_title
 import com.lauzhack.twin.resources.stat_final_net_worth
 import com.lauzhack.twin.resources.stat_min_cash
 import com.lauzhack.twin.resources.stat_months_negative
-import com.lauzhack.twin.resources.stat_prob_negative
 import com.lauzhack.twin.resources.tab_assumptions
 import com.lauzhack.twin.resources.tab_overview
 import com.lauzhack.twin.resources.tab_tree
-import com.lauzhack.twin.resources.tree_title
 
 import com.lauzhack.twin.ui.components.AppShell
-import com.lauzhack.twin.ui.components.DecisionTree
+import com.lauzhack.twin.resources.tree_reset
 import com.lauzhack.twin.ui.components.DeltaPill
 import com.lauzhack.twin.ui.components.FanChart
 import com.lauzhack.twin.ui.components.IconBadge
@@ -152,13 +140,10 @@ fun ResultsScreen(
     assumptions: Assumptions,
     facts: FactCatalog,
     eventById: (String) -> Event?,
-    playedTurns: List<Turn>?,
     isEdited: Boolean,
-    pendingEvent: Event?,
-    pendingPreviews: List<OptionPreview>,
-    onEditTurn: (index: Int, optionId: String?, case: CaseType?) -> Unit,
-    onDecide: (optionId: String) -> Unit,
     onResetPath: () -> Unit,
+    map: @Composable () -> Unit,
+    explainLife: @Composable () -> Unit = {},
     onChat: () -> Unit,
     onRestart: () -> Unit,
     chronicle: ChatBubble?,
@@ -177,13 +162,8 @@ fun ResultsScreen(
 
         KpiRow(session, results)
 
-        if (pendingEvent != null) {
-            SurfaceCard(border = MaterialTheme.colorScheme.tertiary, container = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.m)) {
-                    IconBadge(TwinIcons.Info, tint = MaterialTheme.colorScheme.tertiary)
-                    Text(stringResource(Res.string.results_incomplete), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                }
-            }
+        if (isEdited) {
+            OutlinedButton(onClick = onResetPath, shape = MaterialTheme.shapes.small) { Text(stringResource(Res.string.tree_reset)) }
         }
 
         PrimaryTabRow(selectedTabIndex = tab, containerColor = Color.Transparent) {
@@ -196,7 +176,6 @@ fun ResultsScreen(
                     selected = tab == i,
                     onClick = { tab = i },
                     text = { Text(stringResource(label)) },
-                    icon = { Icon(icon, null, modifier = Modifier.size(18.dp)) },
                     selectedContentColor = MaterialTheme.colorScheme.onSurface,
                     unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -204,14 +183,12 @@ fun ResultsScreen(
         }
 
         when (tab) {
-            0 -> Overview(session, results, noiseBand, facts, eventById, chronicle, chronicleLoading, onWriteChronicle)
-            1 -> SectionCard(stringResource(Res.string.tree_title), icon = TwinIcons.Tree) {
-                DecisionTree(session, playedTurns, isEdited, pendingEvent, pendingPreviews, eventById, onEditTurn, onDecide, onResetPath)
-            }
+            0 -> Overview(session, results, noiseBand, facts, eventById, chronicle, chronicleLoading, onWriteChronicle, explainLife)
+            1 -> map()
             else -> AssumptionsTab(assumptions)
         }
 
-        ChatCta(enabled = pendingEvent == null, onChat = onChat)
+        ChatCta(enabled = true, onChat = onChat)
     }
 }
 
@@ -273,14 +250,15 @@ private fun Overview(
     chronicle: ChatBubble?,
     chronicleLoading: Boolean,
     onWriteChronicle: suspend () -> Unit,
+    explainLife: @Composable () -> Unit,
 ) {
-    val final = session.current
-    // #12: optional, and labelled as month-to-month noise; the analysis is the tree and the parallel lives.
-    if (noiseBand != null) {
-        SectionCard(stringResource(Res.string.cash_band_title), icon = TwinIcons.Wallet) {
-            Text(stringResource(Res.string.cash_band_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            FanChart(noiseBand, alternativeMedian = null)
-        }
+    SectionCard(stringResource(Res.string.goals_title), icon = TwinIcons.Target) {
+        session.goalStatuses().forEach { GoalRow(it) }
+    }
+
+    SectionCard(stringResource(Res.string.drivers_title), icon = TwinIcons.Chart) {
+        Waterfall(results.attribution, label = { categoryLabel(it) })
+        explainLife()
     }
 
     SectionCard(stringResource(Res.string.lifeline_title), icon = TwinIcons.Calendar) {
@@ -290,73 +268,21 @@ private fun Overview(
 
     ChronicleCard(chronicle, chronicleLoading, onWriteChronicle)
 
-    SectionCard(stringResource(Res.string.goals_title), icon = TwinIcons.Target) {
-        final.goals.forEach { goal ->
-            val reached = goal.name in results.stats.goalsReached
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(goalLabel(goal.name), style = MaterialTheme.typography.titleSmall)
-                        Text(
-                            stringResource(Res.string.goal_target, formatChf(goal.targetChf), goal.targetMonth(session.initial)),
-                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    StatusChip(reached)
-                }
-                ThinProgress(goal.progress(final).toFloat(), color = if (reached) LocalTwinColors.current.positive else MaterialTheme.colorScheme.tertiary)
-                Spacer(Modifier.height(Space.xs))
-            }
-        }
-    }
-
-    SectionCard(stringResource(Res.string.pl_title), icon = TwinIcons.Layers) {
-        Text(stringResource(Res.string.pl_subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        LabeledValue(stringResource(Res.string.compare_chosen), formatChf(results.stats.finalNetWorth))
-        results.parallelLives.forEach { life ->
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.m)) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(
-                        stringResource(if (life.kind == ParallelKind.OTHER_FIRST_CHOICE) Res.string.pl_other_first else Res.string.pl_optimal),
-                        style = MaterialTheme.typography.titleSmall,
-                    )
-                    life.turns.forEach { t ->
-                        val event = t.eventId?.let(eventById) ?: return@forEach
-                        val option = event.options.firstOrNull { it.id == t.chosenOptionId } ?: return@forEach
-                        Text(localized(event.title) + ": " + localized(option.label), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Text(
-                        formatChf(life.stats.finalNetWorth) + " · " + stringResource(Res.string.goals_reached_value, life.stats.goalsReached.size, life.final.goals.size),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                }
-                // Positive = you are ahead of that life.
-                DeltaPill(results.stats.finalNetWorth - life.stats.finalNetWorth)
-            }
-        }
-    }
-
-    SectionCard(stringResource(Res.string.drivers_title), icon = TwinIcons.Chart) {
-        Waterfall(results.attribution, label = { driverLabel(it) })
-    }
-
+    // Your life against the one with the other first choice (same luck). Every other life is in the map.
     results.parallelLives.firstOrNull { it.kind == ParallelKind.OTHER_FIRST_CHOICE }?.let { other ->
         SectionCard(stringResource(Res.string.pl_side_title), icon = TwinIcons.Layers) {
             Text(stringResource(Res.string.pl_side_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             SideBySide(session.turns, results.stats, other, eventById)
         }
     }
-}
 
-@Composable
-private fun driverLabel(key: String): String = when {
-    key.startsWith("income:") -> stringResource(Res.string.driver_income) + " (" + key.removePrefix("income:") + ")"
-    key.startsWith("expense:") -> stringResource(Res.string.driver_expense) + " (" + key.removePrefix("expense:").lowercase().replace('_', ' ') + ")"
-    key == "loan_interest" -> stringResource(Res.string.driver_debt)
-    key == "financing_cost" -> stringResource(Res.string.driver_financing)
-    key == "investment_growth" -> stringResource(Res.string.driver_investment)
-    else -> stringResource(Res.string.driver_other)
+    // #12: optional, and labelled as month-to-month noise; the analysis is the map of lives.
+    if (noiseBand != null) {
+        SectionCard(stringResource(Res.string.cash_band_title), icon = TwinIcons.Wallet) {
+            Text(stringResource(Res.string.cash_band_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            FanChart(noiseBand, alternativeMedian = null)
+        }
+    }
 }
 
 /** P11: the chronicle, written on demand by the future self (LLM or template). */
@@ -460,7 +386,9 @@ private fun SideBySide(yours: List<Turn>, stats: Stats, other: ParallelLife, eve
     row(stringResource(Res.string.stat_final_net_worth), formatChf(stats.finalNetWorth), formatChf(other.stats.finalNetWorth), bold = true)
     row(stringResource(Res.string.stat_min_cash), formatChf(stats.minCash), formatChf(other.stats.minCash))
     row(stringResource(Res.string.stat_months_negative), stats.monthsNegativeCash.toString(), other.stats.monthsNegativeCash.toString())
-    row(stringResource(Res.string.goals_title), stats.goalsReached.joinToString().ifEmpty { "—" }, other.stats.goalsReached.joinToString().ifEmpty { "—" })
+    val mine = stats.goalsReached.map { goalLabel(it) }
+    val theirs = other.stats.goalsReached.map { goalLabel(it) }
+    row(stringResource(Res.string.goals_title), mine.joinToString().ifEmpty { "—" }, theirs.joinToString().ifEmpty { "—" })
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
         // Positive = your first choice did better than the other one, with the same luck.
         DeltaPill(stats.finalNetWorth - other.stats.finalNetWorth)

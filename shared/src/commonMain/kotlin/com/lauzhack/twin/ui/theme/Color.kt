@@ -6,64 +6,86 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-// "Modern fintech" palette: deep navy brand, emerald accent, quiet neutrals.
-// Data colors were checked with the dataviz palette validator (lightness band, CVD separation,
-// contrast) against the light card surface and the dark card surface #16233A.
+// "Ink & cobalt": an editorial, Swiss-style palette. Warm paper and near-black ink do almost all the work; one cobalt
+// accent marks what is yours (selection, your path, links). Money keeps its own meaning: green up, terracotta down,
+// never cobalt. Surfaces are told apart by hairlines and small steps of lightness, not by shadows or tints.
+//
+// Contrast (WCAG, checked): ink on paper 16.4:1, muted text 6.1:1, cobalt 6.3:1, green / terracotta / grey on a card
+// 5.3 / 5.0 / 4.9:1; in dark mode chalk on night 15.6:1, muted 7.1:1, light cobalt 7.4:1, every data color >= 6.7:1. Case colors keep their order (warm -> grey -> green) and differ in
+// lightness too, so they stay apart for color-blind users; their names are always shown next to them.
+
+private val Paper = Color(0xFFF5F3EE)
+private val PaperRaised = Color(0xFFFBFAF7)
+private val Ink = Color(0xFF161514)
+private val InkMuted = Color(0xFF5F5B54)
+private val Cobalt = Color(0xFF2B44E0)
+private val Ochre = Color(0xFF8A5A00)
+
+private val Night = Color(0xFF121110)
+private val NightRaised = Color(0xFF191816)
+private val Chalk = Color(0xFFECE9E2)
+private val ChalkMuted = Color(0xFFA39E94)
+private val CobaltLight = Color(0xFF8C9BFF)
+private val OchreLight = Color(0xFFE0B45C)
 
 internal val LightScheme = lightColorScheme(
-    primary = Color(0xFF0B1B33),            // navy: primary buttons, selected states
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFFE6F6EF),   // emerald tint
-    onPrimaryContainer = Color(0xFF065F46),
-    secondary = Color(0xFF0E9F6E),          // emerald accent
+    primary = Ink,                          // primary buttons are ink, like a printed page
+    onPrimary = Paper,
+    primaryContainer = Color(0xFFE4E1DA),
+    onPrimaryContainer = Ink,
+    secondary = Cobalt,                     // the one accent: selection, your path, links
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFE6F6EF),
-    onSecondaryContainer = Color(0xFF065F46),
-    tertiary = Color(0xFF4F6BED),
+    secondaryContainer = Color(0xFFE3E6FB),
+    onSecondaryContainer = Color(0xFF1A2A99),
+    tertiary = Ochre,                       // "in progress", notices
     onTertiary = Color.White,
-    tertiaryContainer = Color(0xFFE8ECFD),
-    onTertiaryContainer = Color(0xFF26369A),
-    background = Color(0xFFF4F6FA),
-    onBackground = Color(0xFF0B1B33),
-    surface = Color.White,
-    onSurface = Color(0xFF0B1B33),
-    surfaceVariant = Color(0xFFEEF2F7),
-    onSurfaceVariant = Color(0xFF5B6B82),
-    surfaceContainerLowest = Color.White,
-    surfaceContainerLow = Color(0xFFF8FAFC),
-    surfaceContainer = Color(0xFFF1F4F8),
-    surfaceContainerHigh = Color(0xFFEAEFF5),
-    outline = Color(0xFFCBD3DE),
-    outlineVariant = Color(0xFFE3E8EF),
-    error = Color(0xFFC53030),
+    tertiaryContainer = Color(0xFFF3E7CF),
+    onTertiaryContainer = Color(0xFF4A3000),
+    background = Paper,
+    onBackground = Ink,
+    surface = PaperRaised,
+    onSurface = Ink,
+    surfaceVariant = Color(0xFFEAE7E0),
+    onSurfaceVariant = InkMuted,
+    surfaceContainerLowest = PaperRaised,
+    surfaceContainerLow = Color(0xFFF0EDE7),
+    surfaceContainer = Color(0xFFEAE7E0),
+    surfaceContainerHigh = Color(0xFFE3DFD7),
+    surfaceContainerHighest = Color(0xFFDCD8CF),
+    outline = Color(0xFFBDB7AC),
+    outlineVariant = Color(0xFFE0DCD3),
+    error = Color(0xFFB42318),
+    onError = Color.White,
 )
 
 internal val DarkScheme = darkColorScheme(
-    primary = Color(0xFF2BC48A),
-    onPrimary = Color(0xFF04261A),
-    primaryContainer = Color(0xFF12392C),
-    onPrimaryContainer = Color(0xFFA7F3D0),
-    secondary = Color(0xFF1FA877),
-    onSecondary = Color(0xFF04261A),
-    secondaryContainer = Color(0xFF12392C),
-    onSecondaryContainer = Color(0xFFA7F3D0),
-    tertiary = Color(0xFF8B9CFF),
-    onTertiary = Color(0xFF101B5C),
-    tertiaryContainer = Color(0xFF243074),
-    onTertiaryContainer = Color(0xFFDDE2FF),
-    background = Color(0xFF0B1422),
-    onBackground = Color(0xFFE6ECF5),
-    surface = Color(0xFF121D30),
-    onSurface = Color(0xFFE6ECF5),
-    surfaceVariant = Color(0xFF16233A),
-    onSurfaceVariant = Color(0xFF9AA8BD),
-    surfaceContainerLowest = Color(0xFF0E1828),
-    surfaceContainerLow = Color(0xFF121D30),
-    surfaceContainer = Color(0xFF16233A),
-    surfaceContainerHigh = Color(0xFF1C2B45),
-    outline = Color(0xFF3A4A66),
-    outlineVariant = Color(0xFF22314A),
-    error = Color(0xFFFF8A80),
+    primary = Chalk,
+    onPrimary = Night,
+    primaryContainer = Color(0xFF2C2A27),
+    onPrimaryContainer = Chalk,
+    secondary = CobaltLight,
+    onSecondary = Color(0xFF0E1440),
+    secondaryContainer = Color(0xFF232A5C),
+    onSecondaryContainer = Color(0xFFDDE1FF),
+    tertiary = OchreLight,
+    onTertiary = Color(0xFF2A1C00),
+    tertiaryContainer = Color(0xFF3A2C12),
+    onTertiaryContainer = Color(0xFFF6E3BA),
+    background = Night,
+    onBackground = Chalk,
+    surface = NightRaised,
+    onSurface = Chalk,
+    surfaceVariant = Color(0xFF24221F),
+    onSurfaceVariant = ChalkMuted,
+    surfaceContainerLowest = Night,
+    surfaceContainerLow = Color(0xFF1D1C1A),
+    surfaceContainer = Color(0xFF22201E),
+    surfaceContainerHigh = Color(0xFF2A2825),
+    surfaceContainerHighest = Color(0xFF33302C),
+    outline = Color(0xFF4A4640),
+    outlineVariant = Color(0xFF2C2A27),
+    error = Color(0xFFF08A70),
+    onError = Night,
 )
 
 /** App-specific semantic colors (cases, gains/losses, chart series). */
@@ -74,34 +96,34 @@ data class TwinColors(
     val optimistic: Color,
     val positive: Color,
     val negative: Color,
-    val chosen: Color,       // chart: chosen path
-    val alternative: Color,  // chart: alternative path
-    val brand: Color,        // logo / hero
+    val chosen: Color,       // your path (charts, map, selection)
+    val alternative: Color,  // the other path / a second series
+    val brand: Color,        // the logo mark
     val heroGradientEnd: Color,
 )
 
 internal val LightTwinColors = TwinColors(
-    pessimistic = Color(0xFFD9622B),
-    neutral = Color(0xFF64748B),
-    optimistic = Color(0xFF0E9F6E),
-    positive = Color(0xFF0E8A60),
-    negative = Color(0xFFC53030),
-    chosen = Color(0xFF0E9F6E),
-    alternative = Color(0xFF4F6BED),
-    brand = Color(0xFF0B1B33),
-    heroGradientEnd = Color(0xFF123B5C),
+    pessimistic = Color(0xFFC2410C),   // terracotta
+    neutral = Color(0xFF736D64),       // warm grey
+    optimistic = Color(0xFF11774A),    // deep green
+    positive = Color(0xFF11774A),
+    negative = Color(0xFFC2410C),
+    chosen = Cobalt,
+    alternative = Ochre,
+    brand = Cobalt,
+    heroGradientEnd = Paper,
 )
 
 internal val DarkTwinColors = TwinColors(
-    pessimistic = Color(0xFFD86E3A),
-    neutral = Color(0xFF94A3B8),
-    optimistic = Color(0xFF1FA877),
-    positive = Color(0xFF34D399),
-    negative = Color(0xFFFF8A80),
-    chosen = Color(0xFF1FA877),
-    alternative = Color(0xFF6E80EE),
-    brand = Color(0xFF0B1B33),
-    heroGradientEnd = Color(0xFF14405F),
+    pessimistic = Color(0xFFF08A5D),
+    neutral = Color(0xFFA39E94),
+    optimistic = Color(0xFF4CC38A),
+    positive = Color(0xFF4CC38A),
+    negative = Color(0xFFF08A5D),
+    chosen = CobaltLight,
+    alternative = OchreLight,
+    brand = CobaltLight,
+    heroGradientEnd = Night,
 )
 
 val LocalTwinColors = staticCompositionLocalOf { LightTwinColors }
