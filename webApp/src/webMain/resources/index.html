@@ -15,6 +15,13 @@
                           repeatCount="indefinite"/>
     </circle>
 </svg>
+<script>
+    // In-app language switch: Compose resources read navigator.languages; the app sets window.__customLocale.
+    const languages = Object.getOwnPropertyDescriptor(Navigator.prototype, "languages");
+    Object.defineProperty(Navigator.prototype, "languages", Object.assign({}, languages, {
+        get: function () { return window.__customLocale ? [window.__customLocale] : languages.get.apply(this); }
+    }));
+</script>
 <script type="application/javascript" src="webApp.js"></script>
 </body>
 </html>

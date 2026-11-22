@@ -9,3 +9,6 @@ captures
 .externalNativeBuild
 .cxx
 node_modules/
+
+# Local secrets (API keys): copy .env.example to .env
+.env
