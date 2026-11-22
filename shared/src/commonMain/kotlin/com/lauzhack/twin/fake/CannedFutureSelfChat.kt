@@ -3,8 +3,11 @@ package com.lauzhack.twin.fake
 import com.lauzhack.twin.ai.ChatContext
 import com.lauzhack.twin.ai.FutureSelfChat
 import com.lauzhack.twin.ai.Prompts.chf
+import com.lauzhack.twin.chronicle.Chronicle
+import com.lauzhack.twin.chronicle.ChronicleTemplates
 import com.lauzhack.twin.model.ChatMessage
 import com.lauzhack.twin.model.ChatRole
+import com.lauzhack.twin.model.EventCatalog
 import com.lauzhack.twin.model.Lang
 import com.lauzhack.twin.model.ParallelKind
 import com.lauzhack.twin.model.Persona
@@ -14,7 +17,12 @@ import kotlinx.coroutines.delay
  * Plan B chat (docs section 10): sample answers built only from numbers in the context, picked by keyword.
  * Used when no LLM key is configured, and as the offline fallback of the real agent.
  */
-class CannedFutureSelfChat(private val latencyMs: Long = 600) : FutureSelfChat {
+class CannedFutureSelfChat(
+    private val latencyMs: Long = 600,
+    /** With the content templates and events, the offline chronicle tells the life line beat by beat (#18). */
+    private val templates: ChronicleTemplates? = null,
+    private val events: EventCatalog? = null,
+) : FutureSelfChat {
 
     override suspend fun ask(context: ChatContext, persona: Persona, history: List<ChatMessage>, question: String): ChatMessage {
         delay(latencyMs) // Simulate latency so the UI loading state is visible.
@@ -55,11 +63,20 @@ class CannedFutureSelfChat(private val latencyMs: Long = 600) : FutureSelfChat {
         return ChatMessage(ChatRole.TWIN, text)
     }
 
-    /** Plan B chronicle: a template over the stats (the real one is written by the LLM from the beats). */
+    /**
+     * Plan B chronicle (no network): the life line told with content/chronicle.json (one sentence per beat, only the
+     * numbers the beats carry) when the templates are given, otherwise a short summary over the stats.
+     */
     override suspend fun chronicle(context: ChatContext): String {
         delay(latencyMs)
         val es = context.language == Lang.ES
         val r = context.result
+        if (templates != null && events != null) {
+            val startYear = r.session.initial.period.take(4).toIntOrNull() ?: Chronicle.START_YEAR
+            val lines = Chronicle.render(r.beats, context.language, templates, events, context.facts, startYear)
+            val story = Chronicle.paragraphs(lines).joinToString("\n\n")
+            return story + "\n\n" + if (es) "Es una simulación con datos sintéticos, no una predicción." else "It is a simulation with synthetic data, not a prediction."
+        }
         val s = r.stats
         val decisions = r.session.turns.count { it.eventId != null }
         val quiet = r.session.turns.size - decisions

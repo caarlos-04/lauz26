@@ -55,7 +55,7 @@ import com.lauzhack.twin.interview.ContentTwinFactory
 fun createAppState(content: AppContent): AppState = AppState(
     engine = RealGameEngine.from(content.flowModel, content.macro, content.events, content.assumptions),
     twins = ContentTwinFactory(content.facts, content.interviewDefaults, content.assumptions.objectivePenalties, content.alexia),
-    chat = createChat(content.events.events),
+    chat = createChat(content.events.events, CannedFutureSelfChat(templates = content.chronicle, events = content.events)),
     assumptions = content.assumptions,
     facts = content.facts,
     catalog = content.events.events,
@@ -79,8 +79,7 @@ private val futureSelfAgent: FutureSelfAgent? by lazy { FutureSelfAgent.fromEnvi
 /** Model shown in the chat badge, or null for canned answers. */
 val aiChatModel: String? get() = futureSelfAgent?.modelId
 
-private fun createChat(catalog: List<Event>): FutureSelfChat {
-    val canned = CannedFutureSelfChat()
+private fun createChat(catalog: List<Event>, canned: CannedFutureSelfChat = CannedFutureSelfChat()): FutureSelfChat {
     val agent = futureSelfAgent ?: return canned
     val mapper = BriefingMapper(eventById = { id -> catalog.firstOrNull { it.id == id } }, text = ::keyStringAsync)
     return AgentFutureSelfChat(agent, mapper, fallback = canned)
