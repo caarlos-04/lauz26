@@ -69,3 +69,4 @@ get_bfs() { # dir file provider dataset ref
 get_bfs swiss bfs_rent_price_index.xlsx          "BFS" "Rent price index (LIK Wohnungsmiete, monthly/annual, multi-base)" cc-d-05.06.01.17
 get_bfs swiss bfs_wage_index_quarterly.csv       "BFS" "Swiss wage index: quarterly estimate of nominal wage change (annual %)" ts-x-03.04.03.01.01
 get_bfs swiss bfs_wage_by_age_lse.xlsx           "BFS" "Earnings structure survey T9_b: gross monthly wage by age, position, gender" je-e-03.04.01.01.09
+get_bfs swiss bfs_wage_by_education_lse.xlsx     "BFS" "Earnings structure survey T11: gross monthly wage by level of education, position, gender" je-e-03.04.01.01.11
