@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.lauzhack.twin.model.FinancialStatement
+import com.lauzhack.twin.ui.InspectRequest
 import com.lauzhack.twin.resources.Res
 import com.lauzhack.twin.resources.state_cash
 import com.lauzhack.twin.resources.state_monthly_net
@@ -103,13 +104,14 @@ fun IconBadge(icon: ImageVector, size: Dp = 36.dp, tint: Color = MaterialTheme.c
 
 /** Label on the left, figure on the right. */
 @Composable
-fun LabeledValue(label: String, value: String, valueColor: Color = Color.Unspecified) {
+fun LabeledValue(label: String, value: String, valueColor: Color = Color.Unspecified, explore: InspectRequest? = null) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(
             value,
             style = MaterialTheme.typography.bodyMedium.figures(),
             color = if (valueColor == Color.Unspecified) MaterialTheme.colorScheme.onSurface else valueColor,
+            modifier = Modifier.explorable(explore),
         )
     }
 }
@@ -171,3 +173,4 @@ fun StateSummary(state: FinancialStatement) {
     LabeledValue(stringResource(Res.string.state_net_worth), formatChf(state.netWorth))
     LabeledValue(stringResource(Res.string.state_monthly_net), formatChf(state.monthlyNet, signed = true), signColor(state.monthlyNet))
 }
+

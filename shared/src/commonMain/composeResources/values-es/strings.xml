@@ -250,13 +250,8 @@
 
     <!-- Where the numbers come from (traceability) -->
     <string name="trace_open">¿De dónde salen estos números?</string>
-    <string name="trace_close">Ocultar el cálculo</string>
     <string name="trace_period">Del mes %1$d al mes %2$d</string>
-    <string name="trace_start">Patrimonio al inicio</string>
-    <string name="trace_end">= Patrimonio al final</string>
-    <string name="trace_check_ok">✓ Cuadra: inicio + cada línea = final (el motor lo comprueba cada mes)</string>
     <string name="trace_check_off">Diferencia de %1$s (redondeo)</string>
-    <string name="trace_formula">Cada mes: caja = caja anterior + ingresos − gastos − cuota del préstamo − intereses por caja negativa. Patrimonio = caja + inversiones − deuda. Devolver un préstamo baja la caja y la deuda por igual, así que aquí solo aparecen sus intereses.</string>
     <string name="trace_decision">Lo que fijó tu decisión: %1$s</string>
     <string name="trace_sources">Fuentes de las cifras de la decisión</string>
     <string name="trace_origins">De dónde sale cada tipo de cifra</string>
@@ -339,4 +334,49 @@
     <string name="uncertain_pension">Pensión (parte de tu sueldo)</string>
     <string name="uncertain_rate">Tipo de interés</string>
     <string name="trace_luck">Suerte: percentil %1$d. Sorteado: %2$s</string>
+    <string name="explore_title">Explorar</string>
+    <string name="explore_close">Cerrar</string>
+    <string name="explore_scope_turn">Desde la última decisión</string>
+    <string name="explore_scope_life">Desde el inicio</string>
+    <string name="explore_tap_hint">Pulsa una barra para ver ese mes.</string>
+    <string name="explore_all_months">Todo el periodo</string>
+    <string name="explore_month_prev">Mes anterior</string>
+    <string name="explore_month_next">Mes siguiente</string>
+    <string name="explore_month_value">%1$s · %2$d años · mes %3$d</string>
+    <string name="explore_month_of">Solo %1$s</string>
+    <string name="explore_start">Al inicio del periodo</string>
+    <string name="explore_total">Total</string>
+    <string name="explore_change">Cambio en el periodo: %1$s</string>
+    <string name="explore_adds_up">✓ Cuadra: las líneas de arriba suman esta cifra, al franco.</string>
+    <string name="explore_opening">Este es el punto de partida: los saldos de tu perfil, antes de que pase nada. Todavía no se ha simulado nada.</string>
+    <string name="explore_nw_formula">Patrimonio neto = caja + inversiones − deuda. Abre cada parte para ver qué la movió.</string>
+    <string name="explore_inv_note">Se supone una rentabilidad de las inversiones del %1$s al año, y ninguna decisión del juego invierte ni retira todavía. Por eso este saldo no se mueve: es una limitación conocida, no un resultado.</string>
+    <string name="explore_financing_note">Mientras tu caja está bajo cero pagas intereses por ella al %1$s al año (un supuesto: el tipo más alto de los préstamos del dataset). Meses con caja negativa en este periodo: %2$d de %3$d.</string>
+    <string name="explore_no_debt">Sin deuda en este momento.</string>
+    <string name="explore_loan_rate">Tipo de interés (al año)</string>
+    <string name="explore_loan_payment">Cuota mensual</string>
+    <string name="explore_loan_left">Meses que faltan para pagarlo</string>
+    <string name="explore_loan_never">La cuota mensual no cubre los intereses: este préstamo no se termina de pagar nunca.</string>
+    <string name="explore_line_present">Aparece en %1$d de estos %2$d meses.</string>
+    <string name="explore_line_absent">No aparece en este periodo.</string>
+    <string name="explore_line_range">Un mes: %1$s la primera vez, %2$s la última.</string>
+    <string name="explore_trend_WAGES">Crece cada mes con el índice suizo de salarios (%1$s al año, BFS) y, mientras trabajas, por la curva salarial de tu edad y tu puesto (encuesta salarial del BFS).</string>
+    <string name="explore_trend_RENT">Mientras no te mudas crece con el índice suizo de alquileres (%1$s al año, BFS).</string>
+    <string name="explore_trend_PRICES">Crece con la inflación suiza (%1$s al año, índice de precios al consumo).</string>
+    <string name="explore_trend_FIXED">Mantiene el importe que fijó la decisión: no crece con los precios.</string>
+    <string name="explore_decisions_line">Decisiones que lo fijaron en este periodo</string>
+    <string name="explore_life_change_note">Una decisión de este periodo cambió tu vida (trabajo, estudios, casa o ciudad). Eso mueve esta línea a través de la regla aprendida del dataset, no con un importe propio.</string>
+    <string name="fig_investments">Inversiones</string>
+    <string name="fig_debt">Deuda</string>
+    <string name="fig_income">Ingresos</string>
+    <string name="fig_expenses">Gastos</string>
+    <string name="fig_loan_payments">Cuotas del préstamo</string>
+    <string name="row_debt_new">Préstamo nuevo</string>
+    <string name="row_debt_interest">Intereses cargados</string>
+    <string name="row_debt_paid">Cuotas pagadas</string>
+    <string name="cat_loan">Préstamo recibido</string>
+    <string name="networth_chart_title">Tu patrimonio neto, mes a mes</string>
+    <string name="networth_chart_desc">Caja e inversiones por encima de cero, deuda por debajo; la línea es tu patrimonio neto. Las líneas discontinuas son tus decisiones. Pulsa un mes para explorarlo.</string>
+    <string name="explore_cash_formula">Cada mes: caja = caja anterior + ingresos − gastos − cuota del préstamo − intereses por caja negativa. Un préstamo recibido es un ingreso de su mes; sus cuotas salen de la caja enteras (intereses y devolución).</string>
+    <string name="explore_origin">De dónde sale</string>
 </resources>

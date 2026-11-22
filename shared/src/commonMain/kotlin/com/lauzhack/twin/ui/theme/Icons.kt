@@ -42,6 +42,8 @@ object TwinIcons {
     val Moon = icon("moon", "M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z")
     val Globe = icon("globe", CIRCLE, "M3 12h18", "M12 3a14 14 0 0 1 0 18", "M12 3a14 14 0 0 0 0 18")
     val Back = icon("back", "M15 5l-7 7 7 7")
+    val Forward = icon("forward", "M9 5l7 7-7 7")
+    val Close = icon("close", "M6 6l12 12", "M18 6L6 18")
     val Sparkle = icon("sparkle", "M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z")
     val Layers = icon("layers", "M12 3l9 5-9 5-9-5z", "M3 13l9 5 9-5")
     val Chart = icon("chart", "M4 20V4", "M4 20h16", "M7 15l4-4 3 3 5-6")

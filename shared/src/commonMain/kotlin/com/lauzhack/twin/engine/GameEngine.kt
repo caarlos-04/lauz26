@@ -61,6 +61,13 @@ interface GameEngine {
     fun attribution(session: GameSession): Attribution = finish(session).attribution
 
     /**
+     * Every month of the life [session]: index = month (0 = the opening statement, then one statement per simulated
+     * month with its `cashFlow`). The months between two decisions are not stored anywhere: they are replayed (pure,
+     * same result), so any figure of any moment can be broken down into the flows that made it.
+     */
+    fun months(session: GameSession): List<FinancialStatement>
+
+    /**
      * Optional (#12, option 2): cash percentiles per month (0..horizon) replaying the decisions with the simulator's
      * sampled monthly flows. Shown as "how much month-to-month noise moves your cash", NOT as the analysis (that is
      * the tree of decisions). null = the engine does not provide it.

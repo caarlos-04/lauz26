@@ -77,6 +77,8 @@ class RealGameEngine(private val twin: TwinEngine) : GameEngine {
     /** Only the replay: cheap enough to explain every node. */
     override fun attribution(session: GameSession): Attribution = replay(session).attribution
 
+    override fun months(session: GameSession): List<FinancialStatement> = replay(session).monthly
+
     /**
      * #12 option 2: p10 / p50 / p90 of cash per month, replaying the decisions (same cases and shocks) with the
      * simulator's sampled monthly flows. Only "how much month-to-month noise moves your cash"; not the analysis.
